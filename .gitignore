@@ -19,6 +19,8 @@ admin_credentials.txt
 
 # ⚠️ FIX: Alefa ny public.pem (ilaina amin'ny build)
 !admin-tools/keys/public.pem
+!electron/keys/public.pem
+!electron/keys/codes.db.enc
 
 # ============================================================
 # ⭐ DATABASE FILES (mety misy données)
@@ -98,6 +100,8 @@ Thumbs.db
 **/keys/private.pem
 admin-tools/keys/private.pem
 admin-tools/keys/fingerprint.txt
+electron/admin-tools/keys/private.pem
+electron/admin-tools/keys/fingerprint.txt
 
 # Scripts de génération de codes (tokony ho afenina)
 admin-tools/generate-activation-code.cjs
@@ -106,9 +110,15 @@ admin-tools/generate-keys.cjs
 admin-tools/generate-masse.cjs
 admin-tools/generate-revoked.cjs
 
+# ⭐ FANAMPINY: Scripts ao amin'ny electron/admin-tools
+electron/admin-tools/generate-*.cjs
+electron/admin-tools/build-codes-db.cjs
+
 # Exports de codes d'activation (tokony tsy hita)
 admin-tools/exports/*
 !admin-tools/exports/.gitkeep
+electron/admin-tools/exports/*
+!electron/admin-tools/exports/.gitkeep
 
 # Licence files (production)
 *.lic
