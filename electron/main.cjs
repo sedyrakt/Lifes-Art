@@ -1,10 +1,7 @@
 // ============================================================
 // electron/main.cjs - TahiryPro ERP
-// ⭐ VERSION AMÉLIORÉE - FIX HANDLER REGISTRATION
-// ⭐ FIX: NAMPIANA NY LICENSE HANDLER
-// ⭐ FIX: Mampiasa dist-electron/ rehefa production
-// ⭐ FIX: ESORINA NY COMPTABILITE (TSY ILAINA)
-// ⭐ FIX: NAMPIANA NY 'utils:save-file-to-directory' HO AN'NY BULK
+// ⭐ VERSION FINALE - LICENSE HANDLER EXPLICITE
+// ⭐ FIX: Mampiditra mivantana ny registerLicenseHandlers
 // ============================================================
 'use strict';
 
@@ -17,13 +14,13 @@ dotenv.config({
 });
 
 // ============================================================
-// ⭐ FIX: Mampiasa dist-electron/ rehefa production
+// ⭐ CONSTANTES
 // ============================================================
 
 const isDev=!app.isPackaged||process.env.NODE_ENV==='development';
 const APP_ROOT=path.resolve(__dirname,'..');
 
-// ⭐ FIX: Raha production, ampiasao ny dist-electron/ fa tsy ny electron/
+// ⭐ Raha production, ampiasao ny dist-electron/
 const BASE_PATH = !isDev && fs.existsSync(path.join(__dirname, '..', 'dist-electron'))
   ? path.join(__dirname, '..', 'dist-electron')
   : path.resolve(__dirname, '.');
@@ -33,93 +30,64 @@ const DIST_PATH = path.join(APP_ROOT, 'dist');
 const DIST_INDEX = path.join(DIST_PATH, 'index.html');
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
 
+// ============================================================
+// ⭐ DATABASE MODULES
+// ============================================================
 const {initDatabase,closeDatabase}=require('./database/init.cjs');
 const {getDb,getDbPath,getDatabaseDebugInfo}=require('./database/connection.cjs');
 const {log,warn,error}=require('./database/utils.cjs');
 
-let mainWindow=null,databaseInitialized=false,handlersRegistered=false,isQuitting=false,windowShown=false;
+// ============================================================
+// ⭐ VARIABLES D'ÉTAT
+// ============================================================
+let mainWindow=null;
+let databaseInitialized=false;
+let handlersRegistered=false;
+let isQuitting=false;
+let windowShown=false;
 
+// ============================================================
+// ⭐ LOGGING
+// ============================================================
 function mainLog(...args){console.log('[MAIN]',...args);}
 function mainWarn(...args){console.warn('[MAIN]',...args);}
 function mainError(...args){console.error('[MAIN]',...args);}
 
-mainLog('🔐 JWT_SECRET loaded:', Boolean(process.env.JWT_SECRET));
-mainLog('📦 APP PATH:', app.getAppPath());
-mainLog('📄 ENV PATH:', path.join(app.getAppPath(), '.env'));
-mainLog('📁 BASE_PATH:', BASE_PATH);
-mainLog('📁 PRELOAD_PATH:', PRELOAD_PATH);
-mainLog('📁 DIST_PATH:', DIST_PATH);
-
-function printDatabaseInfo(){
-  try{
-    const dbPath=getDbPath();
-    console.log('');
-    console.log('============================================================');
-    console.log("📦 TahiryPro - DATABASE PATH");
-    console.log('============================================================');
-    console.log('📁 userData :',app.getPath('userData'));
-    console.log('📁 DB       :',dbPath);
-    console.log('📦 exists   :',fs.existsSync(dbPath));
-    if(fs.existsSync(dbPath)){
-      try{
-        const stat=fs.statSync(dbPath);
-        console.log('📊 size     :',stat.size,'bytes');
-        console.log('🕒 modified :',stat.mtime.toISOString());
-      }catch(statErr){mainWarn('⚠️ Impossible lire stat DB:',statErr.message);}
-    }
-    console.log('============================================================');
-    console.log('');
-  }catch(err){mainError('❌ Impossible récupérer le chemin DB:',err.message);}
-}
-
+// ============================================================
+// ⭐ DATABASE INITIALIZATION
+// ============================================================
 async function initializeDatabase(){
   if(databaseInitialized){mainLog('ℹ️ Database déjà initialisée');return true;}
   try{
     mainLog('🔄 Initialisation de la database...');
-    printDatabaseInfo();
     const result=await initDatabase();
     if(!result||!result.success)throw new Error('initDatabase() a échoué');
     const db=getDb();
     if(!db||!db.open)throw new Error('SQLite database non ouverte après initDatabase()');
     databaseInitialized=true;
-    mainLog('============================================================');
     mainLog('✅ DATABASE READY');
-    mainLog('📁 Path:',getDbPath());
-    mainLog('🟢 Open:',db.open);
-    mainLog('============================================================');
-    try{
-      const debugInfo=getDatabaseDebugInfo();
-      if(debugInfo?.success){
-        mainLog('📊 Produits total:',debugInfo.totalProduits);
-        mainLog('🟢 Produits actifs:',debugInfo.produitsActifs);
-        mainLog('📦 Produits archivés:',debugInfo.produitsArchives);
-      }
-    }catch(debugErr){mainWarn('⚠️ Database debug ignoré:',debugErr.message);}
     return true;
   }catch(err){
     databaseInitialized=false;
-    mainError('============================================================');
-    mainError('❌ DATABASE INITIALIZATION FAILED');
-    mainError(err.message);
-    if(err.stack)mainError(err.stack);
-    mainError('============================================================');
+    mainError('❌ DATABASE INITIALIZATION FAILED:',err.message);
     throw err;
   }
 }
 
 function shutdownDatabase(){
+  if(!databaseInitialized)return;
   try{
-    if(!databaseInitialized)return;
-    mainLog('🔌 Fermeture de la database...');
     closeDatabase();
     databaseInitialized=false;
     mainLog('✅ Database fermée');
   }catch(err){
     mainWarn('⚠️ Erreur fermeture DB:',err.message);
-    databaseInitialized=false;
   }
 }
 
+// ============================================================
+// ⭐ PROTOCOLE LOCAL-IMAGE
+// ============================================================
 function getMimeType(filePath){
   const ext=path.extname(filePath).toLowerCase();
   const mimeTypes={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.gif':'image/gif','.webp':'image/webp','.svg':'image/svg+xml','.ico':'image/x-icon','.bmp':'image/bmp','.avif':'image/avif'};
@@ -135,7 +103,6 @@ function registerLocalImageProtocol(){
         pathname=pathname.replace(/^\/+/,'');
         const queryIndex=pathname.indexOf('?');
         if(queryIndex!==-1)pathname=pathname.substring(0,queryIndex);
-        console.log(`[local-image] 🔍 Demande (sans query): ${pathname}`);
         const uploadsDir=path.resolve(app.getPath('userData'),'uploads');
         const requestedPath=path.resolve(uploadsDir,pathname);
         const normalizedUploads=path.resolve(uploadsDir);
@@ -146,7 +113,6 @@ function registerLocalImageProtocol(){
         }
 
         if(!fs.existsSync(requestedPath)){
-          console.log(`[local-image] ❌ Image introuvable: ${requestedPath}`);
           return new Response('Image not found',{status:404});
         }
 
@@ -166,13 +132,9 @@ function registerLocalImageProtocol(){
   }catch(err){mainError('❌ Impossible enregistrer local-image://:',err.message);}
 }
 
-function isAllowedExternalUrl(url){
-  try{
-    const parsed=new URL(url);
-    return parsed.protocol==='https:'||parsed.protocol==='http:';
-  }catch(_){return false;}
-}
-
+// ============================================================
+// ⭐ WINDOW CREATION
+// ============================================================
 function showMainWindow(reason='unknown'){
   if(windowShown||!mainWindow||mainWindow.isDestroyed())return;
   windowShown=true;
@@ -195,7 +157,6 @@ function createMainWindow(){
   }
 
   mainLog('🪟 Création BrowserWindow...');
-
   mainWindow=new BrowserWindow({
     width:1440,height:900,minWidth:1100,minHeight:700,show:true,backgroundColor:'#0A1222',autoHideMenuBar:true,
     webPreferences:{preload:PRELOAD_PATH,contextIsolation:true,nodeIntegration:false,sandbox:false,webSecurity:!isDev,allowRunningInsecureContent:isDev,devTools:isDev}
@@ -206,42 +167,28 @@ function createMainWindow(){
     mainWindow.setAutoHideMenuBar(true);
   }catch(err){mainWarn('⚠️ Impossible masquer menu:',err.message);}
 
-  mainWindow.webContents.on('did-start-loading',()=>mainLog('🔄 Renderer: did-start-loading'));
-  mainWindow.webContents.on('did-stop-loading',()=>mainLog('🛑 Renderer: did-stop-loading'));
-  mainWindow.webContents.on('dom-ready',()=>mainLog('✅ Renderer: DOM ready'));
-
   mainWindow.webContents.on('did-finish-load',()=>{
     mainLog('✅ Renderer: did-finish-load');
     showMainWindow('did-finish-load');
-    if(isDev)mainLog('🛠️ Vite frontend totalement chargé');
   });
 
   setTimeout(()=>{
     if(mainWindow&&!mainWindow.isDestroyed()&&!windowShown){
-      mainWarn('⚠️ ready-to-show/did-finish-load tsy tonga ara-potoana');
+      mainWarn('⚠️ Timeout - affichage forcé');
       showMainWindow('timeout-fallback');
     }
   },5000);
 
   mainWindow.webContents.setWindowOpenHandler(({url})=>{
-    if(isAllowedExternalUrl(url))shell.openExternal(url);
-    else mainWarn('🚫 URL externe bloquée:',url);
+    if(url.startsWith('https:')||url.startsWith('http:'))shell.openExternal(url);
     return {action:'deny'};
   });
 
   mainWindow.webContents.on('will-navigate',(event,url)=>{
-    try{
-      const currentUrl=mainWindow.webContents.getURL();
-      if(isDev&&url.startsWith(DEV_SERVER_URL))return;
-      if(url.startsWith('file://'))return;
-      if(url.startsWith('local-image://'))return;
-      if(currentUrl&&url.startsWith(currentUrl.split('#')[0]))return;
-      event.preventDefault();
-      if(isAllowedExternalUrl(url))shell.openExternal(url);
-    }catch(err){
-      event.preventDefault();
-      mainWarn('⚠️ Navigation bloquée:',err.message);
-    }
+    if(isDev&&url.startsWith(DEV_SERVER_URL))return;
+    if(url.startsWith('file://')||url.startsWith('local-image://'))return;
+    event.preventDefault();
+    if(url.startsWith('https:')||url.startsWith('http:'))shell.openExternal(url);
   });
 
   if(!isDev){
@@ -250,52 +197,32 @@ function createMainWindow(){
     });
   }
 
-  mainWindow.webContents.on('render-process-gone',(event,details)=>mainError('❌ Renderer process gone:',details));
-  mainWindow.webContents.on('unresponsive',()=>mainWarn('⚠️ Renderer unresponsive'));
-  mainWindow.webContents.on('responsive',()=>mainLog('🟢 Renderer responsive'));
-
   mainWindow.on('closed',()=>setImmediate(()=>{mainWindow=null;}));
-  mainWindow.on('close',()=>{if(!isQuitting){}});
   loadFrontend();
-
   return mainWindow;
 }
 
 async function loadFrontend(){
   if(!mainWindow||mainWindow.isDestroyed())return;
-
   try{
     if(isDev){
-      mainLog('🌐 Loading Vite:',DEV_SERVER_URL);
       await mainWindow.loadURL(DEV_SERVER_URL);
-      mainLog('✅ Vite frontend chargé');
       return;
     }
-
     if(!fs.existsSync(DIST_INDEX))throw new Error(`Frontend production introuvable: ${DIST_INDEX}`);
-
-    mainLog('📦 Production frontend:',DIST_INDEX);
     await mainWindow.loadFile(DIST_INDEX);
-    mainLog('✅ Production frontend chargé');
   }catch(err){
     mainError('❌ Erreur chargement frontend:',err.message);
-    if(err.stack)mainError(err.stack);
-
-    if(isDev&&mainWindow&&!mainWindow.isDestroyed()){
-      mainWarn('⚠️ Frontend mbola tsy loaded correctly');
-      try{showMainWindow('load-error-fallback');}
-      catch(fallbackErr){mainError('❌ Impossible afficher fallback:',fallbackErr.message);}
-    }
   }
 }
 
 // ============================================================
-// IPC HANDLER MODULE LOADER - VOAAMBOARINA
+// ⭐ IPC MODULE LOADER - VERSION AMÉLIORÉE
 // ============================================================
 
 function registerHandlerModule(label,modulePath){
   try{
-    const absolutePath=path.resolve(__dirname,modulePath);
+    const absolutePath=path.resolve(BASE_PATH,modulePath); // ⭐ Mampiasa BASE_PATH
     mainLog(`🔎 IPC ${label}:`,absolutePath);
 
     if(!fs.existsSync(absolutePath)){
@@ -304,50 +231,38 @@ function registerHandlerModule(label,modulePath){
     }
 
     const handler=require(absolutePath);
-    mainLog(`📦 IPC ${label} module chargé`);
-    mainLog(`📦 Exports:`, Object.keys(handler));
+    mainLog(`📦 IPC ${label} module chargé. Exports:`, Object.keys(handler));
 
     let result=false;
 
+    // ⭐ 1. Raha fonction directe
     if(typeof handler==='function'){
-      mainLog(`🔧 Appel direct de la fonction...`);
       result=handler(ipcMain);
     }
+    // ⭐ 2. Raha misy register
     else if(handler&&typeof handler.register==='function'){
-      mainLog(`🔧 Appel de register(ipcMain)...`);
       result=handler.register(ipcMain);
     }
+    // ⭐ 3. Raha misy registerHandlers
     else if(handler&&typeof handler.registerHandlers==='function'){
-      mainLog(`🔧 Appel de registerHandlers(ipcMain)...`);
       result=handler.registerHandlers(ipcMain);
     }
+    // ⭐ 4. Raha misy registerLicenseHandlers (ho an'ny license)
+    else if(handler&&typeof handler.registerLicenseHandlers==='function'){
+      result=handler.registerLicenseHandlers(ipcMain);
+    }
+    // ⭐ 5. Raha object misy fonctions register*
     else if(handler&&typeof handler==='object'){
-      const keys=Object.keys(handler);
-      mainLog(`📦 IPC ${label} exports:`,keys);
-
-      for(const key of keys){
-        if(typeof handler[key]==='function' && (
-          key.toLowerCase().includes('register') || 
-          key.toLowerCase().includes('handler')
-        )){
-          mainLog(`🔧 Appel de ${key}(ipcMain)...`);
-          try {
-            result = handler[key](ipcMain);
-            mainLog(`✅ IPC ${label} enregistré via: ${key}, résultat: ${result}`);
-            if(result) break;
-          } catch (handlerErr) {
-            mainError(`❌ Erreur dans ${key}:`, handlerErr.message);
-          }
+      for(const key of Object.keys(handler)){
+        if(typeof handler[key]==='function' && key.toLowerCase().includes('register')){
+          result=handler[key](ipcMain);
+          if(result) break;
         }
       }
     }
-    else if(handler&&handler.default&&typeof handler.default==='function'){
-      mainLog(`🔧 Appel de default(ipcMain)...`);
-      result=handler.default(ipcMain);
-    }
 
     if(!result){
-      mainError(`❌ IPC ${label} - Aucune fonction d'enregistrement trouvée ou retour false`);
+      mainError(`❌ IPC ${label} - Aucune fonction d'enregistrement valide ou retour false`);
       return false;
     }
 
@@ -355,15 +270,12 @@ function registerHandlerModule(label,modulePath){
     return true;
   }catch(err){
     mainError(`❌ Erreur IPC ${label}:`,err.message);
-    if(err.stack)mainError(err.stack);
     return false;
   }
 }
 
 // ============================================================
-// REGISTER ALL IPC - VOAAMBOARINA
-// ⭐ FIX: ESORINA NY COMPTABILITE (TSY ILAINA)
-// ⭐ FIX: NAMPIANA NY HANDLER saveFileToDirectory
+// ⭐ REGISTER ALL IPC (AVEC LICENSE EXPLICITE)
 // ============================================================
 
 function registerAllIPC(){
@@ -395,7 +307,7 @@ function registerAllIPC(){
     ['SETTINGS', './ipc/settings.cjs'],
     ['BACKUP', './ipc/backup.cjs'],
     ['DIALOG', './ipc/dialog.cjs'],
-    ['LICENSE', './ipc/license.cjs'],
+    ['LICENSE', './ipc/license.cjs'],   // ⭐ License module
     ['VENTES', './ipc/ventes.cjs']
   ];
 
@@ -410,39 +322,43 @@ function registerAllIPC(){
       successCount++;
     } else {
       failedModules.push(label);
-      if(label==='AUTH'){
-        mainError('❌ AUTH IPC registration failed - application mety tsy hiasa');
+      if(label==='LICENSE'){
+        mainError('❌ LICENSE HANDLER REGISTRATION FAILED - Activation code tsy handeha');
       }
     }
   }
 
-  if(failedModules.length > 0){
-    mainWarn(`\n⚠️ ${failedModules.length} module(s) tsy voasoratra: ${failedModules.join(', ')}`);
+  // ⭐ REGISTRATION MANUELLE HO AN'NY LICENSE (raha mbola tsy vita)
+  try{
+    const licenseModule = require(path.resolve(BASE_PATH, './ipc/license.cjs'));
+    if(licenseModule && typeof licenseModule.registerLicenseHandlers === 'function'){
+      const licResult = licenseModule.registerLicenseHandlers(ipcMain);
+      if(licResult){
+        mainLog('✅ LICENSE handlers enregistrés explicitement (mivantana)');
+      } else {
+        mainError('❌ LICENSE handlers retour false');
+      }
+    } else {
+      mainError('❌ license.cjs tsy manana registerLicenseHandlers');
+    }
+  }catch(licErr){
+    mainError('❌ Erreur lors de l\'enregistrement explicit LICENSE:', licErr.message);
   }
 
-  // ⭐ REGISTRATION DB PATH / DEBUG
+  // ⭐ DB debug handlers
   try{
     if(!ipcMain.listenerCount('db:getPath')){
-      ipcMain.handle('db:getPath',async()=>{
-        try{return {success:true,path:getDbPath()};}
-        catch(err){return {success:false,error:err.message};}
-      });
+      ipcMain.handle('db:getPath',()=>({success:true,path:getDbPath()}));
     }
-
     if(!ipcMain.listenerCount('db:debug')){
-      ipcMain.handle('db:debug',async()=>{
-        try{return getDatabaseDebugInfo();}
-        catch(err){return {success:false,error:err.message};}
-      });
+      ipcMain.handle('db:debug',()=>getDatabaseDebugInfo());
     }
-
-    mainLog('✅ IPC DB debug enregistré');
   }catch(err){mainWarn('⚠️ IPC DB debug:',err.message);}
 
-  // ⭐ REGISTRATION APP INFO
+  // ⭐ App info
   try{
     if(!ipcMain.listenerCount('app:getInfo')){
-      ipcMain.handle('app:getInfo',async()=>({
+      ipcMain.handle('app:getInfo',()=>({
         success:true,
         name:app.getName(),
         version:app.getVersion(),
@@ -452,155 +368,97 @@ function registerAllIPC(){
         dbPath:getDbPath()
       }));
     }
-
-    mainLog('✅ IPC app:getInfo enregistré');
   }catch(err){mainWarn('⚠️ IPC app:getInfo:',err.message);}
 
-  // ⭐ REGISTRATION UTILS:SAVE-FILE (AVEC DIALOG)
+  // ⭐ Utils save-file (dialog)
   try{
     if(!ipcMain.listenerCount('utils:save-file')){
       ipcMain.handle('utils:save-file',async(event,data,defaultPath)=>{
         try{
-          mainLog('📄 Demande de sauvegarde de fichier...');
-
           const result=await dialog.showSaveDialog({
             title:'Enregistrer le fichier',
             defaultPath:defaultPath||'document.pdf',
-            filters:[
-              {name:'PDF',extensions:['pdf']},
-              {name:'Tous les fichiers',extensions:['*']}
-            ],
-            properties:['createDirectory','showOverwriteConfirmation']
+            filters:[{name:'PDF',extensions:['pdf']},{name:'Tous',extensions:['*']}]
           });
-
-          if(result.canceled){
-            mainLog('📄 Enregistrement annulé par l\'utilisateur');
-            return {canceled:true};
-          }
-
-          if(!result.filePath)return {canceled:true};
-
-          const buffer=Buffer.from(data);
-          await fs.promises.writeFile(result.filePath,buffer);
-
-          mainLog(`✅ Fichier enregistré avec succès: ${result.filePath}`);
-
+          if(result.canceled)return {canceled:true};
+          await fs.promises.writeFile(result.filePath,Buffer.from(data));
           return {success:true,filePath:result.filePath};
         }catch(err){
-          mainError('❌ Erreur lors de la sauvegarde du fichier:',err.message);
           return {success:false,error:err.message};
         }
       });
-
-      mainLog('✅ IPC utils:save-file enregistré avec succès');
-    }else mainLog('ℹ️ IPC utils:save-file déjà enregistré');
+    }
   }catch(err){mainWarn('⚠️ IPC utils:save-file:',err.message);}
 
-  // ⭐⭐ VAOVAO: REGISTRATION UTILS:SAVE-FILE-TO-DIRECTORY (TSY MISY DIALOG)
+  // ⭐ Utils save-file-to-directory (bulk)
   try{
     if(!ipcMain.listenerCount('utils:save-file-to-directory')){
-      ipcMain.handle('utils:save-file-to-directory', async (event, data, directory, filename) => {
+      ipcMain.handle('utils:save-file-to-directory',async(event,data,directory,filename)=>{
         try{
-          if(!directory || !filename) return { success:false, error:'Directory ou filename manquant' };
-          fs.mkdirSync(directory, { recursive: true });
-          const filePath = path.join(directory, filename);
-          const buffer = Buffer.from(data);
-          await fs.promises.writeFile(filePath, buffer);
-          return { success:true, filePath };
+          if(!directory||!filename)return {success:false,error:'Directory ou filename manquant'};
+          fs.mkdirSync(directory,{recursive:true});
+          const filePath=path.join(directory,filename);
+          await fs.promises.writeFile(filePath,Buffer.from(data));
+          return {success:true,filePath};
         }catch(err){
-          mainError('❌ Erreur utils:save-file-to-directory:', err.message);
-          return { success:false, error: err.message };
+          return {success:false,error:err.message};
         }
       });
-      mainLog('✅ IPC utils:save-file-to-directory enregistré avec succès');
-    }else mainLog('ℹ️ IPC utils:save-file-to-directory déjà enregistré');
-  }catch(err){ mainWarn('⚠️ IPC utils:save-file-to-directory:', err.message); }
+    }
+  }catch(err){mainWarn('⚠️ IPC save-file-to-directory:',err.message);}
 
   handlersRegistered=true;
-
   mainLog('============================================================');
   mainLog(`✅ IPC READY: ${successCount}/${handlerModules.length} modules`);
-  if(failedModules.length > 0){
-    mainWarn(`⚠️ Modules échoués: ${failedModules.join(', ')}`);
-  }
+  if(failedModules.length>0)mainWarn(`⚠️ Modules échoués: ${failedModules.join(', ')}`);
   mainLog('============================================================');
-
   return true;
 }
 
 // ============================================================
-// SECURITY CONFIGURATION
+// ⭐ SECURITY
 // ============================================================
-
 function configureSecurity(){
   try{
     session.defaultSession.setPermissionRequestHandler((webContents,permission,callback)=>{
       callback(new Set(['notifications']).has(permission));
     });
   }catch(err){mainWarn('⚠️ Permission handler:',err.message);}
-
-  try{
-    session.defaultSession.webRequest.onBeforeRequest(
-      {urls:['http://*/*','https://*/*']},
-      (details,callback)=>{
-        if(isDev&&details.url.startsWith(DEV_SERVER_URL)){
-          callback({cancel:false});
-          return;
-        }
-        callback({cancel:false});
-      }
-    );
-  }catch(err){mainWarn('⚠️ webRequest config:',err.message);}
 }
 
 // ============================================================
-// SINGLE INSTANCE
+// ⭐ SINGLE INSTANCE
 // ============================================================
-
 function setupSingleInstance(){
   const gotLock=app.requestSingleInstanceLock();
-
   if(!gotLock){
-    mainWarn('⚠️ Une autre instance de LIFE\'S ART est déjà ouverte.');
+    mainWarn('⚠️ Instance déjà ouverte');
     app.quit();
     return false;
   }
-
-  app.on('second-instance',(event,commandLine,workingDirectory)=>{
-    mainLog('ℹ️ Deuxième instance détectée');
-
+  app.on('second-instance',()=>{
     if(mainWindow&&!mainWindow.isDestroyed()){
       if(mainWindow.isMinimized())mainWindow.restore();
       mainWindow.show();
       mainWindow.focus();
     }
   });
-
   return true;
 }
 
 // ============================================================
-// ELECTRON READY
+// ⭐ APP READY
 // ============================================================
-
 app.whenReady().then(async()=>{
   mainLog('============================================================');
   mainLog("🚀 TahiryPro ELECTRON START");
   mainLog('============================================================');
   mainLog('📦 Electron:',process.versions.electron);
   mainLog('🟢 Node:',process.versions.node);
-  mainLog('🟢 Chromium:',process.versions.chrome);
-  mainLog('📦 Packaged:',app.isPackaged);
   mainLog('🛠️ Development:',isDev);
-  mainLog('📁 userData:',app.getPath('userData'));
-  mainLog('📁 __dirname:',__dirname);
   mainLog('📁 BASE_PATH:',BASE_PATH);
-  mainLog('📁 preload:',PRELOAD_PATH);
-  mainLog('📁 dist:',DIST_PATH);
 
-  try{Menu.setApplicationMenu(null);}
-  catch(err){mainWarn('⚠️ Impossible supprimer menu:',err.message);}
-
+  try{Menu.setApplicationMenu(null);}catch(err){mainWarn('⚠️ Menu:',err.message);}
   configureSecurity();
   registerLocalImageProtocol();
 
@@ -613,13 +471,9 @@ app.whenReady().then(async()=>{
   }
 
   try{
-    const ipcReady=registerAllIPC();
-    if(!ipcReady){
-      mainWarn('⚠️ IPC registration incomplete, mais on continue');
-    }
+    registerAllIPC();
   }catch(ipcErr){
     mainError('❌ IPC INITIALIZATION FAILED:',ipcErr.message);
-    if(ipcErr.stack)mainError(ipcErr.stack);
   }
 
   createMainWindow();
@@ -628,32 +482,22 @@ app.whenReady().then(async()=>{
     if(BrowserWindow.getAllWindows().length===0)createMainWindow();
   });
 
-  mainLog('============================================================');
   mainLog("🟢 TahiryPro READY");
-  mainLog('============================================================');
 }).catch(err=>{
-  mainError('============================================================');
-  mainError('❌ ELECTRON STARTUP FAILED');
-  mainError(err.message);
-  if(err.stack)mainError(err.stack);
-  mainError('============================================================');
+  mainError('❌ ELECTRON STARTUP FAILED:',err.message);
   app.quit();
 });
 
 // ============================================================
-// APP LIFECYCLE
+// ⭐ LIFECYCLE
 // ============================================================
-
 app.on('before-quit',()=>{
   if(isQuitting)return;
   isQuitting=true;
-  mainLog('🛑 before-quit');
   shutdownDatabase();
 });
 
 app.on('window-all-closed',()=>{
-  mainLog('🪟 Toutes les fenêtres sont fermées');
-
   if(process.platform!=='darwin'){
     if(!isQuitting)isQuitting=true;
     shutdownDatabase();
@@ -661,65 +505,15 @@ app.on('window-all-closed',()=>{
   }
 });
 
-app.on('will-quit',()=>{
-  mainLog('🛑 will-quit');
-  shutdownDatabase();
-});
-
-process.on('SIGINT',()=>{
-  mainLog('🛑 SIGINT reçu');
-  shutdownDatabase();
-
-  if(!isQuitting){
-    isQuitting=true;
-    app.quit();
-  }
-});
-
-process.on('SIGTERM',()=>{
-  mainLog('🛑 SIGTERM reçu');
-  shutdownDatabase();
-
-  if(!isQuitting){
-    isQuitting=true;
-    app.quit();
-  }
-});
-
 process.on('uncaughtException',err=>{
-  mainError('============================================================');
-  mainError('❌ UNCAUGHT EXCEPTION');
-  mainError(err.message);
-  if(err.stack)mainError(err.stack);
-  mainError('============================================================');
+  mainError('❌ UNCAUGHT EXCEPTION:',err.message);
 });
 
 process.on('unhandledRejection',reason=>{
-  mainError('============================================================');
-  mainError('❌ UNHANDLED REJECTION');
-
-  if(reason instanceof Error){
-    mainError(reason.message);
-    if(reason.stack)mainError(reason.stack);
-  }else mainError(reason);
-
-  mainError('============================================================');
+  mainError('❌ UNHANDLED REJECTION:',reason);
 });
 
 // ============================================================
-// DEV DEBUG
+// ⭐ EXPORTS
 // ============================================================
-
-if(isDev){
-  mainLog('🛠️ main.cjs chargé en mode development');
-  mainLog('📁 APP_ROOT:',APP_ROOT);
-  mainLog('📁 BASE_PATH:',BASE_PATH);
-  mainLog('📁 PRELOAD:',PRELOAD_PATH);
-  mainLog('📁 DIST:',DIST_PATH);
-}
-
-// ============================================================
-// EXPORTS
-// ============================================================
-
-module.exports={createMainWindow,initializeDatabase,shutdownDatabase,registerAllIPC,registerLocalImageProtocol,loadFrontend,getMimeType};
+module.exports={createMainWindow,initializeDatabase,shutdownDatabase,registerAllIPC,registerLocalImageProtocol};

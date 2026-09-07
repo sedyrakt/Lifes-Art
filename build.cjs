@@ -1,4 +1,7 @@
-
+// ============================================================
+// build.cjs - PRODUCTION BUILD (OBFUSCATION ONLY)
+// ⭐ TSY MISY BYTENODE INTSONY - Ampiasao ny .cjs obfusqué fotsiny
+// ============================================================
 
 const { execSync } = require('child_process');
 const fs = require('fs');
@@ -6,41 +9,19 @@ const path = require('path');
 const JavaScriptObfuscator = require('javascript-obfuscator');
 
 console.log('═'.repeat(80));
-console.log('🔒 BUILD COMPLET: BYTENODE + OBFUSCATION');
+console.log('🔒 BUILD COMPLET: OBFUSCATION ONLY (Bytenode esorina)');
 console.log('═'.repeat(80));
 
 const distDir = path.join(__dirname, 'dist-electron');
 if (!fs.existsSync(distDir)) fs.mkdirSync(distDir, { recursive: true });
 
 // ============================================================
-// 1. BYTENODE COMPILATION (fichiers license)
+// ⭐ ÉTAPE 1: BYTENODE - ESORINA TANTERAKA (TSY MISY .jsc)
 // ============================================================
-const bytenodeFiles = [
-  'electron/services/license/crypto.cjs',
-  'electron/services/license/machine.cjs',
-  'electron/services/license/activation.cjs',
-  'electron/services/license/validation.cjs',
-  'electron/services/license/file.cjs',
-];
-
-console.log('\n📦 Étape 1: Compilation Bytenode...');
-for (const rel of bytenodeFiles) {
-  const src = path.join(__dirname, rel);
-  if (!fs.existsSync(src)) {
-    console.warn(`  ⚠️ Tsy hita: ${rel}`);
-    continue;
-  }
-  try {
-    // Compile .cjs -> .jsc (ao amin'ny source)
-    execSync(`npx bytenode --compile "${src}"`, { stdio: 'inherit' });
-    console.log(`  ✅ ${path.basename(src)} → .jsc`);
-  } catch (err) {
-    console.error(`  ❌ Erreur compilation ${rel}:`, err.message);
-  }
-}
+// const bytenodeFiles = [...]; // ⏭️ ESORINA
 
 // ============================================================
-// 2. OBFUSCATION (main, preload, ipc, services, database, utils)
+// 1. OBFUSCATION (main, preload, ipc, services, database, utils)
 // ============================================================
 const isProduction = Boolean(process.resourcesPath) || process.env.NODE_ENV === 'production';
 
@@ -95,11 +76,16 @@ function obfuscateDirectoryRecursive(srcDir, destDir) {
     if (entry.isDirectory()) {
       obfuscateDirectoryRecursive(srcPath, destPath);
     } else if (entry.isFile()) {
+      // ⭐ FANOVANA: Skip ny .jsc (bytenode esorina)
+      if (entry.name.endsWith('.jsc')) {
+        console.log(`   ⏭️ Skipped (bytenode removed): ${path.relative(path.join(__dirname, 'electron'), srcPath)}`);
+        continue;
+      }
       if (entry.name.endsWith('.cjs')) {
         const success = obfuscateFile(srcPath, destPath, false);
         if (success) console.log(`   🔒 Obfusqué: ${path.relative(path.join(__dirname, 'electron'), srcPath)}`);
       } else {
-        // .jsc, .json, .pem, .db.enc, etc.
+        // .json, .pem, .db.enc, etc.
         fs.copyFileSync(srcPath, destPath);
         console.log(`   📄 Copié: ${path.relative(path.join(__dirname, 'electron'), srcPath)}`);
       }
@@ -107,7 +93,8 @@ function obfuscateDirectoryRecursive(srcDir, destDir) {
   }
 }
 
-console.log('\n📦 Étape 2: Obfuscation...');
+console.log('\n📦 Obfuscation...');
+
 // main.cjs
 const mainPath = path.join(__dirname, 'electron/main.cjs');
 if (fs.existsSync(mainPath)) {
@@ -139,9 +126,9 @@ for (const folder of foldersToProcess) {
 }
 
 // ============================================================
-// 3. COPIE DES RESSOURCES
+// 2. COPIE DES RESSOURCES
 // ============================================================
-console.log('\n📦 Étape 3: Copie des ressources...');
+console.log('\n📦 Copie des ressources...');
 const distKeysDest = path.join(distDir, 'keys');
 
 // ⭐ PRIORITÉ: electron/keys (public.pem + codes.db.enc)
@@ -171,11 +158,10 @@ if (fs.existsSync(exportsSrc)) {
   console.log('   ✅ exports/ copié');
 }
 
-// Assets, config, resources (NIHAVA: esorina ny generated, satria ny script no mamorona)
+// Assets, config, resources
 const extraDirs = [
   { src: path.join(__dirname, 'electron/assets'), dest: path.join(distDir, 'assets') },
   { src: path.join(__dirname, 'electron/config'), dest: path.join(distDir, 'config') },
-  // { src: path.join(__dirname, 'electron/generated'), dest: path.join(distDir, 'generated') }, // ⭐ COMMENTÉ: ny generate-integrity no mamorona
   { src: path.join(__dirname, 'resources'), dest: path.join(distDir, 'resources') },
 ];
 for (const item of extraDirs) {
@@ -187,9 +173,9 @@ for (const item of extraDirs) {
 }
 
 // ============================================================
-// 4. SUPPRESSION FICHIERS SENSIBLES
+// 3. SUPPRESSION FICHIERS SENSIBLES
 // ============================================================
-console.log('\n🔒 Étape 4: Suppression des fichiers sensibles...');
+console.log('\n🔒 Suppression des fichiers sensibles...');
 const sensitive = [
   path.join(distDir, 'keys/private.pem'),
   path.join(distDir, 'keys/fingerprint.txt'),
@@ -204,10 +190,9 @@ for (const file of sensitive) {
 }
 
 // ============================================================
-// 5. GÉNÉRATION DES HASHES (INTEGRITY) - NEW
-// ⭐ Mampandeha ny generate-integrity.cjs aorian'ny build
+// 4. GÉNÉRATION DES HASHES (INTEGRITY)
 // ============================================================
-console.log('\n📦 Étape 5: Génération des hashes d\'intégrité...');
+console.log('\n📦 Génération des hashes d\'intégrité...');
 try {
   execSync('node admin-tools/generate-integrity.cjs', { stdio: 'inherit' });
   console.log('   ✅ hashes.json + hashes.sig voaforona');
@@ -217,6 +202,25 @@ try {
 }
 
 // ============================================================
+// 5. FANADIOVANA FARANY (SAFETY NET: ESORINA NY .jsc Raha misy sisa)
+// ============================================================
+console.log('\n🧹 Fanadiovana farany (safe mode)...');
+function cleanupJsc(dir) {
+  if (!fs.existsSync(dir)) return;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      cleanupJsc(fullPath);
+    } else if (entry.name.endsWith('.jsc')) {
+      fs.unlinkSync(fullPath);
+      console.log(`   🗑️ Nofafana: ${fullPath}`);
+    }
+  }
+}
+cleanupJsc(distDir);
+
+// ============================================================
 // 6. VÉRIFICATION FINALE
 // ============================================================
 console.log('\n🔍 Vérification finale...');
@@ -224,8 +228,8 @@ const requiredFiles = [
   path.join(distDir, 'keys/public.pem'),
   path.join(distDir, 'keys/codes.db.enc'),
   path.join(distDir, 'main.cjs'),
-  path.join(distDir, 'generated/hashes.json'),   // ⭐ Nouveau
-  path.join(distDir, 'generated/hashes.sig'),    // ⭐ Nouveau
+  path.join(distDir, 'generated/hashes.json'),
+  path.join(distDir, 'generated/hashes.sig'),
 ];
 let ok = true;
 for (const f of requiredFiles) {
@@ -242,6 +246,6 @@ if (!ok) {
 }
 
 console.log('\n' + '═'.repeat(80));
-console.log('✅ BUILD COMPLET TERMINÉ');
+console.log('✅ BUILD COMPLET TERMINÉ (OBFUSCATION ONLY)');
 console.log(`📁 Sortie: ${distDir}`);
 console.log('═'.repeat(80));

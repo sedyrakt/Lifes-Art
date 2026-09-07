@@ -1,40 +1,25 @@
-// ============================================================
 // electron/services/license/index.cjs - RE-EXPORT
-// ⭐ CommonJS + Bytenode loader (optional)
-// ============================================================
-
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
 
-// ============================================================
-// ⭐ BYTENODE LOADER (raha misy .jsc)
-// ============================================================
-try {
-  require('bytenode'); // register .jsc extension
-} catch (e) {
-  // bytenode tsy installed → mbola mampiasa .cjs (normal)
-}
-
 /**
- * Load module (.jsc prioritaire, sinon .cjs)
+ * Load module (.cjs fotsiny - no bytenode)
  */
 function loadLicenseModule(name) {
   const base = path.join(__dirname, name);
-  const jscPath = base + '.jsc';
   const cjsPath = base + '.cjs';
 
-  if (fs.existsSync(jscPath)) {
-    return require(jscPath);
+  if (fs.existsSync(cjsPath)) {
+    return require(cjsPath);
   }
-  return require(cjsPath);
+  throw new Error(`Module ${name} tsy hita (${cjsPath})`);
 }
 
 // ============================================================
 // LOAD MODULES
 // ============================================================
-
 const constants = loadLicenseModule('constants');
 const crypto = loadLicenseModule('crypto');
 const activation = loadLicenseModule('activation');
@@ -71,7 +56,6 @@ try {
 // ============================================================
 // EXPORTS
 // ============================================================
-
 module.exports = {
   ...constants,
   ...utils,
@@ -89,6 +73,4 @@ module.exports.activateWithCode = activation.activateWithCode;
 module.exports.verifyCode = activation.verifyCode;
 module.exports.isLicenseBoundToThisMachine = activation.isLicenseBoundToThisMachine;
 
-console.log('✅ license/index.cjs - Tous les modules chargés (CommonJS' +
-  (fs.existsSync(path.join(__dirname, 'crypto.jsc')) ? ' + Bytenode' : '') +
-  ')');
+console.log('✅ license/index.cjs - Tous les modules chargés (CommonJS)');

@@ -67,7 +67,6 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.5.4",
-    "bytenode": "^1.6.0",
     "concurrently": "^9.2.3",
     "cross-env": "^7.0.3",
     "electron": "^41.7.1",

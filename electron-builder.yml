@@ -33,13 +33,9 @@ asarUnpack:
   - "**/*.node"
   - "**/node_modules/better-sqlite3/**/*"
   - "**/node_modules/sharp/**/*"
-  # ⭐ Ireny tsy ilaina intsony satria ao amin'ny extraResources
-  # - "**/keys/public.pem"
-  # - "**/keys/codes.db.enc"
-  # - "**/generated/hashes.json"
-  # - "**/generated/hashes.sig"
 
-# ⭐ CRITICAL: Fichiers ivelan'ny asar (avy amin'ny dist-electron)
+
+
 extraResources:
   - from: "dist-electron/keys/public.pem"
     to: "keys/public.pem"
