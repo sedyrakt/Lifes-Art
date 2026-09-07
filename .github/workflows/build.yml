@@ -1,7 +1,6 @@
 # ============================================================
 # TAHIRYPRO ERP - GitHub Actions - Windows + Linux
-# ⭐ FIX: Mampiasa build:electron (build.cjs) fa tsy build:obfuscate
-# ⭐ FIX: Mampiditra ny private.pem avy amin'ny GitHub Secrets
+# ⭐ FIX: Mampiasa build:electron (build.cjs) - Obfuscation fotsiny (bytenode esorina)
 # ============================================================
 
 name: Build & Release
@@ -88,7 +87,7 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Build electron (bytenode + obfuscation)
+      - name: Build electron (obfuscation)   # ✅ Ovaina
         run: npm run build:electron
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
@@ -236,7 +235,7 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Build electron (bytenode + obfuscation)
+      - name: Build electron (obfuscation)   # ✅ Ovaina
         run: npm run build:electron
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
