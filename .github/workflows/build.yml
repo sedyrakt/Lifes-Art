@@ -91,7 +91,7 @@ jobs:
       - name: Build electron (bytenode + obfuscation)
         run: npm run build:electron
         env:
-          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}  # ⭐ Hampiasaina raha ilaina
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
 
       - name: Verify production frontend
         shell: pwsh
@@ -112,7 +112,7 @@ jobs:
           Write-Host "=========================================="
           if (!(Test-Path "dist-electron/keys/public.pem")) { Write-Host "ERROR: dist-electron/keys/public.pem missing"; exit 1 }
           if (!(Test-Path "dist-electron/keys/codes.db.enc")) { Write-Host "ERROR: dist-electron/keys/codes.db.enc missing"; exit 1 }
-          if (Test-Path "dist-electron/keys/private.pem")) { Write-Host "ERROR: private.pem should not be present"; exit 1 }
+          if (Test-Path "dist-electron/keys/private.pem") { Write-Host "ERROR: private.pem should not be present"; exit 1 }
           Write-Host "OK: public.pem"
           Write-Host "OK: codes.db.enc"
           Write-Host "OK: private.pem absent"
