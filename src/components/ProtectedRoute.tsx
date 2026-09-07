@@ -1,10 +1,3 @@
-// ============================================================
-// src/components/ProtectedRoute.tsx
-// ⭐ LIFE'S ART ERP
-// ⭐ AUTH GUARD ONLY
-// ⭐ NO LICENSE LOGIC
-// ============================================================
-
 import React from 'react';
 
 import {
@@ -15,17 +8,11 @@ import {
   useAuth,
 } from '../contexts/AuthContext';
 
-// ============================================================
-// TYPES
-// ============================================================
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-// ============================================================
-// COMPONENT
-// ============================================================
 
 const ProtectedRoute: React.FC<
   ProtectedRouteProps
@@ -35,9 +22,7 @@ const ProtectedRoute: React.FC<
     loading,
   } = useAuth();
 
-  // ==========================================================
-  // AUTH LOADING
-  // ==========================================================
+
 
   if (loading) {
     return (
@@ -53,9 +38,6 @@ const ProtectedRoute: React.FC<
     );
   }
 
-  // ==========================================================
-  // NOT AUTHENTICATED
-  // ==========================================================
 
   if (!isAuthenticated) {
     console.log(
@@ -70,9 +52,7 @@ const ProtectedRoute: React.FC<
     );
   }
 
-  // ==========================================================
-  // AUTHENTICATED
-  // ==========================================================
+
 
   return <>{children}</>;
 };

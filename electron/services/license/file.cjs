@@ -1,13 +1,19 @@
+// ============================================================
+// electron/services/license/file.cjs
+// ⭐ License file operations (machine-bound AES)
+// ============================================================
+
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const crypto = require('crypto');
+const os = require('os');
 
 const { encryptData, decryptData } = require('./crypto.cjs');
 const { getLicensePath } = require('./utils.cjs');
 const { detectDebugger, checkIntegrity } = require('./security.cjs');
+const { getMachineId, verifyMachineBinding } = require('./machine.cjs');
 
 function createBackup(filePath) {
   try {
@@ -19,7 +25,7 @@ function createBackup(filePath) {
     const backupPath = path.join(backupDir, `license_${timestamp}.lic.enc`);
 
     const data = fs.readFileSync(filePath, 'utf8');
-    const encrypted = encryptData(data);
+    const encrypted = encryptData(data); // re-encrypt with current machine key
     if (encrypted) {
       const metadata = {
         createdAt: new Date().toISOString(),
@@ -41,7 +47,7 @@ function loadLicenseDataSync() {
     const filePath = getLicensePath();
     if (!fs.existsSync(filePath)) return null;
     const data = fs.readFileSync(filePath, 'utf-8');
-    return decryptData(data);
+    return decryptData(data); // machine-bound → null if wrong machine
   } catch {
     return null;
   }
@@ -65,19 +71,33 @@ function loadLicense() {
 
     const data = fs.readFileSync(filePath, 'utf-8');
     const decrypted = decryptData(data);
+
     if (!decrypted) {
-      return { success: false, error: 'Données corrompues' };
+      return {
+        success: false,
+        error: 'Données corrompues ou licence liée à une autre machine',
+      };
     }
 
-    return { success: true, data: JSON.stringify(decrypted), path: filePath };
+    // Extra check
+    if (decrypted.machineId && !verifyMachineBinding(decrypted.machineId)) {
+      return {
+        success: false,
+        error: 'Licence non valide pour cette machine',
+      };
+    }
+
+    return {
+      success: true,
+      data: JSON.stringify(decrypted),
+      path: filePath,
+    };
   } catch (error) {
     return { success: false, error: error.message };
   }
 }
 
 function saveLicenseFile(data, options = {}) {
-  const { skipVerify = false } = options;
-
   try {
     if (detectDebugger()) {
       return { success: false, error: 'Debugger détecté' };
@@ -97,6 +117,9 @@ function saveLicenseFile(data, options = {}) {
     if (!licenseData.expirationDate) {
       return { success: false, error: "Date d'expiration obligatoire" };
     }
+
+    // Force current machine binding
+    licenseData.machineId = getMachineId();
 
     const encrypted = encryptData(licenseData);
     if (!encrypted) {
@@ -125,7 +148,7 @@ function resetLicense(adminPassword = null, recoveryCode = null) {
       return {
         success: true,
         deleted: 1,
-        backupPath: backupPath,
+        backupPath,
         message: `Licence supprimée, backup: ${backupPath}`,
       };
     }

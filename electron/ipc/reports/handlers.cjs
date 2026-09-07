@@ -59,11 +59,12 @@ function registerReportsHandlers(ipcMain) {
       if (!hasCommandes) {
         return { success: true, data: { chiffre_affaires: 0, total_commandes: 0, clients_uniques: 0 } };
       }
-      const chiffreAffaires = db.prepare(`SELECT COALESCE(SUM(total_ttc), 0) AS chiffre_affaires FROM commandes WHERE statut != 'Annulée'`).get();
-      const totalCommandes = db.prepare(`SELECT COUNT(*) AS total_commandes FROM commandes WHERE statut != 'Annulée'`).get();
+      // ⭐ FIX: statut_paiement != 'Non payé' (au lieu de statut != 'Annulée')
+      const chiffreAffaires = db.prepare(`SELECT COALESCE(SUM(total_ttc), 0) AS chiffre_affaires FROM commandes WHERE statut_paiement != 'Non payé'`).get();
+      const totalCommandes = db.prepare(`SELECT COUNT(*) AS total_commandes FROM commandes WHERE statut_paiement != 'Non payé'`).get();
       let clientsUniques = { clients_uniques: 0 };
       if (hasClients && columnExists(db, 'commandes', 'client_id')) {
-        clientsUniques = db.prepare(`SELECT COUNT(DISTINCT client_id) AS clients_uniques FROM commandes WHERE statut != 'Annulée' AND client_id IS NOT NULL`).get();
+        clientsUniques = db.prepare(`SELECT COUNT(DISTINCT client_id) AS clients_uniques FROM commandes WHERE statut_paiement != 'Non payé' AND client_id IS NOT NULL`).get();
       }
       return { success: true, data: { chiffre_affaires: Number(chiffreAffaires?.chiffre_affaires || 0), total_commandes: Number(totalCommandes?.total_commandes || 0), clients_uniques: Number(clientsUniques?.clients_uniques || 0) } };
     } catch (err) { error('❌ reports:get-summary', err); return { success: false, error: err.message }; }
@@ -73,7 +74,8 @@ function registerReportsHandlers(ipcMain) {
   ipcMain.handle('reports:get-ventes-par-mois', withLiveDb((db, _event, year) => {
     try {
       const targetYear = Number(year || new Date().getFullYear());
-      const rows = db.prepare(`SELECT strftime('%m', date_commande) AS mois, COUNT(*) AS nb_commandes, COALESCE(SUM(total_ttc), 0) AS total_ventes, CASE WHEN COUNT(*) > 0 THEN COALESCE(SUM(total_ttc), 0) / COUNT(*) ELSE 0 END AS panier_moyen FROM commandes WHERE statut != 'Annulée' AND strftime('%Y', date_commande) = ? GROUP BY strftime('%m', date_commande) ORDER BY mois ASC`).all(String(targetYear));
+      // ⭐ FIX: statut_paiement != 'Non payé'
+      const rows = db.prepare(`SELECT strftime('%m', date_commande) AS mois, COUNT(*) AS nb_commandes, COALESCE(SUM(total_ttc), 0) AS total_ventes, CASE WHEN COUNT(*) > 0 THEN COALESCE(SUM(total_ttc), 0) / COUNT(*) ELSE 0 END AS panier_moyen FROM commandes WHERE statut_paiement != 'Non payé' AND strftime('%Y', date_commande) = ? GROUP BY strftime('%m', date_commande) ORDER BY mois ASC`).all(String(targetYear));
       return { success: true, data: rows };
     } catch (err) { error('❌ reports:get-ventes-par-mois', err); return { success: false, error: err.message }; }
   }));
@@ -83,7 +85,8 @@ function registerReportsHandlers(ipcMain) {
     try {
       const limit = Math.max(1, Math.min(Number(options?.limit || 10), 100));
       if (!tableExists(db, 'details_commandes')) return { success: true, data: [] };
-      const rows = db.prepare(`SELECT p.id, p.nom, COALESCE(p.code, '') AS code, COALESCE(SUM(d.quantite), 0) AS total_vendu, COALESCE(SUM(CASE WHEN d.total IS NOT NULL THEN d.total ELSE d.quantite * COALESCE(d.prix_unitaire, 0) END), 0) AS total_ventes, COUNT(DISTINCT d.commande_id) AS nb_commandes, COALESCE(p.prix_vente, 0) AS prix_vente, COALESCE(c.nom, 'Sans catégorie') AS categorie_nom FROM produits p INNER JOIN details_commandes d ON d.produit_id = p.id INNER JOIN commandes cmd ON cmd.id = d.commande_id LEFT JOIN categories c ON c.id = p.categorie_id WHERE cmd.statut != 'Annulée' GROUP BY p.id, p.nom, p.code, p.prix_vente, c.nom ORDER BY total_vendu DESC LIMIT ?`).all(limit);
+      // ⭐ FIX: cmd.statut_paiement != 'Non payé'
+      const rows = db.prepare(`SELECT p.id, p.nom, COALESCE(p.code, '') AS code, COALESCE(SUM(d.quantite), 0) AS total_vendu, COALESCE(SUM(CASE WHEN d.total IS NOT NULL THEN d.total ELSE d.quantite * COALESCE(d.prix_unitaire, 0) END), 0) AS total_ventes, COUNT(DISTINCT d.commande_id) AS nb_commandes, COALESCE(p.prix_vente, 0) AS prix_vente, COALESCE(c.nom, 'Sans catégorie') AS categorie_nom FROM produits p INNER JOIN details_commandes d ON d.produit_id = p.id INNER JOIN commandes cmd ON cmd.id = d.commande_id LEFT JOIN categories c ON c.id = p.categorie_id WHERE cmd.statut_paiement != 'Non payé' GROUP BY p.id, p.nom, p.code, p.prix_vente, c.nom ORDER BY total_vendu DESC LIMIT ?`).all(limit);
       const total = rows.reduce((acc, row) => acc + Number(row.total_vendu || 0), 0);
       const data = rows.map(row => ({ ...row, total_vendu: Number(row.total_vendu || 0), total_ventes: Number(row.total_ventes || 0), pourcentage: total > 0 ? (Number(row.total_vendu || 0) / total) * 100 : 0 }));
       return { success: true, data };
@@ -124,15 +127,16 @@ function registerReportsHandlers(ipcMain) {
       let rows;
       if (hasClientId && tableExists(db, 'clients')) {
         if (hasCommandeNumero) {
-          rows = db.prepare(`SELECT cmd.id, COALESCE(cmd.commande_numero, 'CMD-' || printf('%06d', cmd.id)) AS commande_numero, COALESCE(c.nom, 'Client comptoir') AS client_nom, cmd.date_commande, COALESCE(cmd.total_ttc, 0) AS total_ttc, COALESCE(cmd.statut, 'N/A') AS statut, (SELECT COUNT(*) FROM details_commandes d WHERE d.commande_id = cmd.id) AS nb_produits FROM commandes cmd LEFT JOIN clients c ON c.id = cmd.client_id ORDER BY cmd.date_commande DESC LIMIT ?`).all(safeLimit);
+          // ⭐ FIX: cmd.statut_paiement au lieu de cmd.statut
+          rows = db.prepare(`SELECT cmd.id, COALESCE(cmd.commande_numero, 'CMD-' || printf('%06d', cmd.id)) AS commande_numero, COALESCE(c.nom, 'Client comptoir') AS client_nom, cmd.date_commande, COALESCE(cmd.total_ttc, 0) AS total_ttc, COALESCE(cmd.statut_paiement, 'Non payé') AS statut, (SELECT COUNT(*) FROM details_commandes d WHERE d.commande_id = cmd.id) AS nb_produits FROM commandes cmd LEFT JOIN clients c ON c.id = cmd.client_id ORDER BY cmd.date_commande DESC LIMIT ?`).all(safeLimit);
         } else {
-          rows = db.prepare(`SELECT cmd.id, 'CMD-' || printf('%06d', cmd.id) AS commande_numero, COALESCE(c.nom, 'Client comptoir') AS client_nom, cmd.date_commande, COALESCE(cmd.total_ttc, 0) AS total_ttc, COALESCE(cmd.statut, 'N/A') AS statut, (SELECT COUNT(*) FROM details_commandes d WHERE d.commande_id = cmd.id) AS nb_produits FROM commandes cmd LEFT JOIN clients c ON c.id = cmd.client_id ORDER BY cmd.date_commande DESC LIMIT ?`).all(safeLimit);
+          rows = db.prepare(`SELECT cmd.id, 'CMD-' || printf('%06d', cmd.id) AS commande_numero, COALESCE(c.nom, 'Client comptoir') AS client_nom, cmd.date_commande, COALESCE(cmd.total_ttc, 0) AS total_ttc, COALESCE(cmd.statut_paiement, 'Non payé') AS statut, (SELECT COUNT(*) FROM details_commandes d WHERE d.commande_id = cmd.id) AS nb_produits FROM commandes cmd LEFT JOIN clients c ON c.id = cmd.client_id ORDER BY cmd.date_commande DESC LIMIT ?`).all(safeLimit);
         }
       } else {
         if (hasCommandeNumero) {
-          rows = db.prepare(`SELECT cmd.id, COALESCE(cmd.commande_numero, 'CMD-' || printf('%06d', cmd.id)) AS commande_numero, 'Client comptoir' AS client_nom, cmd.date_commande, COALESCE(cmd.total_ttc, 0) AS total_ttc, COALESCE(cmd.statut, 'N/A') AS statut, (SELECT COUNT(*) FROM details_commandes d WHERE d.commande_id = cmd.id) AS nb_produits FROM commandes cmd ORDER BY cmd.date_commande DESC LIMIT ?`).all(safeLimit);
+          rows = db.prepare(`SELECT cmd.id, COALESCE(cmd.commande_numero, 'CMD-' || printf('%06d', cmd.id)) AS commande_numero, 'Client comptoir' AS client_nom, cmd.date_commande, COALESCE(cmd.total_ttc, 0) AS total_ttc, COALESCE(cmd.statut_paiement, 'Non payé') AS statut, (SELECT COUNT(*) FROM details_commandes d WHERE d.commande_id = cmd.id) AS nb_produits FROM commandes cmd ORDER BY cmd.date_commande DESC LIMIT ?`).all(safeLimit);
         } else {
-          rows = db.prepare(`SELECT cmd.id, 'CMD-' || printf('%06d', cmd.id) AS commande_numero, 'Client comptoir' AS client_nom, cmd.date_commande, COALESCE(cmd.total_ttc, 0) AS total_ttc, COALESCE(cmd.statut, 'N/A') AS statut, (SELECT COUNT(*) FROM details_commandes d WHERE d.commande_id = cmd.id) AS nb_produits FROM commandes cmd ORDER BY cmd.date_commande DESC LIMIT ?`).all(safeLimit);
+          rows = db.prepare(`SELECT cmd.id, 'CMD-' || printf('%06d', cmd.id) AS commande_numero, 'Client comptoir' AS client_nom, cmd.date_commande, COALESCE(cmd.total_ttc, 0) AS total_ttc, COALESCE(cmd.statut_paiement, 'Non payé') AS statut, (SELECT COUNT(*) FROM details_commandes d WHERE d.commande_id = cmd.id) AS nb_produits FROM commandes cmd ORDER BY cmd.date_commande DESC LIMIT ?`).all(safeLimit);
         }
       }
       return { success: true, data: rows };
@@ -143,7 +147,8 @@ function registerReportsHandlers(ipcMain) {
   ipcMain.handle('reports:get-benefice', withLiveDb((db, _event, year) => {
     try {
       const targetYear = Number(year || new Date().getFullYear());
-      const ca = db.prepare(`SELECT COALESCE(SUM(total_ttc), 0) AS ca FROM commandes WHERE statut != 'Annulée' AND strftime('%Y', date_commande) = ?`).get(String(targetYear));
+      // ⭐ FIX: statut_paiement != 'Non payé'
+      const ca = db.prepare(`SELECT COALESCE(SUM(total_ttc), 0) AS ca FROM commandes WHERE statut_paiement != 'Non payé' AND strftime('%Y', date_commande) = ?`).get(String(targetYear));
       const depenses = tableExists(db, 'depenses') ? db.prepare(`SELECT COALESCE(SUM(montant), 0) AS total FROM depenses WHERE strftime('%Y', date_depense) = ?`).get(String(targetYear)) : { total: 0 };
       const salaires = tableExists(db, 'paiements_employes') ? db.prepare(`SELECT COALESCE(SUM(montant), 0) AS total FROM paiements_employes WHERE strftime('%Y', date_paiement) = ?`).get(String(targetYear)) : { total: 0 };
       const chiffreAffaires = Number(ca?.ca || 0); const totalDepenses = Number(depenses?.total || 0); const totalSalaires = Number(salaires?.total || 0);
@@ -199,7 +204,8 @@ function registerReportsHandlers(ipcMain) {
       const limit = Math.max(1, Math.min(Number(options?.limit || 5), 50));
       const start = options?.startDate || `${new Date().getFullYear()}-01-01`;
       const end = options?.endDate || new Date().toISOString().slice(0, 10);
-      const rows = db.prepare(`SELECT c.nom AS client_nom, COALESCE(SUM(cmd.total_ttc), 0) AS total_achats FROM clients c INNER JOIN commandes cmd ON cmd.client_id = c.id WHERE cmd.statut != 'Annulée' AND date(cmd.date_commande) BETWEEN date(?) AND date(?) GROUP BY c.id, c.nom ORDER BY total_achats DESC LIMIT ?`).all(start, end, limit);
+      // ⭐ FIX: cmd.statut_paiement != 'Non payé'
+      const rows = db.prepare(`SELECT c.nom AS client_nom, COALESCE(SUM(cmd.total_ttc), 0) AS total_achats FROM clients c INNER JOIN commandes cmd ON cmd.client_id = c.id WHERE cmd.statut_paiement != 'Non payé' AND date(cmd.date_commande) BETWEEN date(?) AND date(?) GROUP BY c.id, c.nom ORDER BY total_achats DESC LIMIT ?`).all(start, end, limit);
       return { success: true, data: rows };
     } catch (err) { error('❌ reports:get-top-clients', err); return { success: false, error: err.message }; }
   }));
@@ -224,7 +230,8 @@ function registerReportsHandlers(ipcMain) {
   ipcMain.handle('reports:get-commandes-statut', withLiveDb(db => {
     try {
       if (!tableExists(db, 'commandes')) return { success: true, data: [] };
-      const rows = db.prepare(`SELECT COALESCE(statut, 'Inconnu') AS statut, COUNT(*) AS nb FROM commandes GROUP BY statut ORDER BY nb DESC`).all();
+      // ⭐ FIX: statut_paiement au lieu de statut
+      const rows = db.prepare(`SELECT COALESCE(statut_paiement, 'Non payé') AS statut, COUNT(*) AS nb FROM commandes GROUP BY statut_paiement ORDER BY nb DESC`).all();
       return { success: true, data: rows };
     } catch (err) { error('❌ reports:get-commandes-statut', err); return { success: false, error: err.message }; }
   }));
@@ -232,7 +239,7 @@ function registerReportsHandlers(ipcMain) {
   log('📊 ==========================================');
   log('✅ RAPPORTS IPC READY');
   log('📊 ==========================================');
-  return true; // ⭐ FIX: Mamerina true
+  return true;
 }
 
 module.exports = { registerReportsHandlers };

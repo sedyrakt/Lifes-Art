@@ -1,227 +1,301 @@
-// ============================================================
-// src/components/employes/EmployesHistoriqueModal.tsx
-// ⭐ COMPACT + FONT SIZE 13px-15px
-// ⭐ FIX: Calendrier 1 row 4 colonnes
-// ⭐ FIX: Overlay 60% opacity
-// ============================================================
-
-import React from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { X, CalendarDays, Loader2, CheckCircle2, XCircle, AlertCircle, ChevronLeft, ChevronRight, BarChart3, History, Search } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { formatMoney } from '../../lib/formatMoney';
-import { Calendar, X, ChevronLeft, ChevronRight, CheckCircle, AlertCircle, Trash2, DollarSign, Info } from 'lucide-react';
-
-const COLORS = {
-  light: {
-    card: '#FFFFFF', border: '#CBD5E1', headerBg: '#F8FAFC', formBg: '#FFFFFF', cellBg: '#F8FAFC', inputBg: '#FFFFFF',
-    text: '#0F172A', muted: '#64748B', primary: '#6366F1', primaryBg: 'rgba(99,102,241,0.06)', primaryBorder: 'rgba(99,102,241,0.15)',
-    red: '#EF4444', amber: '#F59E0B', amberDark: '#D97706', green: '#10B981',
-  },
-  dark: {
-    card: '#0F172A', border: '#334155', headerBg: '#0F172A', formBg: '#0F172A', cellBg: '#1E293B', inputBg: '#0F172A',
-    text: '#F8FAFC', muted: '#94A3B8', primary: '#6366F1', primaryBg: 'rgba(99,102,241,0.12)', primaryBorder: 'rgba(99,102,241,0.25)',
-    red: '#EF4444', amber: '#F59E0B', amberDark: '#D97706', green: '#10B981',
-  }
-};
-
-interface Employe { id: number; nom: string; prenom: string; email: string; telephone: string; poste: string; departement: string; date_embauche: string; salaire: number; image: string; status: string; created_at: string; }
-interface Paiement { id: number; employe_id: number; mois: number; annee: number; montant: number; mode_paiement: string; reference: string; observation: string; date_paiement: string; created_at: string; }
-interface EmployesHistoriqueModalProps {
-  isOpen: boolean; onClose: () => void; employe: Employe; historiquePaiements: Paiement[]; imageUrl: string | null;
-  anneeCalendrier: number; selectedMoisDetail: number | null; selectedMoisDetailAnnee: number | null;
-  onAnneeChange: (annee: number) => void; onMoisDetailSelect: (mois: number | null, annee: number | null) => void;
-  onPayer: () => void; onAnnulerPaiement?: (paiementId: number) => void;
-  getMoisPourAnnee: (dateEmbauche: string, annee: number, labels?: string[]) => { mois: number; annee: number; label: string }[];
-  moisLabels: string[]; moisLabelsCourt: string[]; isDark: boolean;
+const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const PAGE_SIZE = 10;
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  employes?: any[];
+  employeId?: number;
+  mois?: number;
+  annee?: number;
+  dateReference?: string | null;
 }
-
-const FormCell: React.FC<{ label: string; children: React.ReactNode; icon?: React.ReactNode; required?: boolean; borderRight?: boolean; borderBottom?: boolean; fullWidth?: boolean }> = ({ label, children, icon, required = false, borderRight = true, borderBottom = true, fullWidth = false }) => {
+const EmployesHistoriqueModal: React.FC<Props> = ({ isOpen, onClose, employes = [], employeId, mois, annee, dateReference }) => {
   const { isDark } = useTheme();
-  const theme = isDark ? COLORS.dark : COLORS.light;
+  const [activeTab, setActiveTab] = useState<'historique' | 'bilan'>('historique');
+  const [type, setType] = useState<'jour' | 'mois' | 'annee'>('mois');
+  const [date, setDate] = useState(dateReference || new Date().toISOString().split('T')[0]);
+  const [moisState, setMoisState] = useState(mois || new Date().getMonth() + 1);
+  const [anneeState, setAnneeState] = useState(annee || new Date().getFullYear());
+  const [statut, setStatut] = useState('Tous');
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [isEmployeeDropdownOpen, setIsEmployeeDropdownOpen] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(employeId || null);
+  const [allEmployes, setAllEmployes] = useState<any[]>(employes);
+  const [certificatMedical, setCertificatMedical] = useState('');
+  const [observation, setObservation] = useState('');
+  const [joursMaladie, setJoursMaladie] = useState('0');
+  useEffect(() => {
+    if (isOpen) {
+      setMoisState(mois || new Date().getMonth() + 1);
+      setAnneeState(annee || new Date().getFullYear());
+    }
+  }, [isOpen, mois, annee]);
+  useEffect(() => {
+    if (activeTab === 'historique') {
+      setSelectedEmployeeId(null);
+      setEmployeeSearch('');
+    }
+  }, [activeTab]);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const requestType = activeTab === 'bilan' ? 'mois' : type;
+      const employeIdForRequest = activeTab === 'bilan' ? (selectedEmployeeId || undefined) : undefined;
+      const response = await window.api.employes.getPresenceHistorique({ 
+        type: requestType, 
+        date, 
+        mois: moisState, 
+        annee: anneeState, 
+        statut,
+        employe_id: employeIdForRequest
+      });
+      if (response?.success) setData(response.data || []);
+    } catch (error) {
+      console.error('Erreur historique:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [type, date, moisState, anneeState, statut, selectedEmployeeId, activeTab]);
+  const fetchAllEmployes = useCallback(async () => {
+    if (allEmployes.length > 0) return;
+    try {
+      const response = await window.api.employes.getAll({ limit: 10000 });
+      if (response?.success) setAllEmployes(response.data || []);
+    } catch (error) {
+      console.error('Erreur chargement employés:', error);
+    }
+  }, [allEmployes.length]);
+  useEffect(() => { 
+    if (isOpen) {
+      fetchData();
+      fetchAllEmployes();
+    }
+  }, [isOpen, fetchData, fetchAllEmployes]);
+  useEffect(() => { setCurrentPage(1); }, [type, date, moisState, anneeState, statut, selectedEmployeeId, activeTab]);
+  const stats = useMemo(() => {
+    return {
+      total: data.length,
+      presents: data.filter(d => d.statut === 'present').length,
+      absents: data.filter(d => d.statut === 'absent').length,
+      conges: data.filter(d => d.statut === 'conge').length
+    };
+  }, [data]);
+  const bilanMonthData = useMemo(() => {
+    if (activeTab !== 'bilan') return data;
+    const daysInMonth = new Date(anneeState, moisState, 0).getDate();
+    const result = [];
+    const selectedEmp = allEmployes.find(e => e.id === selectedEmployeeId);
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${anneeState}-${String(moisState).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const existing = data.find(d => d.date === dateStr);
+      if (existing) {
+        result.push(existing);
+      } else {
+        result.push({ 
+          date: dateStr, 
+          prenom: selectedEmp?.prenom || '',
+          nom: selectedEmp?.nom || '',
+          statut: null 
+        });
+      }
+    }
+    return result;
+  }, [data, activeTab, moisState, anneeState, selectedEmployeeId, allEmployes]);
+  const paginatedData = useMemo(() => {
+    if (activeTab === 'bilan') return bilanMonthData;
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return data.slice(start, start + PAGE_SIZE);
+  }, [bilanMonthData, data, currentPage, activeTab]);
+  const totalPages = useMemo(() => {
+    if (activeTab === 'bilan') return 1;
+    return Math.ceil(data.length / PAGE_SIZE);
+  }, [data.length, activeTab]);
+  const filteredEmployees = useMemo(() => {
+    const search = employeeSearch.toLowerCase();
+    const list = allEmployes.length > 0 ? allEmployes : employes;
+    return list.filter(emp => `${emp.prenom || ''} ${emp.nom || ''}`.toLowerCase().includes(search));
+  }, [allEmployes, employes, employeeSearch]);
+  const handleSaveBilan = useCallback(async () => {
+    if (!selectedEmployeeId) {
+      alert('Veuillez sélectionner un employé avant d\'enregistrer.');
+      return;
+    }
+    try {
+      const payload = {
+        employe_id: selectedEmployeeId,
+        mois: moisState,
+        annee: anneeState,
+        jours_absences: stats.absents,
+        jours_conges: stats.conges,
+        jours_maladie: Number(joursMaladie) || 0,
+        justificatif_maladie: certificatMedical,
+        observation: observation
+      };
+      const result = await window.api.employes.updatePresence(payload);
+      if (result?.success) {
+        alert('Bilan mensuel enregistré avec succès.');
+      } else {
+        alert('Erreur lors de l\'enregistrement : ' + (result?.error || 'inconnue'));
+      }
+    } catch (error: any) {
+      alert('Erreur : ' + error.message);
+    }
+  }, [selectedEmployeeId, moisState, anneeState, stats.absents, stats.conges, joursMaladie, certificatMedical, observation]);
+  if (!isOpen) return null;
+  const handlePageChange = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+  const borderColor = isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0';
+  const inputBg = isDark ? '#0F172A' : '#FFFFFF';
+  const textColor = isDark ? '#F8FAFC' : '#0F172A';
+  const mutedColor = isDark ? '#94A3B8' : '#64748B';
+  const inputStyle = { backgroundColor: inputBg, borderColor, color: textColor };
   return (
-    <div className={`flex items-center px-3 py-2.5 ${borderRight ? 'border-r' : ''} ${borderBottom ? 'border-b' : ''} ${fullWidth ? 'col-span-3' : ''}`} style={{ borderColor: theme.border, background: theme.cellBg }}>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 mb-0.5">
-          {icon && <span className="shrink-0 text-indigo-600 dark:text-gray-100">{icon}</span>}
-          <span className="text-[13px] font-bold uppercase tracking-wider" style={{ color: theme.muted }}>{label} {required && <span className="text-rose-500">*</span>}</span>
-        </div>
-        <div className="text-[14px] font-medium">{children}</div>
-      </div>
-    </div>
-  );
-};
-
-const EmployesHistoriqueModal: React.FC<EmployesHistoriqueModalProps> = ({
-  isOpen, onClose, employe, historiquePaiements, imageUrl, anneeCalendrier, selectedMoisDetail, selectedMoisDetailAnnee,
-  onAnneeChange, onMoisDetailSelect, onPayer, onAnnulerPaiement, getMoisPourAnnee, moisLabels, moisLabelsCourt, isDark: propIsDark,
-}) => {
-  const { isDark: themeIsDark } = useTheme();
-  const isDark = propIsDark !== undefined ? propIsDark : themeIsDark;
-  const theme = isDark ? COLORS.dark : COLORS.light;
-
-  if (!isOpen || !employe) return null;
-
-  const paiementsAnnee = historiquePaiements.filter(p => p?.annee === anneeCalendrier);
-  const moisTotal = getMoisPourAnnee(employe.date_embauche, anneeCalendrier).length;
-  const tauxPaiement = moisTotal > 0 ? Math.round((paiementsAnnee.length / moisTotal) * 100) : 0;
-  const totalPayeAnnee = paiementsAnnee.reduce((sum, p) => sum + (p?.montant || 0), 0);
-  const isMoisPaye = (mois: number, annee: number) => historiquePaiements.some(p => p?.mois === mois && p?.annee === annee);
-  const getPaiementForMois = (mois: number, annee: number) => historiquePaiements.find(p => p?.mois === mois && p?.annee === annee);
-  const anneeEmbauche = employe.date_embauche ? new Date(employe.date_embauche).getFullYear() : new Date().getFullYear();
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="historique-modal-title">
-      <div className="relative w-full max-w-4xl max-h-[80vh] shadow-2xl transition-all duration-300 rounded-2xl flex flex-col overflow-hidden border" style={{ background: theme.card, borderColor: theme.border }}>
-        {/* HEADER */}
-        <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b z-10" style={{ background: theme.headerBg, borderColor: theme.border }}>
-          <div>
-            <h2 id="historique-modal-title" className="text-[15px] font-bold tracking-tight" style={{ color: theme.text }}>Historique des salaires</h2>
-            <p className="text-[13px] font-medium" style={{ color: theme.muted }}>Gestion des paiements de <span style={{ color: theme.primary }}>{employe.prenom} {employe.nom}</span></p>
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="w-full max-w-4xl rounded-2xl border shadow-2xl flex flex-col max-h-[90vh]" style={{ backgroundColor: isDark ? '#0F172A' : '#FFFFFF', borderColor }}>
+        <div className="shrink-0 border-b p-4 flex items-center justify-between" style={{ borderColor, backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }}>
+          <div className="flex items-center gap-2">
+            <CalendarDays size={20} className="text-brand-500" />
+            <h2 className="text-lg font-bold" style={{ color: textColor }}>Gestion des présences</h2>
           </div>
-          <button type="button" onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200 hover:bg-rose-500/10 hover:text-rose-500" style={{ color: theme.muted }} aria-label="Fermer">
-            <X className="w-4 h-4" />
-          </button>
+          <button onClick={onClose} className="text-slate-400 hover:text-brand-500"><X size={20} /></button>
         </div>
-
-        {/* BODY */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* LEFT SIDEBAR */}
-            <div className="w-full md:w-56 flex-shrink-0 flex flex-col gap-3">
-              <div className="border rounded-xl overflow-hidden shadow-sm" style={{ borderColor: theme.border }}>
-                <div className="flex flex-col items-center p-3 gap-2" style={{ background: theme.formBg }}>
-                  <div className="w-16 h-16 rounded-xl overflow-hidden border flex items-center justify-center shrink-0" style={{ borderColor: theme.border, background: theme.primaryBg }}>
-                    {imageUrl ? <img src={imageUrl} alt={employe.nom} className="w-full h-full object-cover" /> :
-                     <span className="font-bold text-xl" style={{ color: theme.primary }}>{employe.prenom?.charAt(0)}{employe.nom?.charAt(0)}</span>}
+        <div className="shrink-0 border-b px-4 pt-3 pb-0 flex gap-2" style={{ borderColor, backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }}>
+          <button onClick={() => setActiveTab('historique')} className={`px-4 py-2 rounded-t-lg text-[14px] font-semibold transition border-b-2 flex items-center gap-2 ${activeTab === 'historique' ? 'border-brand-500 text-brand-600 dark:text-brand-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}><History size={15} /> Historique</button>
+          <button onClick={() => setActiveTab('bilan')} className={`px-4 py-2 rounded-t-lg text-[14px] font-semibold transition border-b-2 flex items-center gap-2 ${activeTab === 'bilan' ? 'border-brand-500 text-brand-600 dark:text-brand-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}><BarChart3 size={15} /> Bilan Mensuel</button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto" style={{ backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }}>
+          {activeTab === 'historique' && (
+            <>
+              <div className="shrink-0 border-b p-4 space-y-4" style={{ borderColor, backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex rounded-xl border p-1" style={{ borderColor, backgroundColor: inputBg }}>
+                    <button onClick={() => setType('jour')} className={`px-4 py-1.5 rounded-lg text-[14px] font-semibold transition ${type === 'jour' ? 'bg-brand-500 text-white shadow-sm' : 'hover:bg-slate-100 dark:hover:bg-white/[0.06]'}`} style={{ color: type === 'jour' ? '#FFFFFF' : mutedColor }}>Par Jour</button>
+                    <button onClick={() => setType('mois')} className={`px-4 py-1.5 rounded-lg text-[14px] font-semibold transition ${type === 'mois' ? 'bg-brand-500 text-white shadow-sm' : 'hover:bg-slate-100 dark:hover:bg-white/[0.06]'}`} style={{ color: type === 'mois' ? '#FFFFFF' : mutedColor }}>Par Mois</button>
+                    <button onClick={() => setType('annee')} className={`px-4 py-1.5 rounded-lg text-[14px] font-semibold transition ${type === 'annee' ? 'bg-brand-500 text-white shadow-sm' : 'hover:bg-slate-100 dark:hover:bg-white/[0.06]'}`} style={{ color: type === 'annee' ? '#FFFFFF' : mutedColor }}>Par Année</button>
                   </div>
-                  <div className="text-center">
-                    <div className="font-bold text-[15px]" style={{ color: theme.text }}>{employe.prenom} {employe.nom}</div>
-                    <div className="text-[13px] font-medium mt-0.5" style={{ color: theme.muted }}>{employe.poste}</div>
-                    <span className="inline-block mt-1 px-2 py-0.5 rounded-lg text-[13px] font-bold uppercase tracking-wider border" style={{ background: 'rgba(16,185,129,0.1)', color: theme.green, borderColor: 'rgba(16,185,129,0.2)' }}>{employe.status}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {type === 'jour' && (<input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-9 px-3 rounded-lg border outline-none focus:border-brand-500" style={inputStyle} />)}
+                    {type === 'mois' && (<><select value={moisState} onChange={e => setMoisState(Number(e.target.value))} className="h-9 px-3 rounded-lg border outline-none focus:border-brand-500" style={inputStyle}>{MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select><input type="number" value={anneeState} onChange={e => setAnneeState(Number(e.target.value))} className="h-9 w-24 px-3 rounded-lg border outline-none focus:border-brand-500" style={inputStyle} /></>)}
+                    {type === 'annee' && (<input type="number" value={anneeState} onChange={e => setAnneeState(Number(e.target.value))} className="h-9 w-32 px-3 rounded-lg border outline-none focus:border-brand-500" style={inputStyle} />)}
+                    <select value={statut} onChange={e => setStatut(e.target.value)} className="h-9 px-3 rounded-lg border outline-none focus:border-brand-500" style={inputStyle}><option value="Tous">Tous les statuts</option><option value="present">Présent</option><option value="absent">Absent</option><option value="conge">Congé</option></select>
                   </div>
                 </div>
-              </div>
-              <div className="p-3 rounded-xl border" style={{ borderColor: theme.border, background: theme.formBg }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Info className="w-3.5 h-3.5" style={{ color: theme.primary }} />
-                  <span className="text-[13px] font-bold uppercase tracking-wider" style={{ color: theme.muted }}>Statistiques</span>
-                </div>
-                <div className="flex justify-between text-[13px] font-medium" style={{ color: theme.muted }}>
-                  <span>Mois réglés</span>
-                  <span style={{ color: theme.primary }}>{paiementsAnnee.length} / {moisTotal}</span>
-                </div>
-                <div className="flex justify-between text-[13px] font-medium mt-1" style={{ color: theme.muted }}>
-                  <span>Total versé</span>
-                  <span style={{ color: theme.green }}>{formatMoney(totalPayeAnnee)}</span>
-                </div>
-                <div className="h-px my-2" style={{ background: theme.border }} />
-                <div className="flex justify-between text-[15px] font-bold">
-                  <span style={{ color: theme.text }}>Taux</span>
-                  <span style={{ color: theme.primary }}>{tauxPaiement}%</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="p-2 rounded-xl border text-center" style={{ backgroundColor: inputBg, borderColor }}><p className="text-[12px]" style={{ color: mutedColor }}>Total</p><p className="text-[16px] font-bold" style={{ color: textColor }}>{stats.total}</p></div>
+                  <div className="p-2 rounded-xl border text-center" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.3)' }}><p className="text-[12px] text-success-600 dark:text-success-400">Présents</p><p className="text-[16px] font-bold text-success-700 dark:text-success-400">{stats.presents}</p></div>
+                  <div className="p-2 rounded-xl border text-center" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)' }}><p className="text-[12px] text-danger-600 dark:text-danger-400">Absents</p><p className="text-[16px] font-bold text-danger-700 dark:text-danger-400">{stats.absents}</p></div>
+                  {/* ⭐ Congés = Mavo (yellow) */}
+                  <div className="p-2 rounded-xl border text-center" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', borderColor: 'rgba(234, 179, 8, 0.3)' }}><p className="text-[12px] text-yellow-600 dark:text-yellow-400">Congés</p><p className="text-[16px] font-bold text-yellow-700 dark:text-yellow-400">{stats.conges}</p></div>
                 </div>
               </div>
-            </div>
-
-            {/* MAIN CONTENT */}
-            <div className="flex-1 border rounded-xl overflow-hidden" style={{ borderColor: theme.border, background: theme.formBg }}>
-              <div className="flex items-center justify-between px-3 py-2.5 border-b" style={{ borderColor: theme.border, background: theme.cellBg }}>
-                <span className="text-[13px] font-bold uppercase tracking-wider flex items-center gap-2" style={{ color: theme.text }}>
-                  <Calendar className="w-3.5 h-3.5" style={{ color: theme.primary }} />
-                  Calendrier des paiements
-                </span>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => { const newAnnee = anneeCalendrier - 1; if (newAnnee >= anneeEmbauche) { onAnneeChange(newAnnee); onMoisDetailSelect(null, null); } }} className="p-1 rounded-lg transition-all hover:bg-indigo-500/10 disabled:opacity-40" style={{ color: theme.muted }} disabled={anneeCalendrier <= anneeEmbauche}>
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="text-[14px] font-bold px-2.5 py-0.5 rounded-lg border" style={{ background: theme.inputBg, borderColor: theme.border, color: theme.text }}>{anneeCalendrier}</span>
-                  <button type="button" onClick={() => { onAnneeChange(anneeCalendrier + 1); onMoisDetailSelect(null, null); }} className="p-1 rounded-lg transition-all hover:bg-indigo-500/10" style={{ color: theme.muted }}>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                  <button type="button" onClick={() => { onAnneeChange(new Date().getFullYear()); onMoisDetailSelect(null, null); }} className="px-2 py-0.5 text-[13px] font-bold uppercase tracking-wider rounded-lg transition-all hover:bg-indigo-500/10" style={{ background: theme.primaryBg, color: theme.primary }}>
-                    Actuel
-                  </button>
-                </div>
-              </div>
-
-              {/* CALENDRIER - 1 ROW 4 COLONNES */}
-              <div className="p-3">
-                <div className="grid grid-cols-4 gap-2">
-                  {getMoisPourAnnee(employe.date_embauche, anneeCalendrier, moisLabelsCourt).map((item, index) => {
-                    const maintenant = new Date();
-                    const moisCourant = maintenant.getMonth() + 1;
-                    const anneeCourante = maintenant.getFullYear();
-                    const estFutur = item.annee > anneeCourante || (item.annee === anneeCourante && item.mois > moisCourant);
-                    const paye = isMoisPaye(item.mois, item.annee);
-                    const isSelected = selectedMoisDetail === item.mois && selectedMoisDetailAnnee === item.annee;
-                    let statusBg = theme.inputBg, statusText = theme.muted, statusIcon = null, statusLabel = '';
-                    if (estFutur) { statusBg = 'rgba(0,0,0,0.03)'; statusText = theme.muted; statusIcon = null; statusLabel = 'Futur'; }
-                    else if (paye) { statusBg = 'rgba(16,185,129,0.08)'; statusText = theme.green; statusIcon = null; statusLabel = 'Payé'; }
-                    else { statusBg = 'rgba(245,158,11,0.08)'; statusText = theme.amber; statusIcon = null; statusLabel = 'Impayé'; }
-                    
-                    return (
-                      <button key={index} type="button" onClick={() => { if (estFutur) return; if (isSelected) onMoisDetailSelect(null, null); else onMoisDetailSelect(item.mois, item.annee); }}
-                        className={`relative p-2.5 rounded-lg text-center border transition-all duration-150 shadow-sm ${isSelected ? 'ring-2 ring-indigo-500 border-indigo-500 scale-[1.02] shadow-md bg-indigo-500/10' : estFutur ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:scale-[1.02] hover:shadow-md'}`}
-                        style={{ background: statusBg, borderColor: isSelected ? theme.primary : theme.border }} disabled={estFutur}>
-                        <p className="text-[14px] font-bold" style={{ color: isSelected ? theme.primary : theme.text }}>{item.label}</p>
-                        <div className="flex items-center justify-center gap-1 mt-0.5 text-[13px] font-bold uppercase tracking-wider" style={{ color: statusText }}>
-                          {statusIcon}
-                          <span>{statusLabel}</span>
-                        </div>
-                        {paye && <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center shadow-md"><CheckCircle className="w-2 h-2 text-white" /></div>}
-                        {isSelected && <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-indigo-500 rounded-full flex items-center justify-center shadow-md"><CheckCircle className="w-2 h-2 text-white" /></div>}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="flex flex-wrap items-center justify-center gap-2 mt-2.5 pt-2 border-t text-[13px] font-bold uppercase tracking-wider" style={{ borderColor: theme.border, color: theme.muted }}>
-                  <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span><span>Payé</span></div>
-                  <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span><span>Impayé</span></div>
-                  <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }}></span><span>Futur</span></div>
-                  <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500"></span><span>Sélectionné</span></div>
-                </div>
-              </div>
-
-              {selectedMoisDetail !== null && selectedMoisDetailAnnee !== null && (
-                <div className="border-t" style={{ borderColor: theme.border }}>
-                  <FormCell label="Détail de la période" icon={<Calendar size={13} />} borderRight={true} borderBottom={false}>
-                    <span className="font-medium text-[14px]" style={{ color: theme.text }}>{moisLabels[selectedMoisDetail - 1]} {selectedMoisDetailAnnee}</span>
-                  </FormCell>
-                  <div className="flex items-center justify-between px-3 py-2 border-t" style={{ borderColor: theme.border, background: theme.formBg }}>
-                    {isMoisPaye(selectedMoisDetail, selectedMoisDetailAnnee) ? (
-                      <div className="flex items-center gap-2 w-full justify-end">
-                        <span className="px-2 py-0.5 rounded-lg text-[13px] font-bold uppercase tracking-wider flex items-center gap-1 border" style={{ background: 'rgba(16,185,129,0.1)', color: theme.green, borderColor: 'rgba(16,185,129,0.2)' }}>
-                          <CheckCircle className="w-3 h-3" />Payé
-                        </span>
-                        <span className="font-bold text-[14px]" style={{ color: theme.green }}>{formatMoney(getPaiementForMois(selectedMoisDetail, selectedMoisDetailAnnee)?.montant || 0)}</span>
-                        {onAnnulerPaiement && <button type="button" onClick={() => { const paiement = getPaiementForMois(selectedMoisDetail, selectedMoisDetailAnnee); if (paiement && window.confirm(`Annuler le paiement de ${moisLabels[selectedMoisDetail - 1]} ${selectedMoisDetailAnnee} (${formatMoney(paiement.montant || 0)}) ?`)) onAnnulerPaiement(paiement.id); }} className="p-1 rounded-lg transition-all hover:bg-rose-500/10" style={{ color: theme.red }}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>}
+              <div className="flex-1 min-h-0">
+                {loading ? (<div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-brand-500" /></div>) : data.length === 0 ? (<div className="text-center py-10" style={{ color: mutedColor }}>Aucune donnée trouvée pour cette période.</div>) : (
+                  <><table className="w-full text-left"><thead className="sticky top-0 z-20 shadow-sm"><tr style={{ backgroundColor: isDark ? '#1E293B' : '#F8FAFC' }}><th className="px-4 py-3 text-[13px] font-bold uppercase tracking-wide border-b" style={{ color: mutedColor, borderColor }}>Date</th><th className="px-4 py-3 text-[13px] font-bold uppercase tracking-wide border-b" style={{ color: mutedColor, borderColor }}>Employé</th><th className="px-4 py-3 text-[13px] font-bold uppercase tracking-wide border-b" style={{ color: mutedColor, borderColor }}>Statut</th></tr></thead><tbody>{paginatedData.map((item, idx) => (<tr key={idx} className="transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.04]" style={{ backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }}><td className="px-4 py-3 text-[14px] border-b" style={{ color: mutedColor, borderColor }}>{item.date.split('-').reverse().join('/')}</td><td className="px-4 py-3 text-[14px] font-semibold border-b" style={{ color: textColor, borderColor }}>{item.prenom} {item.nom}</td><td className="px-4 py-3 border-b" style={{ borderColor }}><span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[12px] font-bold ${item.statut === 'present' ? 'bg-success-50 text-success-700' : item.statut === 'absent' ? 'bg-danger-50 text-danger-700' : 'bg-yellow-50 text-yellow-700'}`}>{item.statut === 'present' ? <CheckCircle2 size={12} /> : item.statut === 'absent' ? <XCircle size={12} /> : <AlertCircle size={12} />}{item.statut === 'present' ? 'Présent' : item.statut === 'absent' ? 'Absent' : 'Congé'}</span></td></tr>))}</tbody></table>
+                  {totalPages > 1 && (
+                    <div className="sticky bottom-0 px-4 py-3 flex items-center justify-between border-t" style={{ backgroundColor: isDark ? '#0F172A' : '#FFFFFF', borderColor }}>
+                      <span className="text-[14px]" style={{ color: mutedColor }}>Page {currentPage} sur {totalPages}</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="flex h-8 w-8 items-center justify-center rounded-lg border hover:bg-slate-50 disabled:opacity-40 dark:hover:bg-white/[0.06]" style={{ borderColor, color: mutedColor }}><ChevronLeft size={15} /></button>
+                        <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} className="flex h-8 w-8 items-center justify-center rounded-lg border hover:bg-slate-50 disabled:opacity-40 dark:hover:bg-white/[0.06]" style={{ borderColor, color: mutedColor }}><ChevronRight size={15} /></button>
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-end w-full">
-                        <span className="px-2 py-0.5 rounded-lg text-[13px] font-bold uppercase tracking-wider flex items-center gap-1 border" style={{ background: 'rgba(245,158,11,0.1)', color: theme.amber, borderColor: 'rgba(245,158,11,0.2)' }}>
-                          <AlertCircle className="w-3 h-3" />Non payé
-                        </span>
-                      </div>
+                    </div>
+                  )}
+                  </>
+                )}
+              </div>
+            </>
+          )}
+          {activeTab === 'bilan' && (
+            <div className="p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <select value={moisState} onChange={e => setMoisState(Number(e.target.value))} className="h-9 px-3 rounded-lg border outline-none focus:border-brand-500" style={inputStyle}>{MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select>
+                <input type="number" value={anneeState} onChange={e => setAnneeState(Number(e.target.value))} className="h-9 w-24 px-3 rounded-lg border outline-none focus:border-brand-500" style={inputStyle} />
+              </div>
+              <div className="relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: mutedColor }} />
+                <input 
+                  type="text" 
+                  placeholder="Rechercher un employé..." 
+                  value={employeeSearch} 
+                  onChange={(e) => { 
+                    const val = e.target.value;
+                    setEmployeeSearch(val); 
+                    setIsEmployeeDropdownOpen(true); 
+                    if (val === '') {
+                      setSelectedEmployeeId(null);
+                    }
+                  }} 
+                  onFocus={() => setIsEmployeeDropdownOpen(true)} 
+                  className="w-full h-10 pl-9 pr-3 rounded-lg border outline-none focus:border-brand-500" 
+                  style={inputStyle} 
+                />
+                {isEmployeeDropdownOpen && (
+                  <div className="absolute left-0 right-0 z-20 mt-1.5 max-h-60 overflow-y-auto rounded-lg border shadow-lg" style={{ borderColor, backgroundColor: inputBg }} onMouseDown={(e) => e.preventDefault()}>
+                    {filteredEmployees.length === 0 ? (<div className="px-4 py-3 text-[14px]" style={{ color: mutedColor }}>Aucun employé trouvé</div>) : (
+                      filteredEmployees.map(emp => (
+                        <button key={emp.id} type="button" onClick={() => { setSelectedEmployeeId(emp.id); setIsEmployeeDropdownOpen(false); setEmployeeSearch(`${emp.prenom || ''} ${emp.nom || ''}`.trim()); }} className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-white/[0.06]" style={{ color: textColor }}>
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-50 dark:bg-brand-500/10 text-[12px] font-bold" style={{ color: mutedColor }}>{(emp.prenom?.[0] || '') + (emp.nom?.[0] || '')}</div>
+                          <div className="min-w-0"><p className="text-[14px] font-semibold truncate">{emp.prenom} {emp.nom}</p><p className="text-[12px] truncate" style={{ color: mutedColor }}>{emp.poste || 'Employé'}</p></div>
+                        </button>
+                      ))
                     )}
                   </div>
-                </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="p-2 rounded-xl border text-center" style={{ backgroundColor: inputBg, borderColor }}><p className="text-[12px]" style={{ color: mutedColor }}>Total</p><p className="text-[16px] font-bold" style={{ color: textColor }}>{stats.total}</p></div>
+                <div className="p-2 rounded-xl border text-center" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.3)' }}><p className="text-[12px] text-success-600 dark:text-success-400">Présents</p><p className="text-[16px] font-bold text-success-700 dark:text-success-400">{stats.presents}</p></div>
+                <div className="p-2 rounded-xl border text-center" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)' }}><p className="text-[12px] text-danger-600 dark:text-danger-400">Absents</p><p className="text-[16px] font-bold text-danger-700 dark:text-danger-400">{stats.absents}</p></div>
+                {/* ⭐ Congés = Mavo (yellow) */}
+                <div className="p-2 rounded-xl border text-center" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', borderColor: 'rgba(234, 179, 8, 0.3)' }}><p className="text-[12px] text-yellow-600 dark:text-yellow-400">Congés</p><p className="text-[16px] font-bold text-yellow-700 dark:text-yellow-400">{stats.conges}</p></div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t" style={{ borderColor }}>
+                <div><label className="block mb-1 text-[13px] font-medium" style={{ color: mutedColor }}>Jours d'absences (Auto)</label><input type="text" value={stats.absents} readOnly className="w-full h-10 px-3 rounded-lg border bg-slate-100 dark:bg-slate-800 outline-none cursor-not-allowed" style={{ borderColor, color: textColor }} /></div>
+                <div><label className="block mb-1 text-[13px] font-medium" style={{ color: mutedColor }}>Jours de congés (Auto)</label><input type="text" value={stats.conges} readOnly className="w-full h-10 px-3 rounded-lg border bg-slate-100 dark:bg-slate-800 outline-none cursor-not-allowed" style={{ borderColor, color: textColor }} /></div>
+                <div><label className="block mb-1 text-[13px] font-medium" style={{ color: mutedColor }}>Certificat médical (Manuel)</label><input type="text" value={certificatMedical} onChange={e => setCertificatMedical(e.target.value)} placeholder="N° Certificat..." className="w-full h-10 px-3 rounded-lg border outline-none focus:border-brand-500" style={inputStyle} /></div>
+                <div><label className="block mb-1 text-[13px] font-medium" style={{ color: mutedColor }}>Jours de maladie (Manuel)</label><input type="number" value={joursMaladie} onChange={e => setJoursMaladie(e.target.value)} placeholder="0" className="w-full h-10 px-3 rounded-lg border outline-none focus:border-brand-500" style={inputStyle} /></div>
+                <div className="sm:col-span-2"><label className="block mb-1 text-[13px] font-medium" style={{ color: mutedColor }}>Observation</label><textarea value={observation} onChange={e => setObservation(e.target.value)} rows={3} className="w-full rounded-lg border px-3 py-2 outline-none focus:border-brand-500" style={inputStyle} /></div>
+              </div>
+              {loading ? (<div className="flex justify-center py-10"><Loader2 size={24} className="animate-spin text-brand-500" /></div>) : bilanMonthData.length === 0 ? (<div className="text-center py-10" style={{ color: mutedColor }}>Aucune donnée trouvée pour ce mois.</div>) : (
+                <table className="w-full text-left">
+                  <thead className="sticky top-0 z-20 shadow-sm"><tr style={{ backgroundColor: isDark ? '#1E293B' : '#F8FAFC' }}><th className="px-4 py-3 text-[13px] font-bold uppercase tracking-wide border-b" style={{ color: mutedColor, borderColor }}>Date</th><th className="px-4 py-3 text-[13px] font-bold uppercase tracking-wide border-b" style={{ color: mutedColor, borderColor }}>Employé</th><th className="px-4 py-3 text-[13px] font-bold uppercase tracking-wide border-b" style={{ color: mutedColor, borderColor }}>Statut</th></tr></thead>
+                  <tbody>
+                    {paginatedData.map((item, idx) => (
+                      <tr key={idx} className="transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.04]" style={{ backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }}>
+                        <td className="px-4 py-3 text-[14px] border-b" style={{ color: mutedColor, borderColor }}>{item.date.split('-').reverse().join('/')}</td>
+                        <td className="px-4 py-3 text-[14px] font-semibold border-b" style={{ color: textColor, borderColor }}>{item.prenom} {item.nom}</td>
+                        <td className="px-4 py-3 border-b" style={{ borderColor }}>
+                          {item.statut === 'present' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[12px] font-bold bg-success-50 text-success-700"><CheckCircle2 size={12} /> Présent</span>
+                          ) : item.statut === 'absent' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[12px] font-bold bg-danger-50 text-danger-700"><XCircle size={12} /> Absent</span>
+                          ) : item.statut === 'conge' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[12px] font-bold bg-yellow-50 text-yellow-700"><AlertCircle size={12} /> Congé</span>
+                          ) : (
+                            <span className="text-[12px] text-slate-400">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
-          </div>
+          )}
         </div>
-
-        {/* FOOTER */}
-        <div className="flex-shrink-0 flex items-center justify-end gap-2 px-4 py-2.5 border-t" style={{ borderColor: theme.border, background: theme.headerBg }}>
-          <button type="button" onClick={onPayer} className="px-3 py-1.5 rounded-lg text-[13px] font-bold uppercase tracking-wider text-white transition-all shadow-md inline-flex items-center gap-1.5 hover:opacity-90 bg-indigo-600">
-            <DollarSign className="w-3.5 h-3.5" />Payer
-          </button>
-          <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg text-[13px] font-bold uppercase tracking-wider transition-all border shadow-sm hover:opacity-80" style={{ background: theme.inputBg, borderColor: theme.border, color: theme.muted }}>
-            Fermer
-          </button>
+        <div className="shrink-0 border-t p-4 flex justify-end gap-2" style={{ borderColor, backgroundColor: isDark ? '#0F172A' : '#FFFFFF' }}>
+          <button onClick={onClose} className="h-10 px-4 rounded-lg border hover:bg-slate-50 dark:hover:bg-white/[0.06] text-[14px] font-medium" style={{ borderColor, color: mutedColor }}>Fermer</button>
+          {activeTab === 'bilan' ? (<button onClick={handleSaveBilan} disabled={!selectedEmployeeId} className="h-10 px-5 rounded-lg bg-brand-500 text-[14px] font-semibold text-white hover:bg-brand-600 disabled:opacity-50">Enregistrer</button>) : (<button className="h-10 px-5 rounded-lg bg-brand-500 text-[14px] font-semibold text-white hover:bg-brand-600">Enregistrer</button>)}
         </div>
       </div>
     </div>
   );
 };
-
 export default EmployesHistoriqueModal;

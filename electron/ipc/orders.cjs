@@ -1,13 +1,16 @@
-const {
-  registerOrdersHandlers,
-  ORDER_STATUS,
-  VALID_STATUSES,
-} = require('./orders/index.cjs');
+// ============================================================
+// electron/ipc/orders.cjs - Module principal
+// ============================================================
+
+'use strict';
+
+const { registerOrdersHandlers } = require('./orders/handlers.cjs');
+const { VALID_PAIEMENT_STATUSES, normalizePaiement } = require('./orders/validation.cjs');
 
 module.exports = {
   registerOrdersHandlers,
-  ORDER_STATUS,
-  VALID_STATUSES,
+  VALID_PAIEMENT_STATUSES,
+  normalizePaiement,
 };
 
 console.log('📦 [orders.cjs] Module principal chargé (version modulaire)');

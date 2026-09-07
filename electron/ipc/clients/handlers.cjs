@@ -83,12 +83,12 @@ function registerClientsHandlers(ipcMain) {
 
   ipcMain.handle('clients:create', withDbCheck((db, stmts, event, data, userId = null) => {
     if (!data || typeof data !== 'object') return { success: false, error: 'Données du client manquantes' };
-    const { nom, email, telephone, adresse, ville, code_postal, pays, type, image } = data;
+    const { nom, email, telephone, adresse, ville, code_postal, pays, type } = data;
     const safeNom = String(nom || '').trim();
     if (!safeNom) return { success: false, error: 'Le nom est obligatoire' };
     const safeEmail = email ? String(email).trim() : null;
     if (safeEmail) { const existing = stmts.checkEmail.get(safeEmail); if (existing) return { success: false, error: 'Cet email est déjà utilisé' }; }
-    const result = stmts.create.run(safeNom, safeEmail, telephone || null, adresse || null, ville || null, code_postal || null, pays || 'Madagascar', type || 'Particulier', image || null);
+    const result = stmts.create.run(safeNom, safeEmail, telephone || null, adresse || null, ville || null, code_postal || null, pays || 'Madagascar', type || 'Particulier');
     const id = Number(result.lastInsertRowid);
     const auditUser = userId || event?.sender?.user?.id || null;
     if (auditUser) logAudit('create', id, safeNom, auditUser, 'Client créé');
@@ -103,12 +103,12 @@ function registerClientsHandlers(ipcMain) {
     if (!data || typeof data !== 'object') return { success: false, error: 'Données du client manquantes' };
     const existing = stmts.getById.get(clientId);
     if (!existing) return { success: false, error: 'Client non trouvé' };
-    const { nom, email, telephone, adresse, ville, code_postal, pays, type, image } = data;
+    const { nom, email, telephone, adresse, ville, code_postal, pays, type } = data;
     const safeNom = String(nom || '').trim();
     if (!safeNom) return { success: false, error: 'Le nom est obligatoire' };
     const safeEmail = email ? String(email).trim() : null;
     if (safeEmail && safeEmail !== existing.email) { const duplicate = stmts.checkEmail.get(safeEmail); if (duplicate && Number(duplicate.id) !== clientId) return { success: false, error: 'Cet email est déjà utilisé' }; }
-    stmts.update.run(safeNom, safeEmail, telephone || null, adresse || null, ville || null, code_postal || null, pays || 'Madagascar', type || 'Particulier', image || null, clientId);
+    stmts.update.run(safeNom, safeEmail, telephone || null, adresse || null, ville || null, code_postal || null, pays || 'Madagascar', type || 'Particulier', clientId);
     const auditUser = userId || event?.sender?.user?.id || null;
     if (auditUser) logAudit('update', clientId, safeNom, auditUser, 'Client mis à jour');
     const updated = stmts.getById.get(clientId);
@@ -150,10 +150,18 @@ function registerClientsHandlers(ipcMain) {
     return { success: true, data: data || null };
   }));
 
+  // ⭐ FIX: Stats miaraka amin'ny total_achats
   ipcMain.handle('clients:get-stats', withDbCheck((db, stmts) => {
-    if (!stmts?.stats) return { success: false, error: 'Database non disponible', data: { total: 0, particuliers: 0, entreprises: 0, villes: 0, avec_telephone: 0 } };
+    if (!stmts?.stats) return { success: false, error: 'Database non disponible', data: { total: 0, particuliers: 0, entreprises: 0, villes: 0, avec_telephone: 0, total_achats: 0 } };
     const raw = stmts.stats.get();
-    return { success: true, data: { total: Number(raw?.total) || 0, particuliers: Number(raw?.particuliers) || 0, entreprises: Number(raw?.entreprises) || 0, villes: Number(raw?.villes) || 0, avec_telephone: Number(raw?.avec_telephone) || 0 } };
+    return { success: true, data: { 
+      total: Number(raw?.total) || 0, 
+      particuliers: Number(raw?.particuliers) || 0, 
+      entreprises: Number(raw?.entreprises) || 0, 
+      villes: Number(raw?.villes) || 0, 
+      avec_telephone: Number(raw?.avec_telephone) || 0,
+      total_achats: Number(raw?.total_achats) || 0
+    } };
   }));
 
   ipcMain.handle('clients:bulk-update-type', withDbCheck((db, stmts, event, ids, newType) => {
@@ -179,7 +187,7 @@ function registerClientsHandlers(ipcMain) {
   }));
 
   log('✅ [clients.handlers] Enregistrés');
-  return true; // ⭐ FIX: Mamerina true
+  return true;
 }
 
 module.exports = { registerClientsHandlers, emitClientsChanged };

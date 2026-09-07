@@ -1,8 +1,9 @@
 // ============================================================
 // electron/ipc/orders/logger.cjs - LOGGING
+// ⭐ FIX: DEBUG true
 // ============================================================
 
-const DEBUG = false;
+const DEBUG = true;
 
 function log(...args) {
   if (DEBUG) console.log('[📦 orders]', ...args);

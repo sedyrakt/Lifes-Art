@@ -1,12 +1,61 @@
+
+
 import React from 'react';
-import { Plus, BarChart3, ShoppingBag, ArrowUpRight } from 'lucide-react';
+import { Plus, BarChart3 } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 
-interface CommandesHeaderProps { onAddCommande: () => void; onOpenStats: () => void; }
+interface CommandesHeaderProps {
+  onAddCommande: () => void;
+  onOpenStats: () => void;
+  totalItems?: number;
+  refreshing?: boolean;
+}
 
-const CommandesHeader: React.FC<CommandesHeaderProps> = ({ onAddCommande, onOpenStats }) => {
-  return (<div className="mb-5 w-full"><div className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:shadow-md dark:border-slate-700 dark:bg-[#0F172A]"><div className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full bg-indigo-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" /><div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
-      <div className="flex min-w-0 items-center gap-3.5"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-all duration-200 group-hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:group-hover:bg-indigo-500/15"><ShoppingBag size={19} strokeWidth={2} /></div><div className="min-w-0"><div className="flex items-center gap-2"><h1 className="truncate text-[16px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">Gestion des commandes</h1><span className="hidden rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-600 sm:inline-flex dark:bg-indigo-500/10 dark:text-indigo-400">Ventes</span></div><p className="mt-0.5 truncate text-[12px] font-medium text-slate-500 dark:text-slate-400">Suivez et gérez vos commandes en temps réel</p></div></div>
-      <div className="flex w-full items-center gap-2 sm:w-auto"><button type="button" onClick={onOpenStats} className="inline-flex h-9 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-sm transition-all duration-150 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 active:scale-[0.98] dark:border-slate-700 dark:bg-[#111827] dark:text-slate-300 dark:hover:border-indigo-500/30 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300" aria-label="Afficher les statistiques"><BarChart3 size={15} className="text-indigo-600 dark:text-indigo-400" /><span>Statistiques</span></button><button type="button" onClick={onAddCommande} className="inline-flex h-9 flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 text-[12px] font-semibold text-white shadow-sm shadow-indigo-600/20 transition-all duration-150 hover:bg-indigo-700 hover:shadow-md active:scale-[0.98] dark:bg-indigo-500 dark:hover:bg-indigo-400" aria-label="Créer une nouvelle commande"><Plus size={16} strokeWidth={2.5} /><span>Nouvelle commande</span><ArrowUpRight size={13} className="hidden opacity-70 sm:block" /></button></div>
-    </div></div></div>);
+const CommandesHeader: React.FC<CommandesHeaderProps> = ({
+  onAddCommande,
+  totalItems,
+  refreshing = false,
+}) => {
+  const { isDark } = useTheme();
+
+  return (
+    <header className="mb-4 w-full">
+      <div
+        className="group relative flex flex-col gap-3 overflow-hidden rounded-xl border bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 md:flex-row md:items-center md:justify-between dark:bg-[#0F172A]"
+        style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}
+      >
+        <div className="absolute left-0 top-0 h-full w-[2px] bg-brand-500" />
+
+        <div className="relative z-10 flex min-w-0 flex-col">
+          <div className="flex items-center gap-2">
+            <h1 className="text-[19px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 dark:text-slate-100">
+              Commandes
+            </h1>
+            {totalItems !== undefined && (
+              <span className="inline-flex min-w-[26px] items-center justify-center rounded-md bg-brand-500 px-2 py-0.5 text-[11px] font-bold text-white dark:bg-brand-500 dark:text-white">
+                {totalItems}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-[13px] font-medium leading-tight text-slate-500 dark:text-slate-400">
+            Suivez et gérez vos commandes en temps réel.
+          </p>
+        </div>
+
+        <div className="relative z-10 flex w-full shrink-0 items-center gap-2 md:w-auto">
+          <button
+            type="button"
+            onClick={onAddCommande}
+            className="inline-flex h-9 flex-1 sm:flex-none items-center justify-center gap-2 rounded-lg bg-brand-500 px-3.5 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-brand-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:ring-offset-1 active:scale-[0.98] dark:bg-brand-500 dark:hover:bg-brand-600 dark:focus:ring-offset-[#0F172A]"
+            aria-label="Créer une nouvelle commande"
+          >
+            <Plus size={17} strokeWidth={2.2} />
+            <span>Nouvelle commande</span>
+          </button>
+        </div>
+      </div>
+    </header>
+  );
 };
+
 export default CommandesHeader;

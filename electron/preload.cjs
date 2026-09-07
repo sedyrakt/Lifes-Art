@@ -1,8 +1,12 @@
 // ============================================================
-// electron/preload.cjs - VOAAMBOARINA (VERSION FINALE)
-// ⭐ FIX: Modules ERP ilaina fotsiny (Achats + Ventes + updateStatus)
-// ⭐ FIX: NAMPIANA NY API LICENSE (activateWithCode, verifyCode, sns.)
-// ⭐ FIX: NAMPIANA NY stock.getStats()
+// electron/preload.cjs - VERSION FINALE AVEC RH + VENTES
+// ⭐ FIX: NAMPIANA ny RH (getPresence, updatePresence, getSalaryHistory, updateSalary)
+// ⭐ FIX: NAMPIANA ny "ventes.updatePaiement" (Marquer comme payée)
+// ⭐ FIX: NAMPIANA NY "payments.bulkCreate" (Fandoavana Faobe - 10 000 employés)
+// ⭐ FIX: ESORINA NY "updateStatus" (TSY ILAINA INTSONY)
+// ⭐ NEW: NAMPIANA NY PRESENCE JOURNALIERE + HISTORIQUE
+// ⭐ NEW: NAMPIANA NY getAbsencesCount (PAYMENTS)
+// ⭐ NEW: NAMPIANA NY saveFileToDirectory (BULK BULLETIN)
 // ============================================================
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -118,23 +122,24 @@ const api = {
     getByDateRange: (startDate, endDate) => invoke('orders:get-by-date-range', startDate, endDate),
     getStats: () => invoke('orders:get-stats'),
     getProducts: (commandeId) => invoke('orders:get-products', commandeId),
-    updateStatus: (id, statut) => invoke('orders:update-status', id, statut),
     getWithDetails: (commandeId) => invoke('orders:get-with-details', commandeId),
     getTotal: (commandeId) => invoke('orders:get-total', commandeId),
     getByNumber: (numero) => invoke('orders:get-by-number', numero),
     getJournalieres: (options) => invoke('orders:get-journalieres', options),
     bulkUpdateStatus: (ids, newStatus) => invoke('orders:bulk-update-status', ids, newStatus),
     bulkDelete: (ids) => invoke('orders:bulk-delete', ids),
+    
+    // ⭐ FANAMPIANA: DETTE CLIENT
+    updatePaiement: (id, data) => invoke('orders:update-paiement', id, data),
+    getDetteStats: () => invoke('orders:get-dette-stats'),
+    
     onChanged: (callback) => on('orders:changed', callback),
   },
   stock: {
     getEntrees: (options) => invoke('stock:get-entrees', options),
     getSorties: (options) => invoke('stock:get-sorties', options),
     getMouvements: (options) => invoke('stock:get-mouvements', options),
-    
-    // ⭐ FIX: NAMPIANA IZAO (getStats)
     getStats: () => invoke('stock:get-stats'),
-    
     getEntreesByProduit: (produitId, options) => invoke('stock:get-entrees-by-produit', produitId, options),
     getSortiesByProduit: (produitId, options) => invoke('stock:get-sorties-by-produit', produitId, options),
     getMouvementsByProduit: (produitId, options) => invoke('stock:get-mouvements-by-produit', produitId, options),
@@ -161,6 +166,24 @@ const api = {
     onChanged: (callback) => on('employes:changed', callback),
     getPaiementCountsBatch: (ids) => invoke('employes:get-paiement-counts-batch', ids),
     getTotalSalairesPayes: (annee) => invoke('employes:get-total-salaires-payes', annee),
+
+    // ⭐ RH (Congés, Absences, Fisondrotana)
+    getPresence: (employeId, mois, annee) => invoke('employes:get-presence', employeId, mois, annee),
+    updatePresence: (data) => invoke('employes:update-presence', data),
+    getSalaryHistory: (employeId) => invoke('employes:get-salary-history', employeId),
+    updateSalary: (employeId, newSalary, raison) => invoke('employes:update-salary', employeId, newSalary, raison),
+
+    // ⭐ PRESENCE JOURNALIERE
+    getPresenceJournaliere: (employeId, mois, annee) => invoke('employes:get-presence-journaliere', employeId, mois, annee),
+    updatePresenceJournaliere: (data) => invoke('employes:update-presence-journaliere', data),
+    deletePresenceJournaliere: (id) => invoke('employes:delete-presence-journaliere', id),
+
+    // ⭐ BATCH API (10 000 EMPLOYÉS)
+    getPresenceJournaliereMois: (mois, annee) => invoke('employes:get-presence-journaliere-mois', mois, annee),
+    bulkUpdatePresenceJournaliere: (data) => invoke('employes:bulk-update-presence-journaliere', data),
+
+    // ⭐ HISTORIQUE (Par Jour / Mois / An)
+    getPresenceHistorique: (options) => invoke('employes:get-presence-historique', options),
   },
   expenses: {
     getAll: (options) => invoke('expenses:get-all', options),
@@ -187,6 +210,12 @@ const api = {
     countByEmploye: (employeId) => invoke('payments:count-by-employe', employeId),
     getStats: () => invoke('payments:get-stats'),
     getEmployeStats: (employeId) => invoke('payments:get-employe-stats', employeId),
+    
+    // ⭐ BULK PAYMENT
+    bulkCreate: (data) => invoke('payments:bulk-create', data),
+
+    // ⭐ NEW: GET ABSENCES COUNT (INTÉGRATION PRÉSENCES)
+    getAbsencesCount: (employeId, mois, annee) => invoke('payments:get-absences-count', employeId, mois, annee),
   },
   categories: {
     getAll: (options) => invoke('categories:get-all', options),
@@ -209,17 +238,6 @@ const api = {
     delete: (imagePath) => invoke('images:delete', imagePath),
     getUrl: (imagePath) => invoke('images:get-url', imagePath),
     getImageAsBase64: (imagePath) => invoke('images:get-image-as-base64', imagePath),
-  },
-  financial: {
-    getSummary: () => invoke('financial:get-summary'),
-    getMonthly: (annee) => invoke('financial:get-monthly', annee),
-    getYearly: () => invoke('financial:get-yearly'),
-    getOverview: (annee) => invoke('financial:get-overview', annee),
-    getByPeriod: (startDate, endDate) => invoke('financial:get-by-period', startDate, endDate),
-    getProfitMargin: () => invoke('financial:get-profit-margin'),
-    getExpensesBreakdown: (annee) => invoke('financial:get-expenses-breakdown', annee),
-    getRevenueTrend: (annee) => invoke('financial:get-revenue-trend', annee),
-    onChanged: (callback) => on('financial:changed', callback),
   },
   reports: {
     getSummary: (options) => invoke('reports:get-summary', options),
@@ -290,37 +308,37 @@ const api = {
     exportData: (data, format) => invoke('utils:export-data', data, format),
     print: () => invoke('utils:print'),
     saveFile: (data, defaultPath) => invoke('utils:save-file', data, defaultPath),
+    // ⭐ VAOVAO: Mitahiry mivantana ao anaty dossier (tsy misy dialog)
+    saveFileToDirectory: (data, directory, filename) => invoke('utils:save-file-to-directory', data, directory, filename),
   },
   platform: {
     name: process.platform,
     arch: process.arch,
     electron: process.versions.electron,
     node: process.versions.node,
-    app: "Life's Art",
+    app: "TahiryPro",
     version: APP_VERSION,
   },
 };
 
 // ============================================================
-// ⭐ MODULES ERP: ACHATS (ilaina fotsiny)
+// ⭐ MODULES ERP: ACHATS
 // ============================================================
-
 api.achats = {
   getAll: (options = {}) => invoke('achats:get-all', options),
   getById: (id) => invoke('achats:get-by-id', id),
   getDetails: (achatId) => invoke('achats:get-details', achatId),
   create: (data) => invoke('achats:create', data),
   update: (id, data) => invoke('achats:update', id, data),
-  updateStatus: (id, statut) => invoke('achats:update-status', id, statut),
   delete: (id) => invoke('achats:delete', id),
   bulkDelete: (ids) => invoke('achats:bulk-delete', ids),
+  updatePaiement: (id, data) => invoke('achats:update-paiement', id, data),
   onChanged: (callback) => on('achats:changed', callback),
 };
 
 // ============================================================
-// ⭐ MODULES ERP: VENTES (Devis & Factures) - NAMPIANA
+// ⭐ MODULES ERP: VENTES (Devis & Factures)
 // ============================================================
-
 api.ventes = {
   getDevis: (options) => invoke('ventes:get-devis', options),
   getDevisById: (id) => invoke('ventes:get-devis-by-id', id),
@@ -335,13 +353,13 @@ api.ventes = {
   deleteFacture: (id) => invoke('ventes:delete-facture', id),
   getFactureDetails: (factureId) => invoke('ventes:get-facture-details', factureId),
   convertDevisToFacture: (devisId) => invoke('ventes:convert-devis-to-facture', devisId),
+  updatePaiement: (id, data) => invoke('ventes:update-paiement', id, data),
   onChanged: (callback) => on('ventes:changed', callback),
 };
 
 // ============================================================
-// ⭐ API LICENSE (NAMPIANA IZAO)
+// ⭐ API LICENSE
 // ============================================================
-
 api.license = {
   load: () => invoke('license:load'),
   save: (data) => invoke('license:save', data),
@@ -363,18 +381,15 @@ api.license = {
   clearCache: () => invoke('license:clear-cache'),
   refreshTimer: () => invoke('license:refresh-timer'),
   getExpiration: () => invoke('license:get-expiration'),
-  // ⭐ NOUVEAU: Activation par code
   activateWithCode: (code) => invoke('license:activate-with-code', code),
   generateCode: (packageType) => invoke('license:generate-code', packageType),
   verifyCode: (code) => invoke('license:verify-code', code),
-  // ⭐ Events
   onChanged: (callback) => on('license:changed', callback),
 };
 
 // ============================================================
-// ⭐ API REVOCATION (NAMPIANA)
+// ⭐ API REVOCATION
 // ============================================================
-
 api.revocation = {
   check: (licenseKey, activationId) => invoke('license:revocation:check', licenseKey, activationId),
   stats: () => invoke('license:revocation:stats'),

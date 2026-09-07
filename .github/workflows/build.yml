@@ -1,6 +1,6 @@
 # ============================================================
-# LIFE'S ART ERP - GitHub Actions - Windows + Linux
-# ⭐ FIX: Esory ny backtick (tsy mandeha amin'ny bash)
+# TAHIRYPRO ERP - GitHub Actions - Windows + Linux
+# ⭐ FIX: Mampiasa build:electron (build.cjs) fa tsy build:obfuscate
 # ============================================================
 
 name: Build & Release
@@ -76,8 +76,8 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Build obfuscated
-        run: npm run build:obfuscate
+      - name: Build electron (bytenode + obfuscation)
+        run: npm run build:electron
 
       - name: Verify production frontend
         shell: pwsh
@@ -88,6 +88,20 @@ jobs:
           Write-Host "=========================================="
           if (!(Test-Path "dist/index.html")) { Write-Host "ERROR: dist/index.html missing"; exit 1 }
           Write-Host "OK: dist/index.html"
+
+      - name: Verify dist-electron keys
+        shell: pwsh
+        run: |
+          Write-Host ""
+          Write-Host "=========================================="
+          Write-Host " VERIFY DIST-ELECTRON KEYS"
+          Write-Host "=========================================="
+          if (!(Test-Path "dist-electron/keys/public.pem")) { Write-Host "ERROR: dist-electron/keys/public.pem missing"; exit 1 }
+          if (!(Test-Path "dist-electron/keys/codes.db.enc")) { Write-Host "ERROR: dist-electron/keys/codes.db.enc missing"; exit 1 }
+          if (Test-Path "dist-electron/keys/private.pem")) { Write-Host "ERROR: private.pem should not be present"; exit 1 }
+          Write-Host "OK: public.pem"
+          Write-Host "OK: codes.db.enc"
+          Write-Host "OK: private.pem absent"
 
       - name: Build Windows Installer EXE
         run: npx electron-builder --win --x64 --config electron-builder.yml --publish=never
@@ -118,7 +132,7 @@ jobs:
         run: |
           $files = Get-ChildItem release -File -Filter "*.exe"
           foreach ($file in $files) {
-            $newName = "lifes-art-$env:VERSION-win64-setup.exe"
+            $newName = "tahirypro-$env:VERSION-win64-setup.exe"
             Write-Host "Renaming:"
             Write-Host "$($file.Name)"
             Write-Host "to"
@@ -132,7 +146,7 @@ jobs:
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lifes-art-win64-v${{ env.VERSION }}
+          name: tahirypro-win64-v${{ env.VERSION }}
           path: release/*.exe
           if-no-files-found: error
 
@@ -195,8 +209,8 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Build obfuscated
-        run: npm run build:obfuscate
+      - name: Build electron (bytenode + obfuscation)
+        run: npm run build:electron
 
       - name: Verify production frontend
         shell: bash
@@ -207,6 +221,23 @@ jobs:
           echo "=========================================="
           test -f dist/index.html || { echo "ERROR: dist/index.html missing"; exit 1; }
           echo "OK: dist/index.html"
+
+      - name: Verify dist-electron keys
+        shell: bash
+        run: |
+          echo ""
+          echo "=========================================="
+          echo " VERIFY DIST-ELECTRON KEYS"
+          echo "=========================================="
+          test -f dist-electron/keys/public.pem || { echo "ERROR: dist-electron/keys/public.pem missing"; exit 1; }
+          test -f dist-electron/keys/codes.db.enc || { echo "ERROR: dist-electron/keys/codes.db.enc missing"; exit 1; }
+          if [ -f dist-electron/keys/private.pem ]; then
+            echo "ERROR: private.pem should not be present"
+            exit 1
+          fi
+          echo "OK: public.pem"
+          echo "OK: codes.db.enc"
+          echo "OK: private.pem absent"
 
       - name: Build Linux DEB
         run: npx electron-builder --linux deb --x64 --config electron-builder.yml --publish=never
@@ -241,7 +272,7 @@ jobs:
         run: |
           for file in release/*.deb; do
             if [ -f "$file" ]; then
-              mv "$file" "release/lifes-art-$VERSION-linux-x64.deb"
+              mv "$file" "release/tahirypro-$VERSION-linux-x64.deb"
             fi
           done
 
@@ -257,6 +288,6 @@ jobs:
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: lifes-art-linux-v${{ env.VERSION }}
+          name: tahirypro-linux-v${{ env.VERSION }}
           path: release/*.deb
           if-no-files-found: error

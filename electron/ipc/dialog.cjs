@@ -1,7 +1,4 @@
-// ============================================================
-// electron/ipc/dialog.cjs
-// ⭐ FIX: Mamerina `true` mba tsy hiteraka ilay "function returned false"
-// ============================================================
+
 'use strict';
 
 const { dialog } = require('electron');
@@ -9,7 +6,7 @@ const { dialog } = require('electron');
 function registerDialogHandlers(ipcMain) {
   if (!ipcMain) return;
   
-  // ⭐ FIX: Esory ny handler taloha mba tsy hifandona
+
   try { ipcMain.removeHandler('dialog:show-open-dialog'); } catch (_) {}
 
   ipcMain.handle('dialog:show-open-dialog', async (event, options = {}) => {

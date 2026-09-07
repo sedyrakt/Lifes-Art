@@ -1,7 +1,4 @@
-// ============================================================
-// src/hooks/usePaiementCounts.ts
-// ⭐ FIX: Mampiasa ny employes:get-paiement-counts-batch mba tsy hanao 150 calls
-// ============================================================
+
 import { useState, useEffect, useCallback } from 'react';
 
 interface Employe { id: number; }
@@ -13,7 +10,7 @@ export const usePaiementCounts = ({ employes }: UsePaiementCountsProps) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchCounts = useCallback(async () => {
-    // Raha tsy misy employés na tsy misy ilay API batch
+
     if (!Array.isArray(employes) || employes.length === 0 || !window.api?.employes?.getPaiementCountsBatch) {
       setCounts({});
       setLoading(false);
@@ -24,7 +21,7 @@ export const usePaiementCounts = ({ employes }: UsePaiementCountsProps) => {
     setError(null);
 
     try {
-      // ⭐ ZAVA-DEHIBE: Batch call tokana ihany, fa tsy 150 calls
+
       const ids = employes.map(e => Number(e.id)).filter(id => Number.isFinite(id) && id > 0);
       if (ids.length === 0) {
         setCounts({});
@@ -35,7 +32,6 @@ export const usePaiementCounts = ({ employes }: UsePaiementCountsProps) => {
       
       if (result?.success) {
         const newCounts: Record<number, number> = {};
-        // Ny backend dia mamerina andalana: { employe_id: ..., count: ... }
         (result.data || []).forEach((row: any) => {
           newCounts[row.employe_id] = Number(row.count || 0);
         });
@@ -58,7 +54,6 @@ export const usePaiementCounts = ({ employes }: UsePaiementCountsProps) => {
     paiementCounts: counts,
     loading,
     error,
-    // ⭐ ZAVA-DEHIBE : Refresh rehefa misy create/update/delete paiement
     refreshPaiementCounts: fetchCounts,
   };
 };

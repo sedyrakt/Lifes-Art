@@ -34,6 +34,7 @@ function buildEntreesQuery(options = {}) {
 
   const params = [];
 
+  // ⭐ NESORINA NY p.image
   let dataQuery = `
     SELECT
       e.id,
@@ -47,7 +48,6 @@ function buildEntreesQuery(options = {}) {
       e.created_at,
       p.nom AS produit_nom,
       p.code AS produit_code,
-      p.image AS produit_image,
       f.nom AS fournisseur_nom
     FROM entrees_stock e
     LEFT JOIN produits p ON p.id = e.produit_id
@@ -145,6 +145,7 @@ function buildSortiesQuery(options = {}) {
 
   const params = [];
 
+  // ⭐ NESORINA NY p.image
   let dataQuery = `
     SELECT
       s.id,
@@ -157,8 +158,7 @@ function buildSortiesQuery(options = {}) {
       s.date_sortie,
       s.created_at,
       p.nom AS produit_nom,
-      p.code AS produit_code,
-      p.image AS produit_image
+      p.code AS produit_code
     FROM sorties_stock s
     LEFT JOIN produits p ON p.id = s.produit_id
     WHERE 1 = 1
@@ -243,6 +243,7 @@ function buildMouvementsQuery(options = {}) {
 
   const params = [];
 
+  // ⭐ NESORINA NY p.image
   let dataQuery = `
     SELECT
       m.id,
@@ -257,7 +258,6 @@ function buildMouvementsQuery(options = {}) {
       m.created_at,
       p.nom AS produit_nom,
       p.code AS produit_code,
-      p.image AS produit_image,
       p.prix_achat,
       COALESCE(m.prix_unitaire, p.prix_achat, 0) AS prix_unitaire,
       'Système' AS created_by_nom

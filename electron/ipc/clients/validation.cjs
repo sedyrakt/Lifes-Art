@@ -58,7 +58,7 @@ function validateClient(data) {
     errors.push('Le type doit être "Particulier" ou "Entreprise"');
   }
 
-  const image = data.image || null;
+  // ⭐ NESORINA NY image
 
   return {
     valid: errors.length === 0,
@@ -72,7 +72,6 @@ function validateClient(data) {
       code_postal: codePostal || null,
       pays,
       type,
-      image,
     },
   };
 }

@@ -23,7 +23,6 @@ function validateEmploye(data) {
   const departement = data.departement?.trim() || null;
   const date_embauche = data.date_embauche || null;
   const salaire = Number(data.salaire) || 0;
-  const image = data.image || null;
   const status = data.status?.toLowerCase() || 'actif';
 
   if (!nom) errors.push('Le nom est obligatoire');
@@ -53,7 +52,8 @@ function validateEmploye(data) {
   return {
     valid: errors.length === 0,
     errors,
-    data: { nom, prenom, email, telephone, poste, departement, date_embauche, salaire, image, status },
+    // ⭐ NESORINA NY image
+    data: { nom, prenom, email, telephone, poste, departement, date_embauche, salaire, status },
   };
 }
 

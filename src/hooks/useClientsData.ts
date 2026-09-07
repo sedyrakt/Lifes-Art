@@ -14,8 +14,7 @@ export interface ClientData {
   adresse?: string | null; ville?: string | null; code_postal?: string | null;
   pays?: string | null; type?: string | null; image?: string | null;
   created_at?: string; updated_at?: string;
-  total_achats?: number;
-  nombre_commandes?: number;
+  total_achats?: number; nombre_commandes?: number;
 }
 export interface ClientFilters {
   searchTerm: string; filterType: string; filterVille: string;
@@ -24,14 +23,10 @@ export interface ClientFilters {
 interface ClientStats { total: number; particuliers: number; entreprises: number; avec_telephone: number; }
 
 export const useClientsData = () => {
-  // ✅ FIX: HOOKS REHETRA ETO AMBONY (TSY MISY CONDITION)
   const isMounted = useRef(true);
   const fetchLock = useRef(false);
   const firstLoadDone = useRef(false);
   const loadDataRef = useRef<() => Promise<void>>(async () => {});
-  const loadedImageIds = useRef<Set<number>>(new Set());
-  const imageLoadingIds = useRef<Set<number>>(new Set());
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [clients, setClients] = useState<ClientData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,14 +37,15 @@ export const useClientsData = () => {
   const [sortOption, setSortOption] = useState<keyof typeof SORT_MAP>('Nom (A-Z)');
   const [filters, setFilters] = useState<ClientFilters>({ searchTerm: '', filterType: 'Tous', filterVille: '', filterPays: '', filterDateFrom: '', filterDateTo: '' });
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [imageUrls, setImageUrls] = useState<Record<number, string>>({});
-  const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imagePath, setImagePath] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => { isMounted.current = true; return () => { isMounted.current = false; fetchLock.current = false; }; }, []);
-  useEffect(() => { const t = setTimeout(() => setDebouncedSearch(filters.searchTerm.trim()), 300); return () => clearTimeout(t); }, [filters.searchTerm]);
+  
+  // ⭐ FIX: Miaro amin'ny undefined
+  useEffect(() => {
+    const value = filters?.searchTerm ?? '';
+    const t = setTimeout(() => setDebouncedSearch(value.trim()), 300);
+    return () => clearTimeout(t);
+  }, [filters?.searchTerm]);
 
   const loadClients = useCallback(async (isRefresh = false) => {
     if (fetchLock.current) return;
@@ -84,50 +80,6 @@ export const useClientsData = () => {
 
   const loadData = useCallback(async () => { setCurrentPage(1); }, []);
   const refresh = useCallback(async () => { await loadDataRef.current(true); }, []);
-
-  const resetImageState = useCallback(() => { setImagePreview(null); setImagePath(null); setUploadingImage(false); setImageErrors({}); if (fileInputRef.current) fileInputRef.current.value = ''; }, []);
-
-  // ⭐ FIX: Maka ny sary amin'ny alalan'ny images.getUrl (tahaka ny produits)
-  const loadImageUrl = useCallback(async (client: ClientData) => {
-    if (!client?.image || loadedImageIds.current.has(client.id) || imageLoadingIds.current.has(client.id)) return null;
-    imageLoadingIds.current.add(client.id);
-    try {
-      if (window.api?.images?.getUrl) {
-        const result = await window.api.images.getUrl(client.image);
-        const url = result?.success ? result.data : null;
-        if (url) {
-          setImageUrls(prev => ({ ...prev, [client.id]: url }));
-          loadedImageIds.current.add(client.id);
-          return url;
-        }
-      }
-      return null;
-    } catch (err) { console.error('❌ loadImageUrl:', err); setImageErrors(prev => ({ ...prev, [client.id]: true })); return null; }
-    finally { imageLoadingIds.current.delete(client.id); }
-  }, []);
-
-  useEffect(() => { let cancelled = false; (async () => { if (!Array.isArray(clients) || clients.length === 0) return; for (const c of clients) { if (cancelled || !c?.image) continue; await loadImageUrl(c); } })(); return () => { cancelled = true; }; }, [clients, loadImageUrl]);
-
-  const handleImageError = useCallback((id: number) => { setImageErrors(prev => ({ ...prev, [id]: true })); setImageUrls(prev => { const n = { ...prev }; delete n[id]; return n; }); }, []);
-  
-  const uploadImage = useCallback(async (base64: string) => {
-    if (!base64) throw new Error('Aucune image.');
-    if (!window.api?.images?.upload) throw new Error('API images.upload tsy hita.');
-    setUploadingImage(true);
-    try {
-      const result = await window.api.images.upload(base64, 'clients');
-      if (!result || !result.success) throw new Error(result?.error || "Impossible d'enregistrer.");
-      const p = result.path || result.data || result.imagePath;
-      if (!p) throw new Error("Chemin d'image non retourné.");
-      setImagePath(p); 
-      return p;
-    } finally { setUploadingImage(false); }
-  }, []);
-
-  const deleteImage = useCallback(async (path: string) => {
-    if (!path) return;
-    try { if (window.api?.images?.delete) await window.api.images.delete(path); } finally { setImagePath(p => p === path ? null : p); setImagePreview(null); }
-  }, []);
 
   const createClient = useCallback(async (data: Partial<ClientData>) => {
     if (!window.api?.clients?.create) throw new Error('API clients.create tsy hita.');
@@ -179,7 +131,5 @@ export const useClientsData = () => {
     filters, setFilters, sortOption, setSortOption, refresh, loadData,
     getStats, getTypeColor, getTypeIcon,
     createClient, updateClient, deleteClient, bulkDelete, bulkUpdateType,
-    imageUrls, imageErrors, imagePreview, setImagePreview, imagePath, uploadingImage, fileInputRef,
-    resetImageState, loadImageUrl, handleImageError, uploadImage, deleteImage,
   };
 };

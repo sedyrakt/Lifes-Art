@@ -25,17 +25,10 @@ function registerStockHandlers(ipcMain) {
   if (!ipcMain) { error('ipcMain est null ou undefined'); return false; }
   
   const channels = [
-    'stock:get-entrees',
-    'stock:get-sorties',
-    'stock:get-mouvements',
-    'stock:create-entree',
-    'stock:create-sortie',
-    'stock:get-stats',
-    'stock:get-entrees-stats',
-    'stock:get-sorties-stats',
-    'stock:bulk-delete-mouvements',
-    'stock:bulk-delete-entrees',
-    'stock:bulk-delete-sorties'
+    'stock:get-entrees', 'stock:get-sorties', 'stock:get-mouvements',
+    'stock:create-entree', 'stock:create-sortie', 'stock:get-stats',
+    'stock:get-entrees-stats', 'stock:get-sorties-stats',
+    'stock:bulk-delete-mouvements', 'stock:bulk-delete-entrees', 'stock:bulk-delete-sorties'
   ];
   
   for (const channel of channels) { try { ipcMain.removeHandler(channel); } catch (_) {} }
@@ -166,7 +159,7 @@ function registerStockHandlers(ipcMain) {
   }));
 
   // ============================================================
-  // CREATE ENTREE
+  // CREATE ENTREE (⭐ FIX: Ampiana prix_unitaire)
   // ============================================================
   ipcMain.handle('stock:create-entree', withLiveDb((db, stmts, data = {}, userId = null) => {
     try {
@@ -194,7 +187,9 @@ function registerStockHandlers(ipcMain) {
         
         const mouvement = stmts.stmtInsertMouvement.run(
           produitId, 'ENTREE', qty, ancienStock, nouveauStock, reference, 
-          `Entrée de stock - ${observation}`, validateId(userId)
+          `Entrée de stock - ${observation}`, 
+          Number.isFinite(prixUnitaire) ? prixUnitaire : 0, // ⭐ AMPIANA
+          validateId(userId)
         );
         
         return { mouvementId: Number(mouvement.lastInsertRowid), produitId, qty, ancienStock, nouveauStock, reference };
@@ -209,6 +204,7 @@ function registerStockHandlers(ipcMain) {
         ancien_stock: result.ancienStock, 
         nouveau_stock: result.nouveauStock, 
         reference: result.reference, 
+        prix_unitaire: Number.isFinite(prixUnitaire) ? prixUnitaire : 0, // ⭐ AMPIANA
         date_mouvement: new Date().toISOString() 
       });
       
@@ -217,7 +213,7 @@ function registerStockHandlers(ipcMain) {
   }));
 
   // ============================================================
-  // CREATE SORTIE
+  // CREATE SORTIE (⭐ FIX: Ampiana prix_unitaire)
   // ============================================================
   ipcMain.handle('stock:create-sortie', withLiveDb((db, stmts, data = {}, userId = null) => {
     try {
@@ -248,7 +244,9 @@ function registerStockHandlers(ipcMain) {
         
         const mouvement = stmts.stmtInsertMouvement.run(
           produitId, 'SORTIE', qty, ancienStock, nouveauStock, reference, 
-          `Sortie de stock - ${destination}`, validateId(userId)
+          `Sortie de stock - ${destination}`, 
+          Number.isFinite(prixUnitaire) ? prixUnitaire : 0, // ⭐ AMPIANA
+          validateId(userId)
         );
         
         return { mouvementId: Number(mouvement.lastInsertRowid), produitId, qty, ancienStock, nouveauStock, reference };
@@ -263,6 +261,7 @@ function registerStockHandlers(ipcMain) {
         ancien_stock: result.ancienStock, 
         nouveau_stock: result.nouveauStock, 
         reference: result.reference, 
+        prix_unitaire: Number.isFinite(prixUnitaire) ? prixUnitaire : 0, // ⭐ AMPIANA
         date_mouvement: new Date().toISOString() 
       });
       
@@ -343,7 +342,7 @@ function registerStockHandlers(ipcMain) {
   }));
 
   log('✅ [stock.handlers] Tous les handlers enregistrés');
-  return true; // ⭐ FIX: Mamerina true
+  return true;
 }
 
 module.exports = { registerStockHandlers };

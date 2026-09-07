@@ -1,120 +1,107 @@
 /* ============================================================
-   TAILWIND DIRECTIVES
+   src/index.css — GLOBAL STYLES
+   ⭐ INDIGO #4F46E5 + SLATE #0F172A
    ============================================================ */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ============================================================
-   BASE
-   ============================================================ */
 @layer base {
-  *,
-  *::before,
-  *::after { box-sizing: border-box; }
-  html, body, #root { width: 100%; height: 100%; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    background: #f8fafc;
-    color: #0f172a;
-    font-size: 14px;
-    line-height: 1.5;
-    overflow-y: auto;
-  }
-  .dark body, body.dark { background: #020617; color: #f8fafc; }
-  #root { display: flex; flex-direction: column; min-height: 100vh; }
-  :focus-visible { outline: 2px solid rgba(99, 102, 241, 0.45); outline-offset: 2px; }
-  ::selection { background: #7b63f1; color: #ffffff; }
-
-  /* ============================================================
-     GLOBAL SCROLLBAR (Sakany nitombo ho 14px)
-     ============================================================ */
-  ::-webkit-scrollbar { width: 14px; height: 14px; } /* ⭐ Nampitomboina ho 14px */
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; border: 3px solid transparent; background-clip: padding-box; } /* ⭐ Nampitomboina ny border mba ho hita matevina */
-  ::-webkit-scrollbar-thumb:hover { background: #818cf8; border: 2px solid transparent; background-clip: padding-box; }
-  .dark ::-webkit-scrollbar-thumb { background: #334155; border: 3px solid transparent; background-clip: padding-box; }
-  .dark ::-webkit-scrollbar-thumb:hover { background: #6366f1; border: 2px solid transparent; background-clip: padding-box; }
-
-  /* ============================================================
-     SIDEBAR & TABLE SCROLLBAR (Sakany nitombo ho 12px)
-     ============================================================ */
-  .custom-scrollbar::-webkit-scrollbar { width: 12px; height: 12px; } /* ⭐ Nampitomboina ho 12px */
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.22); border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.45); border: 2px solid transparent; background-clip: padding-box; }
-  .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.18); }
-  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(129, 140, 248, 0.45); }
-
-  input, textarea, button, select { font: inherit; }
-  button { -webkit-tap-highlight-color: transparent; }
-
-  @keyframes fadeIn { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: scale(1); } }
-  .animate-fadeIn { animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body,#root{width:100%;height:100%;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;background:#FFFFFF;color:#0F172A;font-size:14px;line-height:1.5;overflow-y:auto}
+  .dark body,body.dark{background:#0F172A;color:#F8FAFC}
+  #root{display:flex;flex-direction:column;min-height:100vh}
+  :focus-visible{outline:2px solid #4F46E5;outline-offset:2px}
+  ::selection{background:#4F46E5;color:#FFFFFF}
+  input,textarea,button,select{font:inherit}
+  button{-webkit-tap-highlight-color:transparent}
+  button:disabled{cursor:not-allowed}
+  ::-webkit-scrollbar{width:12px;height:12px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#4F46E5;border-radius:9999px;border:2px solid transparent;background-clip:padding-box;transition:background .2s}
+  ::-webkit-scrollbar-thumb:hover{background:#4338CA}
+  .dark ::-webkit-scrollbar-thumb{background:#4F46E5}
+  .dark ::-webkit-scrollbar-thumb:hover{background:#4338CA}
+  @keyframes fadeIn{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:scale(1)}}
+  .animate-fadeIn{animation:fadeIn .2s cubic-bezier(.16,1,.3,1) forwards}
+  @keyframes datepickerFadeIn{from{opacity:0;transform:translateY(-4px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
 }
 
-/* ============================================================
-   COMPONENTS
-   ============================================================ */
 @layer components {
-  .card { @apply rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 dark:border-slate-800 dark:bg-[#0F172A]; }
-  .card:hover { box-shadow: 0 4px 14px rgba(15, 23, 42, 0.055); }
-  .dark .card:hover { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); }
-  .card-header { @apply border-b border-slate-200 px-5 py-4 dark:border-slate-800; }
-  .card-body { @apply p-5 text-slate-900 dark:text-slate-100; }
-  .card-footer { @apply border-t border-slate-200 px-5 py-4 dark:border-slate-800; }
-  .input { @apply h-10 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-150 dark:border-slate-700 dark:bg-[#0F172A] dark:text-slate-100 dark:placeholder:text-slate-500; }
-  .input:hover { @apply border-slate-400 dark:border-slate-600; }
-  .input:focus { @apply border-indigo-500 ring-2 ring-indigo-500/10 dark:border-indigo-400 dark:ring-indigo-400/10; }
-  .input-error { @apply border-rose-500 ring-2 ring-rose-500/10 dark:border-rose-400 dark:ring-rose-400/10; }
-  .btn-primary { @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-indigo-700 active:bg-indigo-800 active:scale-[0.99] dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:active:bg-indigo-700; }
-  .btn-secondary { @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition-all duration-150 hover:bg-slate-50 hover:border-slate-400 active:bg-slate-100 dark:border-slate-700 dark:bg-[#0F172A] dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:border-slate-600 dark:active:bg-slate-700; }
-  .btn-danger { @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-rose-700 active:bg-rose-800 dark:bg-rose-500 dark:hover:bg-rose-600; }
-  .btn-success { @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 active:bg-emerald-800 dark:bg-emerald-500 dark:hover:bg-emerald-600; }
-  .badge { @apply inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium; }
-  .badge-indigo { @apply border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400; }
-  .badge-green { @apply border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400; }
-  .badge-red { @apply border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-400; }
-  .badge-orange { @apply border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400; }
-  .badge-purple { @apply border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/20 dark:bg-violet-500/10 dark:text-violet-400; }
-  .badge-gray { @apply border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400; }
-  .stat-card { @apply relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 hover:border-indigo-200 hover:shadow-[0_4px_14px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-[#0F172A] dark:hover:border-indigo-500/30 dark:hover:shadow-none; }
-  .stat-label { @apply text-[13px] font-medium text-slate-500 dark:text-slate-400; }
-  .stat-value { @apply text-[19px] font-semibold leading-none tracking-tight text-slate-900 dark:text-slate-100; }
-  .table-header { @apply bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500 dark:bg-[#0F172A] dark:text-slate-400; }
-  .table-row { @apply border-b border-slate-200 transition-colors duration-150 dark:border-slate-800; }
-  .table-row:hover { @apply bg-slate-50 dark:bg-slate-800/40; }
-  .table-cell { @apply px-4 py-3 text-sm text-slate-900 dark:text-slate-100; }
-  .modal-overlay { @apply fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-[3px]; }
-  .modal-content { @apply relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-[#0F172A]; }
-  select { @apply h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition-all duration-150 cursor-pointer dark:border-slate-700 dark:bg-[#0F172A] dark:text-slate-100; }
-  select:hover { @apply border-slate-400 dark:border-slate-600; }
-  select:focus { @apply border-indigo-500 ring-2 ring-indigo-500/10 dark:border-indigo-400 dark:ring-indigo-400/10; }
-  select option { @apply bg-white text-slate-900 dark:bg-[#0F172A] dark:text-slate-100; }
-  .page-title { @apply text-[22px] font-semibold tracking-tight text-slate-900 dark:text-slate-100; }
-  .page-subtitle { @apply text-sm leading-relaxed text-slate-500 dark:text-slate-400; }
-  .label { @apply mb-1.5 block text-[13px] font-medium text-slate-600 dark:text-slate-400; }
-  .skeleton { background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%); background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite; border-radius: 0.5rem; }
-  .dark .skeleton { background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); }
-  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-  .divider { @apply border-t border-slate-200 dark:border-slate-800; }
-  .dropdown-menu { @apply overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-[#0F172A]; }
-  .dropdown-item { @apply flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-slate-700 transition-colors duration-100 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800; }
-  .filter-chip { @apply inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300; }
+  .card{@apply rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 dark:border-slate-700 dark:bg-[#0F172A]}
+  .card:hover{box-shadow:0 4px 14px rgba(79,70,229,0.1)}
+  .card-header{@apply border-b border-slate-200 px-5 py-4 dark:border-slate-700}
+  .card-body{@apply p-5 text-slate-900 dark:text-slate-100}
+  .card-footer{@apply border-t border-slate-200 px-5 py-4 dark:border-slate-700}
+  .input{@apply h-10 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-150 dark:border-slate-700 dark:bg-[#1E293B] dark:text-slate-100 dark:placeholder:text-slate-500}
+  .input:focus{border-color:#4F46E5;box-shadow:0 0 0 2px rgba(79,70,229,0.1)}
+  .btn-primary{@apply inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-500 px-4 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-brand-600 active:scale-[0.99] active:bg-brand-600}
+  .btn-secondary{@apply inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition-all duration-150 hover:bg-slate-50 active:bg-slate-100 dark:border-slate-700 dark:bg-[#1E293B] dark:text-slate-300 dark:hover:bg-slate-800}
+  .btn-danger{@apply inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-danger-500 px-4 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-danger-600 active:bg-danger-600}
+  .btn-success{@apply inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-success-500 px-4 text-sm font-medium text-white shadow-sm transition-all duration-150 hover:bg-success-600}
+  .badge{@apply inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium}
+  .badge-brand{@apply border-brand-500/20 bg-brand-50 text-brand-600 dark:border-brand-500/20 dark:bg-brand-500/10 dark:text-brand-400}
+  .badge-gray{@apply border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400}
+  .badge-success{@apply border-success-200 bg-success-50 text-success-700 dark:border-success-500/20 dark:bg-success-500/10 dark:text-success-400}
+  .badge-error{@apply border-danger-200 bg-danger-50 text-danger-700 dark:border-danger-500/20 dark:bg-danger-500/10 dark:text-danger-400}
+  .stat-card{@apply relative overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 hover:border-brand-500/40 hover:shadow-[0_4px_14px_rgba(79,70,229,0.1)] dark:border-slate-700 dark:bg-[#0F172A] dark:hover:border-brand-500/30}
+  .stat-label{@apply text-[13px] font-medium text-slate-500 dark:text-slate-400}
+  .stat-value{@apply text-[19px] font-semibold leading-none tracking-tight text-slate-900 dark:text-slate-100}
+  .table-header{@apply bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500 dark:bg-[#1E293B] dark:text-slate-400}
+  .table-row{@apply border-b border-slate-200 transition-colors duration-150 dark:border-slate-700}
+  .table-row:hover{@apply bg-slate-50 dark:bg-slate-800/50}
+  .table-cell{@apply px-4 py-3 text-sm text-slate-900 dark:text-slate-100}
+  .modal-overlay{@apply fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-[3px]}
+  .modal-content{@apply relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-[#0F172A]}
+  select{@apply h-10 cursor-pointer rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-all duration-150 dark:border-slate-700 dark:bg-[#1E293B] dark:text-slate-100}
+  select:focus{border-color:#4F46E5;box-shadow:0 0 0 2px rgba(79,70,229,0.1)}
+  select option{@apply bg-white text-slate-900 dark:bg-[#1E293B] dark:text-slate-100}
+  .page-title{@apply text-[22px] font-semibold tracking-tight text-slate-900 dark:text-slate-100}
+  .page-subtitle{@apply text-sm leading-relaxed text-slate-500 dark:text-slate-400}
+  .skeleton{background:linear-gradient(90deg,rgba(79,70,229,0.1)25%,rgba(79,70,229,0.05)50%,rgba(79,70,229,0.1)75%);background-size:200%100%;animation:shimmer 1.5s ease-in-out infinite;border-radius:.5rem}
+  .dropdown-menu{@apply overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-700 dark:bg-[#0F172A]}
+  .dropdown-item{@apply flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-slate-700 transition-colors duration-100 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800}
 }
 
 /* ============================================================
-   RESPONSIVE
+   DATEPICKER — INDIGO THEME
    ============================================================ */
-@media (max-width: 768px) {
-  .page-title { @apply text-xl; }
-  .stat-value { @apply text-[17px]; }
-  .card-body { @apply p-4; }
-  .card-header { @apply px-4 py-3.5; }
-  .card-footer { @apply px-4 py-3.5; }
-  .modal-overlay { @apply p-3; }
-  .modal-content { @apply max-w-full; }
-}
+.react-datepicker-wrapper{display:block!important;width:100%!important}
+.react-datepicker__input-container{display:block!important;width:100%!important}
+.react-datepicker-popper{z-index:100000!important;animation:datepickerFadeIn .16s cubic-bezier(.16,1,.3,1) both!important}
+.react-datepicker{width:320px!important;min-width:320px!important;max-width:320px!important;margin:0!important;padding:0!important;border-radius:12px!important;overflow:hidden!important;background:#fff!important;border:1px solid #e2e8f0!important;color:#0F172A!important;font-family:inherit!important;font-size:14px!important;box-shadow:0 18px 45px rgba(15,23,42,0.2)!important}
+.react-datepicker *{box-sizing:border-box!important}
+.react-datepicker__month-container{float:none!important;width:100%!important}
+.react-datepicker__month{width:100%!important;margin:0!important;padding:5px 8px 10px!important}
+.react-datepicker__header{position:relative!important;width:100%!important;height:60px!important;padding:0!important;border-bottom:1px solid #e2e8f0!important;border-radius:12px 12px 0 0!important;background:#EEF2FF!important}
+.react-datepicker__current-month{width:100%!important;height:60px!important;margin:0!important;padding:0 40px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;color:#0F172A!important;font-size:16px!important;font-weight:700!important;line-height:1!important}
+.react-datepicker__day-names{width:100%!important;margin:0!important;padding:8px 8px 4px!important;display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important}
+.react-datepicker__day-name{width:100%!important;height:30px!important;margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;color:#64748b!important;font-size:13px!important;font-weight:600!important;line-height:1!important;text-align:center!important}
+.react-datepicker__week{width:100%!important;margin:0!important;padding:0!important;display:grid!important;grid-template-columns:repeat(7,minmax(0,1fr))!important}
+.react-datepicker__day{width:100%!important;height:38px!important;margin:0!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;border:0!important;border-radius:8px!important;color:#0F172A!important;font-size:14px!important;font-weight:500!important;line-height:38px!important;text-align:center!important;cursor:pointer!important;transition:background .15s,color .15s!important}
+.react-datepicker__day:hover{background:rgba(79,70,229,0.1)!important;color:#4F46E5!important}
+.react-datepicker__day--outside-month{color:#94a3b8!important;opacity:.42!important}
+.react-datepicker__day--today{background:rgba(79,70,229,0.1)!important;color:#4F46E5!important;font-weight:700!important}
+.react-datepicker__day--selected,.react-datepicker__day--keyboard-selected{background:#4F46E5!important;color:#fff!important;font-weight:700!important}
+.react-datepicker__navigation{display:none!important}
+.dark-datepicker-popper .react-datepicker,.dark-datepicker{background:#1E293B!important;border-color:rgba(255,255,255,0.12)!important;color:#F8FAFC!important}
+.dark-datepicker-popper .react-datepicker__header{background:#334155!important;border-bottom-color:rgba(255,255,255,0.12)!important}
+.dark-datepicker-popper .react-datepicker__current-month{color:#F8FAFC!important}
+.dark-datepicker-popper .react-datepicker__day-name{color:#94A3B8!important}
+.dark-datepicker-popper .react-datepicker__day{color:#F8FAFC!important}
+.dark-datepicker-popper .react-datepicker__day:hover{background:rgba(79,70,229,0.2)!important;color:#fff!important}
+.dark-datepicker-popper .react-datepicker__day--today{background:rgba(79,70,229,0.2)!important;color:#fff!important;font-weight:700!important}
+.dark-datepicker-popper .react-datepicker__day--selected{background:#4F46E5!important;color:#fff!important;font-weight:700!important}
+.light-datepicker-popper .react-datepicker,.light-datepicker{background:#fff!important;border-color:#E2E8F0!important;color:#0F172A!important}
+.light-datepicker-popper .react-datepicker__header{background:#EEF2FF!important;border-bottom-color:#E2E8F0!important}
+.light-datepicker-popper .react-datepicker__current-month{color:#0F172A!important}
+.light-datepicker-popper .react-datepicker__day-name{color:#64748B!important}
+.light-datepicker-popper .react-datepicker__day{color:#0F172A!important}
+.light-datepicker-popper .react-datepicker__day:hover{background:rgba(79,70,229,0.1)!important;color:#4F46E5!important}
+.light-datepicker-popper .react-datepicker__day--today{background:rgba(79,70,229,0.1)!important;color:#4F46E5!important;font-weight:700!important}
+.light-datepicker-popper .react-datepicker__day--selected{background:#4F46E5!important;color:#fff!important;font-weight:700!important}
+.react-datepicker__triangle{display:none!important}
+@media(max-width:768px){.react-datepicker{width:300px!important}}
+@media(max-width:420px){.react-datepicker{width:280px!important}}

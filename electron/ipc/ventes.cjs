@@ -1,13 +1,11 @@
-// ============================================================
 // electron/ipc/ventes.cjs
-// LIFE'S ART ERP - VENTES
-// ============================================================
 'use strict';
 
-const {
-  registerVentesHandlers,
-} = require('./ventes/handlers.cjs');
+const { registerVentesHandlers } = require('./ventes/handlers.cjs');
 
-module.exports = {
-  registerVentesHandlers,
-};
+function register(ipcMain) {
+  const result = registerVentesHandlers(ipcMain);
+  return result;
+}
+
+module.exports = { register };

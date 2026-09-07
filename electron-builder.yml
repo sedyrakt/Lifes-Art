@@ -1,17 +1,21 @@
 # ============================================================
-# LIFE'S ART ERP
+# TAHIRYPRO ERP
 # electron-builder.yml
-# ⭐ FIX: ESRINA NY desktopName sy synopsisDesktopName
+# ⭐ extraResources: public.pem + codes.db.enc + hashes (avy amin'ny dist-electron)
+# ⭐ extraMetadata: main -> dist-electron/main.cjs (production build)
 # ============================================================
 
-appId: com.lifesart.app
-productName: lifes-art
+appId: com.tahirypro.app
+productName: tahirypro
 
 directories:
   output: release
 
 compression: normal
 npmRebuild: false
+
+# ⭐ FANAMPIANA: Rebuild ny native modules avy amin'ny source (Electron ABI)
+buildDependenciesFromSource: true
 
 files:
   - dist/**/*
@@ -29,6 +33,26 @@ asarUnpack:
   - "**/*.node"
   - "**/node_modules/better-sqlite3/**/*"
   - "**/node_modules/sharp/**/*"
+  # ⭐ Ireny tsy ilaina intsony satria ao amin'ny extraResources
+  # - "**/keys/public.pem"
+  # - "**/keys/codes.db.enc"
+  # - "**/generated/hashes.json"
+  # - "**/generated/hashes.sig"
+
+# ⭐ CRITICAL: Fichiers ivelan'ny asar (avy amin'ny dist-electron)
+extraResources:
+  - from: "dist-electron/keys/public.pem"
+    to: "keys/public.pem"
+  - from: "dist-electron/keys/codes.db.enc"
+    to: "keys/codes.db.enc"
+  - from: "dist-electron/generated/hashes.json"
+    to: "generated/hashes.json"
+  - from: "dist-electron/generated/hashes.sig"
+    to: "generated/hashes.sig"
+
+
+extraMetadata:
+  main: "dist-electron/main.cjs"
 
 win:
   target:

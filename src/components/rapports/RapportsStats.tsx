@@ -4,12 +4,7 @@ import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYea
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface RapportsStatsProps {
-  stats: {
-    chiffreAffaires: number; totalProduits: number; nbCommandes: number; benefice: number; nbClients: number;
-    totalEntrees: number; totalSorties: number; totalVentes: number; tauxBenefice: number;
-    trends?: { chiffreAffaires?: string; totalProduits?: string; nbCommandes?: string; benefice?: string; nbClients?: string; totalEntrees?: string; totalSorties?: string; totalVentes?: string; };
-    trendsUp?: { chiffreAffaires?: boolean; totalProduits?: boolean; nbCommandes?: boolean; benefice?: boolean; nbClients?: boolean; totalEntrees?: boolean; totalSorties?: boolean; totalVentes?: boolean; };
-  };
+  stats: { chiffreAffaires: number; totalProduits: number; nbCommandes: number; benefice: number; nbClients: number; totalEntrees: number; totalSorties: number; totalVentes: number; tauxBenefice: number; trends?: any; trendsUp?: any; };
   formatMoney?: (value: number) => string;
   refreshing?: boolean;
   onRefresh?: () => void;
@@ -19,7 +14,7 @@ interface RapportsStatsProps {
 }
 
 const CARD_COLORS = {
-  chiffreAffaires: { bg: 'bg-violet-50 dark:bg-violet-500/10', text: 'text-violet-600 dark:text-violet-400', iconClass: 'bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400' },
+  chiffreAffaires: { bg: 'bg-[#e18e00] dark:bg-[#e18e00]', text: 'text-[#e18e00] dark:text-[#e18e00]', iconClass: 'bg-[#e18e00] text-[#e18e00] dark:bg-[#e18e00] dark:text-[#e18e00]' },
   totalProduits: { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', iconClass: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' },
   nbCommandes: { bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', iconClass: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' },
   benefice: { bg: 'bg-blue-50 dark:bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400', iconClass: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400' },
@@ -32,7 +27,6 @@ const CARD_COLORS = {
 const RapportsStats: React.FC<RapportsStatsProps> = ({ stats, refreshing = false, commandes = [], selectedDate, granularity = 'mois' }) => {
   const { isDark } = useTheme();
 
-  // ⭐ Filtrage des commandes selon la date et la granularité
   const filteredStats = useMemo(() => {
     if (!commandes || commandes.length === 0 || !selectedDate) return stats;
     let start: Date, end: Date;
@@ -58,7 +52,6 @@ const RapportsStats: React.FC<RapportsStatsProps> = ({ stats, refreshing = false
     return { ...stats, chiffreAffaires: totalCA, nbCommandes, nbClients: nbClientsUniques, tauxBenefice: totalCA > 0 ? (stats.benefice / totalCA) * 100 : 0, totalVentes: nbCommandes };
   }, [commandes, selectedDate, granularity, stats]);
 
-  // ⭐ FIX: Format Ariary tsotra (tsy mampiasa formatMoney)
   const formatSimple = (value: number) => value.toLocaleString('fr-FR') + ' Ar';
 
   const statsCards = [
@@ -84,34 +77,20 @@ const RapportsStats: React.FC<RapportsStatsProps> = ({ stats, refreshing = false
           const isPositive = trendUp;
 
           return (
-            <div 
-              key={stat.key} 
-              className="group relative min-h-[80px] rounded-lg border border-slate-300 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-all duration-200 hover:border-slate-400 hover:bg-slate-50 hover:shadow-[0_2px_6px_rgba(15,23,42,0.05)] ring-1 ring-transparent hover:ring-indigo-500/20 dark:border-slate-700 dark:bg-[#111c30] dark:hover:border-slate-600 dark:hover:bg-slate-800/50 dark:hover:shadow-none dark:hover:ring-indigo-500/20"
-            >
-              {/* Accent left bar on hover */}
-              <div className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-r-full bg-indigo-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100 dark:bg-indigo-400`} />
+            <div key={stat.key} className="group relative min-h-[80px] rounded-lg border border-[#e18e00]/10 dark:border-white/[0.12] bg-white dark:bg-[#2A2A2A] px-4 py-3.5 shadow-[0_1px_2px_rgba(242,118,129,0.03)] transition-all duration-200 hover:border-[#e18e00]/10 dark:hover:border-white/[0.18] hover:bg-[#e18e00]/10 dark:hover:bg-[#333333] hover:shadow-[0_2px_6px_rgba(242,118,129,0.05)] ring-1 ring-transparent hover:ring-[#e18e00]/20 dark:hover:ring-[#e18e00]/20">
+              <div className={`absolute left-0 top-3 bottom-3  rounded-r-full bg-[#e18e00]/10 opacity-0 transition-opacity duration-200 group-hover:opacity-100 dark:bg-[#e18e00]`} />
               
               <div className="flex items-start gap-3">
-                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${colorConfig.iconClass}`}>
-                  <Icon size={20} strokeWidth={2} />
+                <div className={`flex  shrink-0 items-center justify-center rounded-lg ${colorConfig.iconClass}`}>
+                  <Icon size={30} />
                 </div>
-                <div className="min-w-0">
-                  <div className="text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-                    {stat.value}
-                  </div>
-                  <div className="mt-0.5 truncate text-[14px] font-medium text-slate-500 dark:text-slate-400">
-                    {stat.label}
-                  </div>
+                <div className="">
+                  <div className="text-[18px] font-semibold tracking-tight text-slate-900 dark:text-[#FDE2E4]">{stat.value}</div>
+                  <div className="mt-0.5 truncate text-[14px] font-medium text-slate-500 dark:text-[#B0B0B0]">{stat.label}</div>
                   {showTrend && (
                     <div className="mt-1 flex items-center gap-1.5">
-                      {isPositive ? (
-                        <TrendingUp size={12} strokeWidth={2.5} className="text-emerald-500 dark:text-emerald-400" />
-                      ) : (
-                        <TrendingDown size={12} strokeWidth={2.5} className="text-red-500 dark:text-red-400" />
-                      )}
-                      <span className={`text-[12px] font-semibold ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                        {isPositive ? '+' : ''}{trend}%
-                      </span>
+                      {isPositive ? (<TrendingUp size={30}  className="text-emerald-500 dark:text-emerald-400" />) : (<TrendingDown size={30} className="text-red-500 dark:text-red-400" />)}
+                      <span className={`text-[12px] font-semibold ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>{isPositive ? '+' : ''}{trend}%</span>
                       <span className="text-[10px] text-slate-400 dark:text-slate-500">vs période précédente</span>
                     </div>
                   )}

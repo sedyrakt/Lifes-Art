@@ -1,24 +1,27 @@
 # ============================================================
-# ⭐ LIFE'S ART ERP - GITIGNORE (FENO A-Z)
+# ⭐ TAHIRYPRO ERP - .gitignore (SECURE VERSION)
+# ⭐ Natao ho an'ny GitHub Actions (Windows + Linux)
 # ============================================================
 
 # ============================================================
-# ⭐ Environment variables
+# ⭐ ENVIRONMENT VARIABLES
 # ============================================================
 .env
 .env.local
 .env.*.local
 
 # ============================================================
-# ⭐ Credentials & Certificates
+# ⭐ CREDENTIALS & CERTIFICATES
 # ============================================================
 admin_credentials.txt
-*.pem
 *.pfx
 *.cert
 
+# ⚠️ FIX: Alefa ny public.pem (ilaina amin'ny build)
+!admin-tools/keys/public.pem
+
 # ============================================================
-# ⭐ Database files
+# ⭐ DATABASE FILES (mety misy données)
 # ============================================================
 *.db
 *.db-shm
@@ -27,7 +30,7 @@ admin_credentials.txt
 *.sqlite3
 
 # ============================================================
-# ⭐ Logs
+# ⭐ LOGS
 # ============================================================
 logs/
 *.log
@@ -36,18 +39,19 @@ yarn-debug.log*
 yarn-error.log*
 
 # ============================================================
-# ⭐ Backups
+# ⭐ BACKUPS
 # ============================================================
 backups/
 *.backup
+*.bak
 
 # ============================================================
-# ⭐ Node modules
+# ⭐ NODE MODULES
 # ============================================================
 node_modules/
 
 # ============================================================
-# ⭐ Build outputs (Release / Dist)
+# ⭐ BUILD OUTPUTS (RELEASE / DIST)
 # ============================================================
 dist/
 release/
@@ -61,7 +65,7 @@ dist-final/
 *.tar.gz
 
 # ============================================================
-# ⭐ Electron / Vite / OS specific
+# ⭐ ELECTRON / VITE / OS SPECIFIC
 # ============================================================
 electron-builder-debug.yml
 ~/.electron
@@ -69,7 +73,7 @@ electron-builder-debug.yml
 ~/.cache/electron-builder
 
 # ============================================================
-# ⭐ IDE & System files (Ty Microsoft Windows sy Linux/Mac)
+# ⭐ IDE & SYSTEM FILES
 # ============================================================
 .DS_Store
 Thumbs.db
@@ -79,38 +83,47 @@ Thumbs.db
 *.swo
 
 # ============================================================
-# ⭐ TypeScript / Bytenode / Obfuscation (Raha misy)
+# ⭐ TYPESCRIPT / BYTENODE / OBFUSCATION
 # ============================================================
 *.tsbuildinfo
-*.jsc
-
-# ============================================================
-# ⭐ FIAROVANA (SECURITY) - TOKONY TSY HIDITRA ANY AMIN'NY GITHUB
-# ============================================================
-
-# ⭐ Private Key (Fiarovana ny License)
-admin-tools/keys/private.pem
-admin-tools/keys/fingerprint.txt
-
-# ⭐ Code d'activation (Fiarovana ny License)
-admin-tools/exports/*
-!admin-tools/exports/.gitkeep
-
-# ⭐ License files
-license.lic
-*.lic
-
-# ⭐ Backup
-*.backup
-*.bak
-
-# ⭐ Fichier production
 *.jsc
 *.jsc.map
 
 # ============================================================
-# ⭐ BUILD SCRIPTS (ILAINA ANY AMIN'NY GITHUB ACTIONS)
-# ⚠️ build-obfuscated.cjs - IL AINA (azo alefa any amin'ny GitHub)
-# ⚠️ build-final-bytecode.cjs - TSY ILAINA (azo esorina)
-# ⚠️ build-prod.cjs - TSY ILAINA (azo esorina)
+# ⭐ SECURITY - FIAROVANA NY LICENSE (TSY HIDITRA ANY AMIN'NY GITHUB)
+# ============================================================
+
+# Clé privée (tsy misy izay tsy tokony ho ao amin'ny repo)
+**/private.pem
+**/keys/private.pem
+admin-tools/keys/private.pem
+admin-tools/keys/fingerprint.txt
+
+# Scripts de génération de codes (tokony ho afenina)
+admin-tools/generate-activation-code.cjs
+admin-tools/build-codes-db.cjs
+admin-tools/generate-keys.cjs
+admin-tools/generate-masse.cjs
+admin-tools/generate-revoked.cjs
+
+# Exports de codes d'activation (tokony tsy hita)
+admin-tools/exports/*
+!admin-tools/exports/.gitkeep
+
+# Licence files (production)
+*.lic
+license.lic
+
+# Fichiers temporaires
+tmp/
+temp/
+
+# ============================================================
+# ⭐ FICHIERS ILAINA AMIN'NY BUILD (TOKONY HIDITRA ANY AMIN'NY REPO)
+# ⭐ Ireto manaraka ireto TSY ATAO IGNORE:
+#   - electron/keys/public.pem  (vérification signature)
+#   - electron/keys/codes.db.enc (activation offline)
+#   - generated/hashes.json      (intégrité)
+#   - generated/hashes.sig       (intégrité)
+# ⚠️ Raha tsy misy ireto dia tsy handeha ny build
 # ============================================================

@@ -1,18 +1,12 @@
-// ============================================================
-// src/lib/pdfService.ts
-// ⭐ LIFE'S ART ERP - PREMIUM COMPACT PDF
-// ⭐ INDIGO + DARK MODE
-// ⭐ TVA 20% + REMISE ROBUST
-// ⭐ QR + TOTAL TTC COMPACT
-// ============================================================
-
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import * as QRCode from 'qrcode';
-
-// ============================================================
-// INTERFACES
-// ============================================================
+// src/lib/pdfService.ts — INDIGO PREMIUM PDF (FACTURE + QR CODE)
+// ⭐ FIX: TVA isaky ny produit (tva_rate)
+// ⭐ FIX: QR CODE Eo amin'ny zoro havanana ambany
+// ⭐ FIX: "Cash" (Montant payé) eo ambany havia
+// ⭐ FIX: Sous-total HT + TVA + Total TTC mazava
+// ⭐ FIX: PRIMARY COLOR = INDIGO #4F46E5
+// ⭐ FIX: DARK MODE BG = #0F172A
+// ⭐ FIX (VAOVAO): AMPIO NY "Reste à payer"
+// ⭐ FIX (VAOVAO): CAP NY CASH AMIN'NY TTC
 
 export interface OrderProduct {
   id?: number;
@@ -30,6 +24,7 @@ export interface OrderProduct {
   prix_vente?: number;
   prix_unitaire?: number;
   total?: number;
+  tva_rate?: number; // ⭐ NEW
 }
 
 export interface Order {
@@ -61,502 +56,379 @@ export interface PDFOptions {
   clientPhone?: string;
   clientAddress?: string;
   companyName?: string;
-  companyLogo?: string;
+  companyLogo?: string; // tsy ampiasaina
   companyAddress?: string;
   companyPhone?: string;
   companyEmail?: string;
   companySiret?: string;
-  companyImage?: string;
+  companyImage?: string; // tsy ampiasaina
   companyTaxId?: string;
   companyRcs?: string;
   companyVatNumber?: string;
   paymentMethod?: string;
   paymentTerms?: string;
   dueDate?: string;
+  montantPaye?: number; // Cash
+  vendeur?: string;
 }
 
-// ============================================================
-// COLORS
-// ============================================================
-
+// ⭐ INDIGO (#4F46E5) + SLATE (#0F172A)
 const COLORS = {
-  primary: [79, 70, 229], primaryDark: [67, 56, 202], primaryLight: [129, 140, 248],
-  primarySoft: [238, 242, 255], secondary: [15, 23, 42], text: [15, 23, 42],
-  textMuted: [100, 116, 139], textLight: [148, 163, 184], border: [203, 213, 225],
-  background: [248, 250, 252], backgroundSoft: [238, 242, 255], white: [255, 255, 255],
-  success: [16, 185, 129], warning: [245, 158, 11], danger: [239, 68, 68],
+  primary: [79, 70, 229],        // ⭐ INDIGO 600
+  primaryDark: [67, 56, 202],    // ⭐ INDIGO 700
+  primaryLight: [129, 140, 248], // ⭐ INDIGO 400
+  secondary: [38, 70, 83],
+  text: [38, 70, 83],
+  textMuted: [100, 116, 139],
+  textLight: [148, 163, 184],
+  border: [226, 232, 240],
+  background: [248, 250, 252],
+  backgroundSoft: [240, 247, 253],
+  white: [255, 255, 255],
+  success: [16, 185, 129],
+  warning: [245, 158, 11],
+  danger: [239, 68, 68],
+  tableText: [38, 70, 83],
+  tableBg: [255, 255, 255],
 };
 
 const DARK_COLORS = {
-  primary: [129, 140, 248], primaryDark: [99, 102, 241], primaryLight: [165, 180, 252],
-  primarySoft: [30, 41, 59], secondary: [248, 250, 252], text: [248, 250, 252],
-  textMuted: [148, 163, 184], textLight: [100, 116, 139], border: [71, 85, 105],
-  background: [15, 23, 42], backgroundSoft: [30, 41, 59], white: [248, 250, 252],
-  success: [52, 211, 153], warning: [251, 191, 36], danger: [251, 113, 133],
+  primary: [79, 70, 229],        // ⭐ INDIGO 600
+  primaryDark: [67, 56, 202],    // ⭐ INDIGO 700
+  primaryLight: [129, 140, 248], // ⭐ INDIGO 400
+  secondary: [248, 250, 252],
+  text: [248, 250, 252],
+  textMuted: [148, 163, 184],
+  textLight: [148, 163, 184],
+  border: [30, 41, 59],          // ⭐ SLATE 800
+  background: [15, 23, 42],      // ⭐ SLATE 900 #0F172A
+  backgroundSoft: [30, 41, 59],  // ⭐ SLATE 800
+  white: [248, 250, 252],
+  success: [52, 211, 153],
+  warning: [251, 191, 36],
+  danger: [251, 113, 133],
+  tableText: [248, 250, 252],
+  tableBg: [15, 23, 42],         // ⭐ SLATE 900 #0F172A
 };
 
-type RGB = [number, number, number];
-
-// ============================================================
-// HELPERS
-// ============================================================
-
-const cleanText = (value: unknown): string => value == null ? '' : String(value).normalize('NFC').trim();
-const num = (value: unknown): number => { const n = Number(value); return Number.isFinite(n) ? n : 0; };
-const formatMoney = (amount: number): string => `${new Intl.NumberFormat('fr-FR', { useGrouping: true, maximumFractionDigits: 0 }).format(Math.max(0, num(amount))).replace(/\u202F/g, ' ')} Ar`;
-const formatDate = (value: Date | string | undefined, format: 'short' | 'long' = 'short'): string => {
-  const d = value ? new Date(value) : new Date();
-  if (Number.isNaN(d.getTime())) return 'Date invalide';
-  return d.toLocaleDateString('fr-FR', format === 'long' ? { day: '2-digit', month: '2-digit', year: 'numeric' } : undefined);
-};
-const getStatusLabel = (status?: string): string => {
-  const value = cleanText(status);
-  return ({ 'En attente': 'En attente', Confirmée: 'Confirmée', Livrée: 'Livrée', Annulée: 'Annulée' } as Record<string, string>)[value] || value || 'En attente';
-};
-const getProductName = (p: OrderProduct): string => cleanText(p.produit_nom || p.name || p.nom || p.designation || p.libelle || p.product_name || 'Produit');
-const getProductQty = (p: OrderProduct): number => num(p.quantity ?? p.quantite ?? p.qty);
-const getProductPrice = (p: OrderProduct): number => num(p.prix_unitaire ?? p.price ?? p.prix ?? p.prix_vente);
-const getWindowApi = (): any => { try { return typeof window !== 'undefined' ? (window as any).api : undefined; } catch { return undefined; } };
-
-// ============================================================
-// IMAGE HELPERS
-// ============================================================
-
-const loadImageFromDatabase = async (imageId: string): Promise<string> => {
-  const value = cleanText(imageId);
-  if (!value) return '';
-  if (value.startsWith('data:image') || value.startsWith('http://') || value.startsWith('https://') || value.startsWith('file://') || value.startsWith('local-image://') || value.startsWith('/')) return value;
-  try {
-    const api = getWindowApi();
-    if (api?.images?.getUrl) {
-      const result = await api.images.getUrl(value);
-      if (result?.success && result.data) return result.data;
-    }
-  } catch (error) { console.warn('⚠️ loadImageFromDatabase:', error); }
-  return value;
+const formatMoney = (amount: number): string => {
+  if (!amount && amount !== 0) return '0 Ar';
+  return new Intl.NumberFormat('fr-FR', { useGrouping: true, maximumFractionDigits: 0 })
+    .format(amount).replace(/\u202F/g, ' ') + ' Ar';
 };
 
-const imageToBase64 = async (imagePath: string): Promise<string | null> => {
-  const value = cleanText(imagePath);
-  if (!value) return null;
-  try {
-    if (value.startsWith('data:image')) return value;
-    if (value.startsWith('http://') || value.startsWith('https://')) return value;
-    if (value.startsWith('file://') || value.startsWith('local-image://')) {
-      const api = getWindowApi();
-      if (api?.images?.getImageAsBase64) {
-        const result = await api.images.getImageAsBase64(value);
-        if (result?.success && typeof result.data === 'string' && result.data.startsWith('data:image')) return result.data;
-      }
-    }
-    return value;
-  } catch (error) { console.error('❌ imageToBase64:', error); return value; }
+const formatDate = (date: Date | string, format: 'short' | 'long' = 'short'): string => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return 'Date invalide';
+  return format === 'short' ? d.toLocaleDateString('fr-FR') : d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
-// ============================================================
-// GENERATE PDF - COMPACT VERSION
-// ============================================================
+const cleanText = (text: string): string => { if (!text) return ''; return text.normalize('NFC').trim(); };
+const cleanForQR = (text: string): string => { if (!text) return ''; return text.normalize('NFC').trim(); };
 
-export const generateOrderPDF = async (options: PDFOptions, isDark = false): Promise<jsPDF> => {
-  const { order, clientName, clientEmail, clientPhone, clientAddress, companyName, companyLogo, companyAddress, companyPhone, companyEmail, companySiret, companyImage, companyTaxId, companyRcs, companyVatNumber, paymentMethod, paymentTerms, dueDate } = options;
+export const generateOrderPDF = async (options: PDFOptions, isDark: boolean = false): Promise<any> => {
+  const { jsPDF } = await import('jspdf');
+  const { default: autoTable } = await import('jspdf-autotable');
+  const { default: QRCode } = await import('qrcode');
+
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  const {
+    order, clientName, clientEmail, clientPhone, clientAddress,
+    companyName, companyAddress, companyPhone, companyEmail,
+    companySiret, companyTaxId, companyRcs, companyVatNumber,
+    paymentMethod, paymentTerms, dueDate, montantPaye, vendeur
+  } = options;
+
   const C = isDark ? DARK_COLORS : COLORS;
+
+  const displayCompanyName = cleanText(companyName || "GSOFT");
+  const displayCompanyAddress = cleanText(companyAddress || '');
+  const displayCompanyPhone = cleanText(companyPhone || '');
+  const displayCompanyEmail = cleanText(companyEmail || '');
+  const displayCompanySiret = cleanText(companySiret || '');
+  const displayCompanyTaxId = cleanText(companyTaxId || '');
+  const displayCompanyRcs = cleanText(companyRcs || '');
+  const displayCompanyVatNumber = cleanText(companyVatNumber || '');
+  const displayPaymentMethod = cleanText(paymentMethod || 'Cash');
+  const displayPaymentTerms = cleanText(paymentTerms || 'Comptant');
+  const displayClientName = cleanText(clientName || 'Client');
+  const displayClientEmail = cleanText(clientEmail || '');
+  const displayClientPhone = cleanText(clientPhone || '');
+  const displayClientAddress = cleanText(clientAddress || '');
+  const displayVendeur = cleanText(vendeur || 'admin');
+
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 12;
+
   const [pr, pg, pb] = C.primary;
   const [sr, sg, sb] = C.secondary;
   const [br, bg, bb] = C.border;
   const [wr, wg, wb] = C.white;
   const [bgr, bgg, bgb] = C.background;
 
-  // NORMALIZE DATA
-  const displayCompanyName = cleanText(companyName) || "Life's Art";
-  const displayCompanyAddress = cleanText(companyAddress);
-  const displayCompanyPhone = cleanText(companyPhone);
-  const displayCompanyEmail = cleanText(companyEmail);
-  const displayCompanySiret = cleanText(companySiret);
-  const displayCompanyTaxId = cleanText(companyTaxId);
-  const displayCompanyRcs = cleanText(companyRcs);
-  const displayCompanyVatNumber = cleanText(companyVatNumber);
-  const displayClientName = cleanText(clientName) || 'Client';
-  const displayClientEmail = cleanText(clientEmail);
-  const displayClientPhone = cleanText(clientPhone);
-  const displayClientAddress = cleanText(clientAddress);
-  const displayPaymentMethod = cleanText(paymentMethod) || 'Espèces';
-  const displayPaymentTerms = cleanText(paymentTerms) || 'Sous 30 jours';
+  const orderId = order.numero || (order.id ? `CMD-${String(order.id).padStart(6, '0')}` : 'CMD-000000');
   const products = Array.isArray(order.products) ? order.products : [];
 
-  // FACTURE NUMBER
-  const orderId = cleanText(order.numero) || (order.id ? `FAC-${String(order.id).padStart(6, '0')}` : 'N/A');
-  const orderDate = order.date_commande || order.created_at || order.createdAt || order.date || new Date().toISOString();
-  const statusLabel = getStatusLabel(order.status || order.statut);
+  // ⭐⭐ FIX: KAJY NY TOTAL HT + TVA ISAKY PRODUIT ⭐⭐
+  let totalHT = 0;
+  let totalTVA = 0;
+  
+  if (products.length > 0) {
+    products.forEach((p: any) => {
+      const qty = Number(p.quantity || p.quantite || p.qty || 0);
+      const price = Number(p.price || p.prix || p.prix_vente || p.prix_unitaire || 0);
+      const lineTotal = qty * price;
+      const tvaRate = Number(p.tva_rate) || 0; // Raha tsy misy dia 0
+      totalHT += lineTotal;
+      totalTVA += lineTotal * tvaRate;
+    });
+  } else {
+    totalHT = order.total_ht || order.total || 0;
+    totalTVA = 0;
+  }
 
-  // CALCUL HT / REMISE / TVA / TTC
-  const calculatedHT = products.length ? products.reduce((sum, product) => sum + getProductQty(product) * getProductPrice(product), 0) : num(order.total_ht ?? order.total);
-  const totalHT = Math.max(0, calculatedHT);
-  const remiseAmount = Math.min(Math.max(0, num(order.remise)), totalHT);
-  const totalHTAfterRemise = Math.max(0, totalHT - remiseAmount);
-  const TVA_RATE = 0.2;
-  const calculatedTTC = totalHTAfterRemise * (1 + TVA_RATE);
-  const storedTTC = num(order.total_ttc);
-  const isStoredTTCValid = storedTTC > 0 && Math.abs(storedTTC - calculatedTTC) < 1;
-  const totalTTC = isStoredTTCValid ? storedTTC : calculatedTTC;
-  const vatAmount = Math.max(0, totalTTC - totalHTAfterRemise);
-  const vatRate = totalHTAfterRemise > 0 ? (vatAmount / totalHTAfterRemise) * 100 : 0;
+  const remiseAmount = Number(order.remise || 0);
+  const totalHTAfterRemise = totalHT - remiseAmount;
+  
+  // Kajy ny Total TTC
+  const totalTTC = totalHTAfterRemise + totalTVA;
+  
+  // Kajy ny taux TVA effective (raha samy hafa ny taux)
+  const vatRate = totalHTAfterRemise > 0
+    ? Math.round((totalTVA / totalHTAfterRemise) * 100 * 100) / 100
+    : 0;
 
-  // DATE ÉCHÉANCE
+  const orderDate = order.date_commande || order.created_at || order.date || new Date().toISOString();
   const dueDateObj = dueDate ? new Date(dueDate) : new Date(orderDate);
   if (!dueDate) dueDateObj.setDate(dueDateObj.getDate() + 30);
   const displayDueDate = formatDate(dueDateObj, 'long');
+  const statusLabel = order.status === 'Payé' || order.statut === 'Payé' ? 'Payé' : 'Non payé';
 
-  // QR CODE
+  // ⭐ FIX (VAOVAO): CAP NY CASH AMIN'NY TTC
+  const cashAmount = Math.min(totalTTC, Number(montantPaye || 0));
+
   let qrImageBase64 = '';
   try {
-    const qrData = ['FACTURE', `N°: ${cleanText(orderId)}`, `Client: ${displayClientName}`, `Montant: ${formatMoney(totalTTC)}`, `Date: ${formatDate(orderDate)}`, `Echeance: ${displayDueDate}`, `Statut: ${statusLabel}`].join('\n');
-    qrImageBase64 = await QRCode.toDataURL(qrData, { width: 120, margin: 2, errorCorrectionLevel: 'H', color: { dark: '#4F46E5', light: isDark ? '#0F172A' : '#FFFFFF' } });
-  } catch (error) { console.warn('⚠️ QR Code:', error); }
+    const qrData = [
+      `TICKET`, `N°: ${cleanForQR(orderId)}`, `Client: ${cleanForQR(displayClientName)}`,
+      `Montant: ${formatMoney(totalTTC)}`, `Date: ${formatDate(orderDate, 'short')}`,
+      `Vendeur: ${cleanForQR(displayVendeur)}`
+    ].filter(line => line !== '').join('\n');
+    qrImageBase64 = await QRCode.toDataURL(qrData, {
+      width: 120, margin: 2, errorCorrectionLevel: 'H',
+      color: { dark: '#4F46E5', light: isDark ? '#0F172A' : '#FFFFFF' }
+    });
+  } catch (_) {}
 
-  // TOP BAR
   doc.setFillColor(pr, pg, pb);
   doc.rect(0, 0, pageWidth, 1.5, 'F');
 
-  // LOGO
-  const logoY = 6;
-  const logoSize = 12;
-  let imageData: string | null = null;
-  const imageToUse = cleanText(companyImage) || cleanText(companyLogo);
-  if (imageToUse) {
-    try {
-      imageData = await loadImageFromDatabase(imageToUse);
-      if (imageData && (imageData.startsWith('file://') || imageData.startsWith('local-image://'))) imageData = await imageToBase64(imageData);
-    } catch (error) { console.warn('⚠️ Logo:', error); }
-  }
-  if (imageData && imageData.startsWith('data:image')) {
-    try { const isPng = imageData.includes('image/png'); doc.addImage(imageData, isPng ? 'PNG' : 'JPEG', margin, logoY, logoSize, logoSize); } catch (error) { console.warn('⚠️ Logo:', error); }
-  }
-
-  // COMPANY HEADER
-  const logoRightX = margin + logoSize + 5;
+  // ⭐ COMPANY NAME CENTRÉ
   const textStartY = 8;
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(pr, pg, pb);
-  doc.text(displayCompanyName, logoRightX, textStartY + 2);
+  doc.text(displayCompanyName, pageWidth / 2, textStartY, { align: 'center' });
+
+  // ⭐ ADRESSE & TÉLÉPHONE CENTRÉ
   doc.setFontSize(6);
-  doc.setFont('helvetica', 'italic');
-  doc.setTextColor(C.textMuted[0], C.textMuted[1], C.textMuted[2]);
-  doc.text("Gestion d'entreprise", logoRightX, textStartY + 6);
-  doc.setFontSize(5.5);
   doc.setFont('helvetica', 'normal');
-  let coordY = textStartY + 10;
-  if (displayCompanyAddress) { doc.text(`Adresse : ${displayCompanyAddress}`, logoRightX, coordY); coordY += 3.2; }
-  if (displayCompanyPhone) { doc.text(`Tél : ${displayCompanyPhone}`, logoRightX, coordY); coordY += 3.2; }
-  if (displayCompanyEmail) { doc.text(`Email : ${displayCompanyEmail}`, logoRightX, coordY); coordY += 3.2; }
-  const separatorY = Math.max(coordY + 5, 32);
+  doc.setTextColor(C.textMuted[0], C.textMuted[1], C.textMuted[2]);
+  let coordY = textStartY + 4;
+  if (displayCompanyAddress) { doc.text(displayCompanyAddress, pageWidth / 2, coordY, { align: 'center' }); coordY += 3.2; }
+  if (displayCompanyPhone) { doc.text(`Tél: ${displayCompanyPhone}`, pageWidth / 2, coordY, { align: 'center' }); coordY += 3.2; }
+  if (displayCompanySiret || displayCompanyTaxId) {
+    doc.text(`NIF/STAT: ${displayCompanySiret || displayCompanyTaxId || ''}`, pageWidth / 2, coordY, { align: 'center' });
+    coordY += 3.2;
+  }
+
+  const separatorY = Math.max(coordY + 4, 32);
   doc.setDrawColor(br, bg, bb);
-  doc.setLineWidth(0.15);
   doc.line(margin, separatorY, pageWidth - margin, separatorY);
 
-  // FACTURE TITLE
-  const titleY = separatorY + 5;
-  doc.setFontSize(16);
+  // ⭐ INFOS TICKET (N° Ticket, Vendeur, Client, Date)
+  const infoY = separatorY + 4;
+  doc.setFontSize(6.5);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(pr, pg, pb);
-  doc.text('FACTURE', margin, titleY);
-  doc.setDrawColor(pr, pg, pb);
-  doc.setLineWidth(0.25);
-  doc.line(margin, titleY + 1.5, margin + 35, titleY + 1.5);
+  doc.setTextColor(sr, sg, sb);
+  doc.text(`Ticket N°:`, margin, infoY);
+  doc.text(`Vendeur:`, margin, infoY + 4);
+  doc.text(`Client:`, margin, infoY + 8);
 
-  // RIGHT INFO
-  const rightX = pageWidth - margin;
-  let startRightY = titleY - 4;
-  const rightInfo = [
-    { label: 'N° FACTURE', value: orderId },
-    { label: 'DATE', value: formatDate(orderDate, 'long') },
-    { label: 'ÉCHÉANCE', value: displayDueDate },
-    { label: 'STATUT', value: statusLabel },
-  ];
-  doc.setFontSize(5.5);
-  rightInfo.forEach(item => {
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(sr, sg, sb);
-    doc.text(item.label, rightX, startRightY, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(C.text[0], C.text[1], C.text[2]);
-    doc.text(item.value, rightX, startRightY + 4, { align: 'right' });
-    startRightY += 8;
-  });
-
-  // CLIENT / PAYMENT BOX
-  const infoY = titleY + 16;
-  const infoHeight = 20;
-  doc.setDrawColor(br, bg, bb);
-  doc.setLineWidth(0.15);
-  doc.setFillColor(bgr, bgg, bgb);
-  doc.roundedRect(margin, infoY, pageWidth - margin * 2, infoHeight, 1.5, 1.5, 'FD');
-
-  // CLIENT
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(pr, pg, pb);
-  doc.text('CLIENT', margin + 4, infoY + 5);
-  doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(C.text[0], C.text[1], C.text[2]);
-  let clientY = infoY + 9;
-  doc.text(`Nom : ${displayClientName}`, margin + 4, clientY);
-  clientY += 4.2;
-  if (displayClientAddress) { doc.text(`Adr : ${displayClientAddress}`, margin + 4, clientY); clientY += 4.2; }
-  if (displayClientEmail) { doc.text(`Email : ${displayClientEmail}`, margin + 4, clientY); clientY += 4.2; }
-  if (displayClientPhone) { doc.text(`Tél : ${displayClientPhone}`, margin + 4, clientY); }
+  doc.text(orderId, margin + 22, infoY);
+  doc.text(displayVendeur, margin + 22, infoY + 4);
+  doc.text(displayClientName, margin + 22, infoY + 8);
 
-  // PAYMENT
-  const paymentX = pageWidth - margin - 80;
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(pr, pg, pb);
-  doc.text('PAIEMENT', paymentX, infoY + 5);
-  doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(C.text[0], C.text[1], C.text[2]);
-  let paymentY = infoY + 9;
-  doc.text(`Mode : ${displayPaymentMethod}`, paymentX, paymentY);
-  paymentY += 4.2;
-  doc.text(`Cond. : ${displayPaymentTerms}`, paymentX, paymentY);
-  paymentY += 4.2;
-  doc.text(`Échéance : ${displayDueDate}`, paymentX, paymentY);
+  doc.setTextColor(C.textMuted[0], C.textMuted[1], C.textMuted[2]);
+  doc.text(formatDate(orderDate, 'short'), pageWidth - margin, infoY, { align: 'right' });
 
-  // PRODUCTS TABLE
-  const tableStartY = infoY + 24;
-  const tableData: any[][] = products.length ? products.map((product, index) => {
-    const name = getProductName(product);
-    const qty = getProductQty(product);
-    const price = getProductPrice(product);
-    const total = qty * price;
-    return [index + 1, name, qty.toString(), formatMoney(price), formatMoney(total)];
-  }) : [['-', 'Aucun produit', '-', '-', '-']];
+  const tableStartY = infoY + 14;
+  let tableData: any[][] = [];
+
+  if (!products || products.length === 0) {
+    tableData = [['-', 'Aucun produit', '-', '-']];
+  } else {
+    tableData = products.map((item: any, index: number) => {
+      const prodName = cleanText(
+        item.produit_nom || item.name || item.nom || item.designation || item.libelle || item.product_name || 'Produit'
+      );
+      const prodQty = Number(item.quantity || item.quantite || item.qty || 0);
+      const prodPrice = Number(item.prix_unitaire || item.price || item.prix || item.prix_vente || 0);
+      const total = prodQty * prodPrice;
+      return [prodQty.toString(), prodName, formatMoney(prodPrice), formatMoney(total)];
+    });
+  }
 
   autoTable(doc, {
     startY: tableStartY,
-    head: [['#', 'DÉSIGNATION', 'QTÉ', 'P.U.', 'TOTAL']],
+    head: [['QTÉ', 'ARTICLE', 'PRIX', 'TOTAL']],
     body: tableData,
     theme: 'grid',
-    headStyles: { fillColor: [pr, pg, pb] as RGB, textColor: [wr, wg, wb] as RGB, fontStyle: 'bold', halign: 'center', fontSize: 7, cellPadding: 2.5, lineWidth: 0.1, lineColor: [pr, pg, pb] as RGB },
-    bodyStyles: { textColor: [C.text[0], C.text[1], C.text[2]] as RGB, fontSize: 6, cellPadding: 2, lineWidth: 0.08, lineColor: [br, bg, bb] as RGB },
-    columnStyles: { 0: { cellWidth: 8, halign: 'center' }, 1: { cellWidth: 'auto' }, 2: { cellWidth: 12, halign: 'center' }, 3: { cellWidth: 28, halign: 'right' }, 4: { cellWidth: 28, halign: 'right' } },
-    alternateRowStyles: { fillColor: isDark ? [30, 41, 59] : [248, 250, 252] },
+    headStyles: {
+      fillColor: [pr, pg, pb],
+      textColor: [wr, wg, wb],
+      fontStyle: 'bold',
+      halign: 'left',
+      fontSize: 7,
+      cellPadding: 2,
+      lineWidth: 0.1,
+      lineColor: [pr, pg, pb]
+    },
+    bodyStyles: {
+      textColor: C.tableText,
+      fontSize: 6.5,
+      cellPadding: 2,
+      lineWidth: 0.15,
+      lineColor: [br, bg, bb],
+      fillColor: C.tableBg
+    },
+    columnStyles: {
+      0: { cellWidth: 15, halign: 'left' },
+      1: { cellWidth: 'auto', halign: 'left' },
+      2: { cellWidth: 35, halign: 'right' },
+      3: { cellWidth: 35, halign: 'right' }
+    },
     margin: { left: margin, right: margin },
-    tableWidth: pageWidth - margin * 2,
-    styles: { overflow: 'linebreak', valign: 'middle' },
+    tableWidth: pageWidth - (margin * 2),
   });
 
   const finalTableY = (doc as any).lastAutoTable?.finalY || tableStartY + 30;
 
-  // TOTALS AREA
-  let totalsY = finalTableY + 5;
-  if (totalsY > pageHeight - 68) {
-    doc.addPage();
-    totalsY = 20;
-    doc.setFillColor(pr, pg, pb);
-    doc.rect(0, 0, pageWidth, 1.5, 'F');
-  }
+  // ⭐ SOUS-TOTAL & TOTAL (Eo ambany havia)
+  const totalsY = finalTableY + 5;
+  const lineX = margin;
+  const lineWidth = pageWidth - margin - 35; // Toerana ho an'ny QR Code
 
-  const totalsBlockX = margin;
-  const totalsBlockWidth = pageWidth - margin * 2;
-  const totalsBlockHeight = 35;
-  const qrColumnWidth = 72;
-
-  // Bloc background
-  doc.setFillColor(isDark ? 15 : 255, isDark ? 23 : 255, isDark ? 42 : 255);
-  doc.setDrawColor(br, bg, bb);
-  doc.setLineWidth(0.10);
-  doc.rect(totalsBlockX, totalsY, totalsBlockWidth, totalsBlockHeight, 'FD');
-
-  // Vertical separator
-  const separatorX = totalsBlockX + qrColumnWidth;
-  doc.setDrawColor(br, bg, bb);
-  doc.setLineWidth(0.08);
-  doc.line(separatorX, totalsY, separatorX, totalsY + totalsBlockHeight);
-
-  // QR CODE
-  const qrSize = 24;
-  const qrX = totalsBlockX + (qrColumnWidth - qrSize) / 2;
-  const qrY = totalsY + 4;
-  if (qrImageBase64) {
-    try {
-      doc.addImage(qrImageBase64, 'PNG', qrX, qrY, qrSize, qrSize);
-      doc.setFontSize(4);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(C.textLight[0], C.textLight[1], C.textLight[2]);
-      doc.text('SCAN', qrX + qrSize / 2, qrY + qrSize + 3, { align: 'center' });
-    } catch (error) { console.warn('⚠️ QR PDF:', error); }
-  }
-
-  // TOTALS
-  const totalsX = separatorX + 10;
-  const totalsRightX = pageWidth - margin - 4;
-  let currentY = totalsY + 7;
-  doc.setFontSize(6);
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(C.text[0], C.text[1], C.text[2]);
 
-  // SOUS-TOTAL
-  doc.text('Sous-total HT', totalsX, currentY);
-  doc.text(formatMoney(totalHT), totalsRightX, currentY, { align: 'right' });
-  currentY += 5;
+  // Sous-total HT
+  doc.text(`Sous-total HT:`, lineX, totalsY);
+  doc.text(formatMoney(totalHTAfterRemise), lineX + 60, totalsY, { align: 'right' });
 
-  // REMISE
-  if (remiseAmount > 0) {
-    doc.text('Remise', totalsX, currentY);
-    doc.setTextColor(C.danger[0], C.danger[1], C.danger[2]);
-    doc.text(`- ${formatMoney(remiseAmount)}`, totalsRightX, currentY, { align: 'right' });
-    doc.setTextColor(C.text[0], C.text[1], C.text[2]);
-    currentY += 5;
-    doc.text('Net HT', totalsX, currentY);
-    doc.text(formatMoney(totalHTAfterRemise), totalsRightX, currentY, { align: 'right' });
-    currentY += 5;
+  // TVA (taux effective)
+  doc.text(`TVA (${vatRate}%):`, lineX, totalsY + 5);
+  doc.text(formatMoney(totalTVA), lineX + 60, totalsY + 5, { align: 'right' });
+
+  // Total TTC (Bold & Blue)
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(pr, pg, pb);
+  doc.text(`TOTAL TTC:`, lineX, totalsY + 10);
+  doc.text(formatMoney(totalTTC), lineX + 60, totalsY + 10, { align: 'right' });
+
+  // Cash
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(C.text[0], C.text[1], C.text[2]);
+  doc.text(`Cash:`, lineX, totalsY + 15);
+  doc.text(formatMoney(cashAmount), lineX + 60, totalsY + 15, { align: 'right' });
+
+  // ⭐ FIX (VAOVAO): Ampio ny Reste à payer
+  const montantRestantPDF = Math.max(0, totalTTC - cashAmount);
+  doc.text(`Reste à payer:`, lineX, totalsY + 20);
+  doc.text(formatMoney(montantRestantPDF), lineX + 60, totalsY + 20, { align: 'right' });
+
+  // ⭐ QR CODE (Eo amin'ny zoro havanana ambany)
+  const qrSize = 30;
+  const qrX = pageWidth - margin - qrSize;
+  const qrY = finalTableY + 5;
+
+  if (qrImageBase64) {
+    try {
+      doc.addImage(qrImageBase64, 'PNG', qrX, qrY, qrSize, qrSize);
+      doc.setFontSize(5);
+      doc.setTextColor(C.textLight[0], C.textLight[1], C.textLight[2]);
+      doc.text('Scan', qrX + qrSize / 2, qrY + qrSize + 3, { align: 'center' });
+    } catch (_) {}
   }
 
-  // TVA
-  doc.text(`TVA (${vatRate.toFixed(0)}%)`, totalsX, currentY);
-  doc.text(formatMoney(vatAmount), totalsRightX, currentY, { align: 'right' });
-  currentY += 6;
-
-  // TOTAL LINE
-  doc.setDrawColor(pr, pg, pb);
-  doc.setLineWidth(0.15);
-  doc.line(totalsX, currentY - 2, totalsRightX, currentY - 2);
-
-  // TOTAL TTC
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(pr, pg, pb);
-  doc.text('TOTAL TTC', totalsX, currentY + 5);
-  doc.text(formatMoney(totalTTC), totalsRightX, currentY + 5, { align: 'right' });
-
-  // FOOTER AREA
-  const footerY = totalsY + totalsBlockHeight + 1;
-
-  // Footer separator
-  doc.setDrawColor(pr, pg, pb);
-  doc.setLineWidth(0.12);
-  doc.line(margin, footerY, pageWidth - margin, footerY);
-
-  // THANK YOU
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(pr, pg, pb);
-  doc.text('Merci de votre confiance !', pageWidth / 2, footerY + 5, { align: 'center' });
-
-  // FOOTER COMPANY INFORMATION
-  doc.setFontSize(5);
+  // ⭐ FOOTER (Copyright)
+  const infoYEnd = totalsY + 25;
+  doc.setFontSize(5.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(C.textLight[0], C.textLight[1], C.textLight[2]);
-  const footerParts = [
-    `© ${new Date().getFullYear()} ${displayCompanyName}`,
-    displayCompanySiret ? `SIRET: ${displayCompanySiret}` : '',
-    displayCompanyTaxId ? `NIF: ${displayCompanyTaxId}` : '',
-    displayCompanyRcs ? `RCS: ${displayCompanyRcs}` : '',
-    displayCompanyVatNumber ? `TVA: ${displayCompanyVatNumber}` : '',
-    displayCompanyPhone ? `Tél: ${displayCompanyPhone}` : '',
-    displayCompanyEmail ? `Email: ${displayCompanyEmail}` : '',
-  ].filter(Boolean);
-  const footerText = footerParts.join(' | ');
-  const footerMaxWidth = pageWidth - margin * 2;
-  const footerLines = doc.splitTextToSize(footerText, footerMaxWidth);
-  doc.text(footerLines, pageWidth / 2, footerY + 10, { align: 'center', maxWidth: footerMaxWidth });
-
-  // SMALL PAGE NUMBER
-  doc.setFontSize(4);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(C.textLight[0], C.textLight[1], C.textLight[2]);
-  doc.text('Page 1', pageWidth / 2, pageHeight - 5, { align: 'center' });
+  doc.text(`© ${new Date().getFullYear()} ${displayCompanyName}`, pageWidth / 2, infoYEnd, { align: 'center' });
 
   return doc;
 };
 
-// ============================================================
-// DOWNLOAD PDF
-// ============================================================
-
-export const downloadPDF = async (options: PDFOptions, isDark = false) => {
+export const downloadPDF = async (options: PDFOptions, isDark: boolean = false) => {
   try {
     const doc = await generateOrderPDF(options, isDark);
-    const orderId = cleanText(options.order.numero) || (options.order.id ? `FAC-${String(options.order.id).padStart(6, '0')}` : 'temp');
-    const fileName = `facture_${orderId}.pdf`;
+    const orderId = options.order.numero || (options.order.id ? `CMD-${String(options.order.id).padStart(6, '0')}` : 'temp');
+    const defaultFileName = `ticket_${orderId}.pdf`;
     const pdfData = doc.output('arraybuffer');
-    const api = getWindowApi();
-    if (!api?.utils?.saveFile) return { success: false, error: 'API saveFile indisponible.' };
-    const result = await api.utils.saveFile(pdfData, fileName);
-    if (result?.canceled) return { success: false, canceled: true };
-    if (!result?.success) return { success: false, error: result?.error || 'Erreur lors de la sauvegarde du fichier.' };
-    return { success: true, filePath: result.filePath };
+
+    if (window?.api?.utils?.saveFile) {
+      const result = await window.api.utils.saveFile(pdfData, defaultFileName);
+      if (result && result.canceled) return { success: false, canceled: true };
+      if (!result || !result.success) return { success: false, error: result?.error || 'Erreur lors de la sauvegarde du fichier' };
+      return { success: true, filePath: result.filePath };
+    } else {
+      const blob = new Blob([pdfData], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = defaultFileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return { success: true, filePath: defaultFileName };
+    }
   } catch (error: any) {
     console.error('❌ Erreur génération PDF:', error);
-    return { success: false, error: error?.message || 'Erreur PDF inconnue.' };
+    return { success: false, error: error.message };
   }
 };
 
-// ============================================================
-// PRINT PDF
-// ============================================================
-
-export const printPDF = async (options: PDFOptions, isDark = false) => {
-  let url = '';
+export const printPDF = async (options: PDFOptions, isDark: boolean = false) => {
   try {
     const doc = await generateOrderPDF(options, isDark);
     const blob = doc.output('blob');
-    url = URL.createObjectURL(blob);
-    const printWindow = window.open(url, '_blank');
-    if (!printWindow) {
-      URL.revokeObjectURL(url);
-      return { success: false, error: 'Impossible d’ouvrir la fenêtre d’impression.' };
-    }
-    setTimeout(() => {
-      try {
-        printWindow.focus();
-        printWindow.print();
-      } catch (error) { console.warn('⚠️ Print:', error); }
-      setTimeout(() => {
-        try { printWindow.close(); } catch {}
-        try { URL.revokeObjectURL(url); } catch {}
-      }, 1500);
-    }, 700);
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     return { success: true };
   } catch (error: any) {
-    if (url) { try { URL.revokeObjectURL(url); } catch {} }
     console.error('❌ Erreur impression PDF:', error);
-    return { success: false, error: error?.message || 'Erreur impression PDF.' };
+    return { success: false, error: error.message };
   }
 };
 
-// ============================================================
-// GET PDF BLOB
-// ============================================================
-
-export const getPDFBlob = async (options: PDFOptions, isDark = false): Promise<Blob> => {
+export const getPDFBlob = async (options: PDFOptions, isDark: boolean = false): Promise<Blob> => {
   const doc = await generateOrderPDF(options, isDark);
   return doc.output('blob');
 };
 
-// ============================================================
-// GET PDF BASE64
-// ============================================================
-
-export const getPDFBase64 = async (options: PDFOptions, isDark = false): Promise<string> => {
+export const getPDFBase64 = async (options: PDFOptions, isDark: boolean = false): Promise<string> => {
   const doc = await generateOrderPDF(options, isDark);
   return doc.output('datauristring');
 };
 
-// ============================================================
-// DEFAULT EXPORT
-// ============================================================
-
-export default {
-  generateOrderPDF,
-  downloadPDF,
-  printPDF,
-  getPDFBlob,
-  getPDFBase64,
-};
+export default { generateOrderPDF, downloadPDF, printPDF, getPDFBlob, getPDFBase64 };

@@ -13,16 +13,7 @@ interface SuccessModalProps {
   isDark?: boolean;
 }
 
-const SuccessModal: React.FC<SuccessModalProps> = ({
-  isOpen,
-  onClose,
-  title,
-  message,
-  details,
-  buttonText = 'OK',
-  autoCloseDelay = 4000,
-  isDark: propIsDark,
-}) => {
+const SuccessModal: React.FC<SuccessModalProps> = ({ isOpen, onClose, title, message, details, buttonText = 'OK', autoCloseDelay = 4000, isDark: propIsDark }) => {
   const { isDark: contextIsDark } = useTheme();
   const isDark = propIsDark !== undefined ? propIsDark : contextIsDark;
 
@@ -64,40 +55,73 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
 
   if (!isMounted) return null;
 
+  const colors = isDark
+    ? {
+        overlay: 'rgba(15, 23, 42, 0.90)',
+        card: '#0F172A',
+        border: 'rgba(255,255,255,0.12)',
+        divider: 'rgba(255,255,255,0.08)',
+        text: '#F8FAFC',
+        muted: '#94A3B8',
+        subtle: '#94A3B8',
+        iconBg: 'rgba(16, 185, 129, 0.12)',
+        icon: '#10B981',
+        detailsBg: 'rgba(30, 41, 59, 0.6)',
+        detailsBorder: 'rgba(16, 185, 129, 0.2)',
+        button: '#10B981',
+        buttonHover: '#059669',
+        closeHover: 'rgba(255,255,255,0.07)',
+        progressBg: 'rgba(255,255,255,0.08)',
+        progress: '#10B981',
+      }
+    : {
+        overlay: 'rgba(15, 23, 42, 0.55)',
+        card: '#FFFFFF',
+        border: '#E2E8F0',
+        divider: '#F1F5F9',
+        text: '#0F172A',
+        muted: '#475569',
+        subtle: '#64748B',
+        iconBg: '#ECFDF5',
+        icon: '#10B981',
+        detailsBg: '#F8FAFC',
+        detailsBorder: '#D1FAE5',
+        button: '#10B981',
+        buttonHover: '#059669',
+        closeHover: '#F8FAFC',
+        progressBg: '#F1F5F9',
+        progress: '#10B981',
+      };
+
   return (
-    <div className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-all duration-200 ${isOpen ? 'bg-slate-950/45 backdrop-blur-[3px] opacity-100' : 'bg-slate-950/0 opacity-0 pointer-events-none'}`}
-      onMouseDown={(event) => { if (event.target === event.currentTarget) handleClose(); }} role="presentation">
-      <div className={`relative w-full max-w-[400px] overflow-hidden rounded-2xl border bg-white shadow-[0_20px_50px_rgba(15,23,42,0.18)] transition-all duration-200 ease-out dark:border-slate-800 dark:bg-[#0F172A] dark:shadow-[0_24px_60px_rgba(0,0,0,0.45)] ${isOpen ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-2 scale-[0.98] opacity-0'}`}
-        onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="success-modal-title">
-        <div className="absolute inset-x-0 top-0 h-[3px] bg-indigo-600 dark:bg-indigo-400" />
-        <button type="button" onClick={handleClose} aria-label="Fermer"
-          className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-all duration-150 hover:bg-slate-100 hover:text-slate-700 active:scale-95 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200">
-          <X className="h-[17px] w-[17px]" strokeWidth={2} />
+    <div className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`} style={{ backgroundColor: colors.overlay, backdropFilter: 'blur(4px)' }} onMouseDown={(event) => { if (event.target === event.currentTarget) handleClose(); }} role="presentation">
+      <div role="dialog" aria-modal="true" aria-labelledby="success-modal-title" className={`relative z-10 w-[380px] h-[320px] flex flex-col items-center justify-center overflow-hidden rounded-2xl border shadow-[0_20px_60px_rgba(0,0,0,0.25)] transition-all duration-200 ease-out ${isOpen ? 'translate-y-0 scale-100' : 'translate-y-2 scale-[0.97]'}`} style={{ backgroundColor: colors.card, borderColor: colors.border }} onMouseDown={(event) => event.stopPropagation()}>
+        <div className="absolute inset-x-0 top-0 h-[3px] bg-success-500" />
+        <button type="button" onClick={handleClose} aria-label="Fermer" className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-150" style={{ color: colors.subtle }} onMouseEnter={(event) => { event.currentTarget.style.backgroundColor = colors.closeHover; event.currentTarget.style.color = colors.text; }} onMouseLeave={(event) => { event.currentTarget.style.backgroundColor = 'transparent'; event.currentTarget.style.color = colors.subtle; }}>
+          <X size={17} strokeWidth={2} />
         </button>
-        <div className="px-7 pt-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400">
-            <CheckCircle2 className="h-[40px] w-[40px]" strokeWidth={2.1} />
+        <div className="flex flex-col items-center justify-center text-center px-8">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border" style={{ backgroundColor: colors.iconBg, borderColor: isDark ? 'rgba(16,185,129,0.20)' : '#D1FAE5' }}>
+            <CheckCircle2 size={22} strokeWidth={2} style={{ color: colors.icon }} />
           </div>
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-emerald-600 dark:text-emerald-400">Succès</div>
-          <h2 id="success-modal-title" className="text-[18px] font-semibold leading-6 tracking-tight text-slate-900 dark:text-slate-100">{title}</h2>
-        </div>
-        <div className="px-7 pt-4">
-          <p className="text-center text-[14px] leading-[1.55] text-slate-500 dark:text-slate-400">{message}</p>
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-success-600 dark:text-success-400">Succès</div>
+          <h2 id="success-modal-title" className="text-[18px] font-semibold leading-6 tracking-[-0.01em] mb-2" style={{ color: colors.text }}>{title}</h2>
+          <div className="text-[14px] font-normal leading-5" style={{ color: colors.muted }}>{message}</div>
           {details && (
-            <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-[13px] leading-5 text-slate-700 dark:border-indigo-500/15 dark:bg-indigo-500/[0.06] dark:text-slate-300">
-              {details}
+            <div className="mt-3 rounded-xl border px-4 py-2.5 w-full text-left" style={{ backgroundColor: colors.detailsBg, borderColor: colors.detailsBorder }}>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.07em]" style={{ color: colors.subtle }}>Détails</div>
+              <p className="whitespace-pre-wrap break-words text-[12.5px] leading-5 font-mono" style={{ color: colors.muted }}>{details}</p>
             </div>
           )}
         </div>
-        <div className="flex items-center justify-end px-7 pb-6 pt-6">
-          <button type="button" onClick={handleClose}
-            className="min-w-[88px] rounded-lg bg-indigo-600 px-5 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-indigo-700 hover:shadow-md active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:ring-offset-2 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:focus:ring-indigo-400/30 dark:focus:ring-offset-slate-900">
+        <div className="mt-6 flex items-center justify-center">
+          <button type="button" onClick={handleClose} className="min-w-[88px] rounded-lg px-6 py-2 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:shadow-md active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-success-500/30" style={{ backgroundColor: colors.button }} onMouseEnter={(event) => { event.currentTarget.style.backgroundColor = colors.buttonHover; }} onMouseLeave={(event) => { event.currentTarget.style.backgroundColor = colors.button; }}>
             {buttonText}
           </button>
         </div>
-        {autoCloseDelay && autoCloseDelay > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-slate-100 dark:bg-slate-800">
-            <div className="h-full bg-indigo-600 transition-[width] duration-75 ease-linear dark:bg-indigo-400" style={{ width: `${progress}%` }} />
+        {autoCloseDelay > 0 && (
+          <div className="absolute bottom-0 left-0 h-[2px] w-full" style={{ backgroundColor: colors.progressBg }}>
+            <div className="h-full" style={{ width: `${progress}%`, backgroundColor: colors.progress, transition: 'width 50ms linear' }} />
           </div>
         )}
       </div>

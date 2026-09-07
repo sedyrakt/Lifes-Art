@@ -1,17 +1,11 @@
-// ============================================================
-// src/lib/ventesPDFService.ts - VERSION FINALE (A4)
-// ⭐ DESIGN MITOVY AMIN'NY FACTURE (INDIGO THEME)
-// ⭐ FIX: TEXTE AO ANATIN'NY TABLEAU = FOTSY & BACKGROUND MAIZINA
-// ⭐ FIX: SOUS-TOTAL, TVA & TOTAL TTC = MAINTY (NOIR)
-// ============================================================
-
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import * as QRCode from 'qrcode';
-
-// ============================================================
-// INTERFACES
-// ============================================================
+// src/lib/ventesPDFService.ts — VENTES PDF (INDIGO + WHITE BG FOR READABILITY)
+// ⭐ FIX: TVA isaky ny produit (tva_rate) — TSY MISY 111.66% INTSONY
+// ⭐ FIX: QR CODE + CASH - MITOVY AMIN'NY PDF SERVICE
+// ⭐ FIX: Sous-total + TVA + Total TTC + Cash
+// ⭐ FIX: PRIMARY COLOR = INDIGO #4F46E5
+// ⭐ FIX: TEXTE MAINTY AMIN'NY FOND FOTSY (TSY MISY TEXTE FOTSY)
+// ⭐ FIX (VAOVAO): AMPIO NY "Reste à payer"
+// ⭐ FIX (VAOVAO): CAP NY CASH AMIN'NY TTC
 
 export interface VenteProduct {
   id?: number;
@@ -29,6 +23,7 @@ export interface VenteProduct {
   prix_vente?: number;
   prix_unitaire?: number;
   total?: number;
+  tva_rate?: number; // ⭐ NEW
 }
 
 export interface Vente {
@@ -75,49 +70,28 @@ export interface VentesPDFOptions {
   paymentMethod?: string;
   paymentTerms?: string;
   dueDate?: string;
+  montantPaye?: number;
+  vendeur?: string;
 }
 
-// ============================================================
-// ⭐ PALETTE DE COULEURS - INDIGO + DARK (#0F172A)
-// ============================================================
-
+// ⭐ INDIGO (#4F46E5) + WHITE BACKGROUND (READABILITY)
 const COLORS = {
-  primary: [79, 70, 229],       // #4F46E5 - Indigo principal
-  primaryDark: [67, 56, 202],   // #4338CA - Indigo foncé
-  primaryLight: [129, 140, 248], // #818CF8 - Indigo clair
-  primarySoft: [238, 242, 255],  // #EEF2FF - Indigo très clair
-  secondary: [15, 23, 42],       // #0F172A - Noir (typo)
-  text: [15, 23, 42],            // #0F172A - Texte principal
-  textMuted: [100, 116, 139],    // #64748B - Texte secondaire
-  textLight: [148, 163, 184],    // #94A3B8 - Texte léger
-  border: [156, 163, 175],       // #9CA3AF - Border gray-400
-  tableText: [75, 85, 99],       // #4B5563 - Table text gray-600
-  background: [248, 250, 252],   // #F8FAFC - Fond
-  backgroundSoft: [238, 242, 255], // #EEF2FF - Fond indigo très clair
-  white: [255, 255, 255],        // #FFFFFF - Blanc
-  success: [16, 185, 129],       // #10B981 - Succès
-  warning: [245, 158, 11],       // #F59E0B - Warning
-  danger: [239, 68, 68],         // #EF4444 - Danger
-};
-
-// ⭐ DARK THEME COLORS (#0F172A)
-const DARK_COLORS = {
-  primary: [129, 140, 248],      // #818CF8 - Indigo clair
-  primaryDark: [99, 102, 241],   // #6366F1 - Indigo
-  primaryLight: [165, 180, 252], // #A5B4FC - Indigo très clair
-  primarySoft: [30, 41, 59],     // #1E293B - Fond indigo sombre (slate-800)
-  secondary: [248, 250, 252],    // #F8FAFC - Texte clair
-  text: [248, 250, 252],         // #F8FAFC - Texte principal
-  textMuted: [148, 163, 184],    // #94A3B8 - Texte secondaire
-  textLight: [100, 116, 139],    // #64748B - Texte léger
-  border: [75, 85, 99],          // #4B5563 - Border gray-600 (dark mode)
-  tableText: [209, 213, 219],    // #D1D5DB - Table text gray-300 (dark mode)
-  background: [15, 23, 42],      // #0F172A - Fond principal (slate-900)
-  backgroundSoft: [30, 41, 59],  // #1E293B - Fond secondaire (slate-800)
-  white: [248, 250, 252],        // #F8FAFC - Blanc (texte clair)
-  success: [52, 211, 153],       // #34D399 - Succès
-  warning: [251, 191, 36],       // #FBBF24 - Warning
-  danger: [251, 113, 133],       // #FB7185 - Danger
+  primary: [79, 70, 229],        // ⭐ INDIGO 600
+  primaryDark: [67, 56, 202],    // ⭐ INDIGO 700
+  primaryLight: [129, 140, 248], // ⭐ INDIGO 400
+  secondary: [38, 70, 83],
+  text: [0, 0, 0],               // ⭐ TEXTE MAINTY
+  textMuted: [100, 116, 139],
+  textLight: [148, 163, 184],
+  border: [226, 232, 240],
+  background: [248, 250, 252],
+  backgroundSoft: [240, 247, 253],
+  white: [255, 255, 255],
+  success: [16, 185, 129],
+  warning: [245, 158, 11],
+  danger: [239, 68, 68],
+  tableText: [0, 0, 0],          // ⭐ TEXTE MAINTY
+  tableBg: [255, 255, 255],
 };
 
 const formatMoney = (amount: number): string => {
@@ -135,72 +109,24 @@ const formatDate = (date: Date | string, format: 'short' | 'long' = 'short'): st
 const cleanText = (text: string): string => { if (!text) return ''; return text.normalize('NFC').trim(); };
 const cleanForQR = (text: string): string => { if (!text) return ''; return text.normalize('NFC').trim(); };
 
-// ============================================================
-// ⭐ FONCTION POUR CHARGER L'IMAGE (VIA IPC - Robuste)
-// ============================================================
+export const generateVentePDF = async (options: VentesPDFOptions, isDark: boolean = false): Promise<any> => {
+  const { jsPDF } = await import('jspdf');
+  const { default: autoTable } = await import('jspdf-autotable');
+  const { default: QRCode } = await import('qrcode');
 
-const loadImageFromDatabase = async (imageId: string): Promise<string> => {
-  if (!imageId) return '';
-  if (imageId.startsWith('data:image') || imageId.startsWith('http://') ||
-      imageId.startsWith('https://') || imageId.startsWith('file://') ||
-      imageId.startsWith('local-image://') || imageId.startsWith('/')) {
-    return imageId;
-  }
-  try {
-    if (window?.api?.images?.getUrl) {
-      const result = await window.api.images.getUrl(imageId);
-      if (result?.success && result.data) return result.data;
-    }
-  } catch (error) { console.warn('⚠️ loadImageFromDatabase: Erreur IPC', error); }
-  return imageId;
-};
+  await new Promise(resolve => setTimeout(resolve, 50));
 
-const imageToBase64 = async (imagePath: string): Promise<string | null> => {
-  try {
-    if (imagePath.startsWith('data:image')) return imagePath;
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath;
-    if (imagePath.startsWith('file://') || imagePath.startsWith('local-image://')) {
-      if (window?.api?.images?.getImageAsBase64) {
-        const result = await window.api.images.getImageAsBase64(imagePath);
-        if (result?.success && result.data?.startsWith('data:image')) return result.data;
-      }
-    }
-    return imagePath;
-  } catch (error) { console.error('❌ imageToBase64:', error); return imagePath; }
-};
-
-// ============================================================
-// ⭐ GENERATE VENTE PDF - PREMIUM (A4)
-// ============================================================
-
-export const generateVentePDF = async (options: VentesPDFOptions, isDark: boolean = false): Promise<jsPDF> => {
   const {
-    vente,
-    type,
-    clientName,
-    clientEmail,
-    clientPhone,
-    clientAddress,
-    companyName,
-    companyLogo,
-    companyAddress,
-    companyPhone,
-    companyEmail,
-    companySiret,
-    companyImage,
-    companyTaxId,
-    companyRcs,
-    companyVatNumber,
-    paymentMethod,
-    paymentTerms,
-    dueDate
+    vente, type, clientName, clientEmail, clientPhone, clientAddress,
+    companyName, companyAddress, companyPhone, companyEmail,
+    companySiret, companyTaxId, companyRcs, companyVatNumber,
+    paymentMethod, paymentTerms, dueDate, montantPaye, vendeur
   } = options;
 
-  // ⭐ SAFIDY THEME
-  const C = isDark ? DARK_COLORS : COLORS;
+  // ⭐ FIX: MAMPASA FOANA NY LOKO MAINTY/FOTSY (COLORS) NA INONA NA INONA MODE
+  const C = COLORS;
 
-  // ⭐ FIX: Atambatra tsara ny anarana (Life's Art no default)
-  const displayCompanyName = cleanText(companyName || "Life's Art");
+  const displayCompanyName = cleanText(companyName || "GSOFT");
   const displayCompanyAddress = cleanText(companyAddress || '');
   const displayCompanyPhone = cleanText(companyPhone || '');
   const displayCompanyEmail = cleanText(companyEmail || '');
@@ -208,12 +134,13 @@ export const generateVentePDF = async (options: VentesPDFOptions, isDark: boolea
   const displayCompanyTaxId = cleanText(companyTaxId || '');
   const displayCompanyRcs = cleanText(companyRcs || '');
   const displayCompanyVatNumber = cleanText(companyVatNumber || '');
-  const displayPaymentMethod = cleanText(paymentMethod || 'Espèces');
-  const displayPaymentTerms = cleanText(paymentTerms || 'Sous 30 jours');
+  const displayPaymentMethod = cleanText(paymentMethod || 'Cash');
+  const displayPaymentTerms = cleanText(paymentTerms || 'Comptant');
   const displayClientName = cleanText(clientName || 'Client');
   const displayClientEmail = cleanText(clientEmail || '');
   const displayClientPhone = cleanText(clientPhone || '');
   const displayClientAddress = cleanText(clientAddress || '');
+  const displayVendeur = cleanText(vendeur || 'admin');
 
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -224,270 +151,156 @@ export const generateVentePDF = async (options: VentesPDFOptions, isDark: boolea
   const [br, bg, bb] = C.border;
   const [wr, wg, wb] = C.white;
   const [bgr, bgg, bgb] = C.background;
-  const [ttr, ttg, ttb] = C.tableText;
 
   const orderId = type === 'devis'
-    ? (vente.reference || vente.numero || (vente.id ? `DEV-${String(vente.id).padStart(6, '0')}` : 'N/A'))
-    : (vente.reference || vente.numero || (vente.id ? `FAC-${String(vente.id).padStart(6, '0')}` : 'N/A'));
+    ? (vente.reference || vente.numero || (vente.id ? `DEV-${String(vente.id).padStart(4, '0')}` : 'DEV-0000'))
+    : (vente.reference || vente.numero || (vente.id ? `FAC-${String(vente.id).padStart(4, '0')}` : 'FAC-0000'));
 
   const titleText = type === 'devis' ? 'DEVIS' : 'FACTURE';
-
-  // ============================================================
-  // ⭐ CALCUL TOTAL HT / TTC / TVA (TVA 20%)
-  // ============================================================
   const products = Array.isArray(vente.products) ? vente.products : [];
 
+  // ⭐⭐ FIX: KAJY NY TOTAL HT + TVA ISAKY PRODUIT ⭐⭐
   let totalHT = 0;
+  let totalTVA = 0;
+  
   if (products.length > 0) {
-    totalHT = products.reduce((sum, p: any) => {
+    products.forEach((p: any) => {
       const qty = Number(p.quantity || p.quantite || p.qty || 0);
       const price = Number(p.price || p.prix || p.prix_vente || p.prix_unitaire || 0);
-      return sum + (qty * price);
-    }, 0);
+      const lineTotal = qty * price;
+      const tvaRate = Number(p.tva_rate) || 0; // Raha tsy misy dia 0
+      totalHT += lineTotal;
+      totalTVA += lineTotal * tvaRate;
+    });
   } else {
     totalHT = vente.total_ht || vente.total || 0;
+    totalTVA = 0;
   }
 
-  // ⭐ FIX: Raha misy remise
   const remiseAmount = Number(vente.remise || 0);
   const totalHTAfterRemise = totalHT - remiseAmount;
-
-  // ⭐ FIX: Total TTC - Raha diso ny total_ttc dia calculer TVA 20%
-  const totalTTC = (vente.total_ttc && vente.total_ttc > totalHTAfterRemise) 
-    ? vente.total_ttc 
-    : Math.round(totalHTAfterRemise * 1.2 * 100) / 100; // TVA 20%
-
-  // ⭐ FIX: Calcul TVA - Tsy mety ny négatif
-  const vatAmount = Math.max(0, Math.round((totalTTC - totalHTAfterRemise) * 100) / 100);
-  const vatRate = totalHTAfterRemise > 0 
-    ? Math.round(((totalTTC - totalHTAfterRemise) / totalHTAfterRemise) * 100 * 100) / 100 
+  
+  // Kajy ny Total TTC
+  const totalTTC = totalHTAfterRemise + totalTVA;
+  
+  // Kajy ny taux TVA effective (raha samy hafa ny taux)
+  const vatRate = totalHTAfterRemise > 0
+    ? Math.round((totalTVA / totalHTAfterRemise) * 100 * 100) / 100
     : 0;
 
   const orderDate = vente.date_devis || vente.date_facture || vente.created_at || new Date().toISOString();
   const dueDateObj = dueDate ? new Date(dueDate) : new Date(orderDate);
   if (!dueDate) dueDateObj.setDate(dueDateObj.getDate() + 30);
   const displayDueDate = formatDate(dueDateObj, 'long');
+  const statusLabel = vente.status === 'Payé' || vente.statut === 'Payé' ? 'Payé' : 'Non payé';
 
-  // ============================================================
-  // ⭐ QR CODE
-  // ============================================================
+  // ⭐ FIX (VAOVAO): CAP NY CASH AMIN'NY TTC
+  const cashAmount = Math.min(totalTTC, Number(montantPaye || 0));
+
   let qrImageBase64 = '';
   try {
     const qrData = [
-      `${titleText}`,
-      `N°: ${cleanForQR(orderId)}`,
-      `Client: ${cleanForQR(displayClientName)}`,
-      `Montant: ${formatMoney(totalTTC)}`,
-      `Date: ${formatDate(orderDate, 'short')}`,
-      `Echeance: ${cleanForQR(displayDueDate)}`
+      `${titleText}`, `N°: ${cleanForQR(orderId)}`, `Client: ${cleanForQR(displayClientName)}`,
+      `Montant: ${formatMoney(totalTTC)}`, `Date: ${formatDate(orderDate, 'short')}`,
+      `Vendeur: ${cleanForQR(displayVendeur)}`
     ].filter(line => line !== '').join('\n');
-    qrImageBase64 = await QRCode.toDataURL(qrData, { 
-      width: 120, 
-      margin: 2, 
-      errorCorrectionLevel: 'H', 
-      color: { 
-        dark: '#4F46E5', // Indigo
-        light: isDark ? '#0F172A' : '#FFFFFF' 
-      } 
+    qrImageBase64 = await QRCode.toDataURL(qrData, {
+      width: 120, margin: 2, errorCorrectionLevel: 'H',
+      // ⭐ FIX: QR code couleur INDIGO + FOND FOTSY FOANA
+      color: { dark: '#4F46E5', light: '#FFFFFF' }
     });
   } catch (_) {}
 
-  // ============================================================
-  // ⭐ EN-TÊTE PREMIUM (Logo + Company Info)
-  // ============================================================
   doc.setFillColor(pr, pg, pb);
   doc.rect(0, 0, pageWidth, 1.5, 'F');
 
-  let logoY = 6;
-  let logoSize = 12;
-  let imageToUse = companyImage || companyLogo || '';
-  let imageData: string | null = null;
-
-  if (imageToUse && typeof imageToUse === 'string' && imageToUse.length > 0) {
-    try {
-      let cleanImage = imageToUse.trim();
-      if (cleanImage.startsWith('local-image://') || cleanImage.startsWith('file://') ||
-          cleanImage.startsWith('data:image') || cleanImage.startsWith('http://') ||
-          cleanImage.startsWith('https://') || cleanImage.startsWith('/')) {
-        imageData = cleanImage;
-      } else {
-        const loadedImage = await loadImageFromDatabase(cleanImage);
-        if (loadedImage) imageData = loadedImage;
-      }
-    } catch (_) {}
-  }
-
-  if (imageData) {
-    try {
-      let finalImageData = imageData;
-      if (imageData.startsWith('file://') || imageData.startsWith('local-image://')) {
-        const base64Result = await imageToBase64(imageData);
-        if (base64Result) finalImageData = base64Result;
-      }
-      if (finalImageData.startsWith('data:image')) {
-        const isPng = finalImageData.includes('image/png');
-        doc.addImage(finalImageData, isPng ? 'PNG' : 'JPEG', margin, logoY, logoSize, logoSize);
-        console.log('✅ Logo ajouté au PDF');
-      }
-    } catch (_) {
-      console.warn('⚠️ Impossible d\'ajouter le logo au PDF');
-    }
-  }
-
-  const logoRightX = margin + logoSize + 5;
+  // ⭐ COMPANY NAME CENTRÉ
   const textStartY = 8;
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(pr, pg, pb);
-  doc.text(displayCompanyName, logoRightX, textStartY + 2);
+  doc.text(displayCompanyName, pageWidth / 2, textStartY, { align: 'center' });
 
+  // ⭐ ADRESSE & TÉLÉPHONE CENTRÉ
   doc.setFontSize(6);
-  doc.setFont('helvetica', 'italic');
-  doc.setTextColor(C.textMuted[0], C.textMuted[1], C.textMuted[2]);
-  doc.text('Gestion d\'entreprise', logoRightX, textStartY + 6);
-
-  doc.setFontSize(5.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(C.textMuted[0], C.textMuted[1], C.textMuted[2]);
-  let coordY = textStartY + 10;
-  const coordX = logoRightX;
-  if (displayCompanyAddress) { doc.text(`Adresse : ${displayCompanyAddress}`, coordX, coordY); coordY += 3.2; }
-  if (displayCompanyPhone) { doc.text(`Tél : ${displayCompanyPhone}`, coordX, coordY); coordY += 3.2; }
-  if (displayCompanyEmail) { doc.text(`Email : ${displayCompanyEmail}`, coordX, coordY); coordY += 3.2; }
+  let coordY = textStartY + 4;
+  if (displayCompanyAddress) { doc.text(displayCompanyAddress, pageWidth / 2, coordY, { align: 'center' }); coordY += 3.2; }
+  if (displayCompanyPhone) { doc.text(`Tél: ${displayCompanyPhone}`, pageWidth / 2, coordY, { align: 'center' }); coordY += 3.2; }
+  if (displayCompanySiret || displayCompanyTaxId) {
+    doc.text(`NIF/STAT: ${displayCompanySiret || displayCompanyTaxId || ''}`, pageWidth / 2, coordY, { align: 'center' });
+    coordY += 3.2;
+  }
 
-  const separatorY = Math.max(coordY + 5, 32);
+  const separatorY = Math.max(coordY + 4, 32);
   doc.setDrawColor(br, bg, bb);
   doc.line(margin, separatorY, pageWidth - margin, separatorY);
 
-  // ============================================================
-  // ⭐ TITRE & ORDER INFO
-  // ============================================================
-  const titleY = separatorY + 5;
-  doc.setFontSize(16);
+  // ⭐ INFOS TICKET
+  const infoY = separatorY + 4;
+  doc.setFontSize(6.5);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(pr, pg, pb);
-  doc.text(titleText, margin, titleY);
-  doc.setDrawColor(pr, pg, pb);
-  doc.line(margin, titleY + 1.5, margin + 35, titleY + 1.5);
+  doc.setTextColor(sr, sg, sb);
+  doc.text(`${titleText} N°:`, margin, infoY);
+  doc.text(`Vendeur:`, margin, infoY + 4);
+  doc.text(`Client:`, margin, infoY + 8);
 
-  const rightX = pageWidth - margin;
-  let startRightY = titleY - 4;
-  doc.setFontSize(5.5);
-  doc.setFont('helvetica', 'normal');
-  const rightInfo = [
-    { label: 'N°', value: orderId },
-    { label: 'DATE', value: formatDate(orderDate, 'long') },
-    { label: 'ÉCHÉANCE', value: displayDueDate }
-  ];
-  rightInfo.forEach((item) => {
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(sr, sg, sb);
-    doc.text(item.label, rightX, startRightY, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(C.text[0], C.text[1], C.text[2]);
-    doc.text(item.value, rightX, startRightY + 4, { align: 'right' });
-    startRightY += 8;
-  });
-
-  // ============================================================
-  // ⭐ INFORMATIONS CLIENT & PAIEMENT
-  // ============================================================
-  const infoY = titleY + 16;
-  doc.setDrawColor(br, bg, bb);
-  doc.setFillColor(bgr, bgg, bgb);
-  doc.roundedRect(margin, infoY, pageWidth - (margin * 2), 20, 1.5, 1.5, 'FD');
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(pr, pg, pb);
-  doc.text('CLIENT', margin + 4, infoY + 5);
-  doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(C.text[0], C.text[1], C.text[2]);
-  let cInfoY = infoY + 9;
-  doc.text(`Nom : ${displayClientName}`, margin + 4, cInfoY);
-  cInfoY += 4.2;
-  if (displayClientAddress) { doc.text(`Adr : ${displayClientAddress}`, margin + 4, cInfoY); cInfoY += 4.2; }
-  if (displayClientEmail) { doc.text(`Email : ${displayClientEmail}`, margin + 4, cInfoY); cInfoY += 4.2; }
-  if (displayClientPhone) { doc.text(`Tél : ${displayClientPhone}`, margin + 4, cInfoY); }
+  doc.text(orderId, margin + 22, infoY);
+  doc.text(displayVendeur, margin + 22, infoY + 4);
+  doc.text(displayClientName, margin + 22, infoY + 8);
 
-  const paymentX = pageWidth - margin - 80;
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(pr, pg, pb);
-  doc.text('PAIEMENT', paymentX, infoY + 5);
-  doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(C.text[0], C.text[1], C.text[2]);
-  let pInfoY = infoY + 9;
-  doc.text(`Mode : ${displayPaymentMethod}`, paymentX, pInfoY);
-  pInfoY += 4.2;
-  doc.text(`Cond. : ${displayPaymentTerms}`, paymentX, pInfoY);
-  pInfoY += 4.2;
-  doc.text(`Échéance : ${displayDueDate}`, paymentX, pInfoY);
+  doc.setTextColor(C.textMuted[0], C.textMuted[1], C.textMuted[2]);
+  doc.text(formatDate(orderDate, 'short'), pageWidth - margin, infoY, { align: 'right' });
 
-  // ============================================================
-  // ⭐ TABLEAU DES PRODUITS (TEXTE FOTSY & BACKGROUND MAIZINA)
-  // ============================================================
-  const tableStartY = infoY + 24;
+  const tableStartY = infoY + 14;
   let tableData: any[][] = [];
 
   if (!products || products.length === 0) {
-    tableData = [['-', 'Aucun produit', '-', '-', '-']];
+    tableData = [['-', 'Aucun produit', '-', '-']];
   } else {
     tableData = products.map((item: any, index: number) => {
       const prodName = cleanText(
-        item.produit_nom ||
-        item.name ||
-        item.nom ||
-        item.designation ||
-        item.libelle ||
-        item.product_name ||
-        'Produit'
+        item.produit_nom || item.name || item.nom || item.designation || item.libelle || item.product_name || 'Produit'
       );
       const prodQty = Number(item.quantity || item.quantite || item.qty || 0);
-      const prodPrice = Number(
-        item.prix_unitaire ||
-        item.price ||
-        item.prix ||
-        item.prix_vente ||
-        0
-      );
+      const prodPrice = Number(item.prix_unitaire || item.price || item.prix || item.prix_vente || 0);
       const total = prodQty * prodPrice;
-      return [index + 1, prodName, prodQty.toString(), formatMoney(prodPrice), formatMoney(total)];
+      return [prodQty.toString(), prodName, formatMoney(prodPrice), formatMoney(total)];
     });
   }
 
   autoTable(doc, {
     startY: tableStartY,
-    head: [['#', 'DÉSIGNATION', 'QTÉ', 'P.U.', 'TOTAL']],
+    head: [['QTÉ', 'ARTICLE', 'PRIX', 'TOTAL']],
     body: tableData,
     theme: 'grid',
     headStyles: {
       fillColor: [pr, pg, pb],
       textColor: [wr, wg, wb],
       fontStyle: 'bold',
-      halign: 'center',
+      halign: 'left',
       fontSize: 7,
-      cellPadding: 2.5,
+      cellPadding: 2,
       lineWidth: 0.1,
       lineColor: [pr, pg, pb]
     },
     bodyStyles: {
-      // ⭐ FIX: FOTSY NY TEXTE
-      textColor: [255, 255, 255], 
-      fontSize: 6,
+      textColor: C.tableText,
+      fontSize: 6.5,
       cellPadding: 2,
-      lineWidth: 0.15, 
+      lineWidth: 0.15,
       lineColor: [br, bg, bb],
-      // ⭐ FIX: MAIZINA NY BACKGROUND
-      fillColor: [15, 23, 42] // Slate-900 (Mainty)
+      fillColor: C.tableBg
     },
     columnStyles: {
-      0: { cellWidth: 8, halign: 'center' },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 12, halign: 'center' },
-      3: { cellWidth: 28, halign: 'right' },
-      4: { cellWidth: 28, halign: 'right' }
+      0: { cellWidth: 15, halign: 'left' },
+      1: { cellWidth: 'auto', halign: 'left' },
+      2: { cellWidth: 35, halign: 'right' },
+      3: { cellWidth: 35, halign: 'right' }
     },
     margin: { left: margin, right: margin },
     tableWidth: pageWidth - (margin * 2),
@@ -495,91 +308,85 @@ export const generateVentePDF = async (options: VentesPDFOptions, isDark: boolea
 
   const finalTableY = (doc as any).lastAutoTable?.finalY || tableStartY + 30;
 
-  // ============================================================
-  // ⭐ TOTAUX & PIED DU TABLEAU (MAINTY NY TEXTE)
-  // ============================================================
+  // ⭐ SOUS-TOTAL & TOTAL
   const totalsY = finalTableY + 5;
-  const lineX = pageWidth - 80;
+  const lineX = margin;
+  const lineWidth = pageWidth - margin - 35;
 
-  // ⭐ FIX: Ataovy mainty hatrany ny texte ao amin'ny Sous-total sy TVA
-  doc.setFontSize(6);
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(15, 23, 42); // NOIR #0F172A
-  doc.text('Sous-total HT', lineX, totalsY);
-  doc.text(formatMoney(totalHTAfterRemise), pageWidth - margin, totalsY, { align: 'right' });
-  doc.text(`TVA (${vatRate}%)`, lineX, totalsY + 5);
-  doc.text(formatMoney(vatAmount), pageWidth - margin, totalsY + 5, { align: 'right' });
-  
-  doc.setDrawColor(pr, pg, pb);
-  doc.line(lineX, totalsY + 7, pageWidth - margin, totalsY + 7);
-  
-  // ⭐ FIX: Ataovy mainty koa ny TOTAL TTC mba ho hita tsara
-  doc.setFontSize(12);
+  doc.setTextColor(C.text[0], C.text[1], C.text[2]);
+
+  doc.text(`Sous-total HT:`, lineX, totalsY);
+  doc.text(formatMoney(totalHTAfterRemise), lineX + 60, totalsY, { align: 'right' });
+
+  doc.text(`TVA (${vatRate}%):`, lineX, totalsY + 5);
+  doc.text(formatMoney(totalTVA), lineX + 60, totalsY + 5, { align: 'right' });
+
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42); // NOIR #0F172A
-  doc.text('TOTAL TTC', lineX, totalsY + 14);
-  doc.text(formatMoney(totalTTC), pageWidth - margin, totalsY + 14, { align: 'right' });
+  doc.setTextColor(pr, pg, pb);
+  doc.text(`TOTAL TTC:`, lineX, totalsY + 10);
+  doc.text(formatMoney(totalTTC), lineX + 60, totalsY + 10, { align: 'right' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(C.text[0], C.text[1], C.text[2]);
+  doc.text(`Cash:`, lineX, totalsY + 15);
+  doc.text(formatMoney(cashAmount), lineX + 60, totalsY + 15, { align: 'right' });
+
+  // ⭐ FIX (VAOVAO): Ampio ny Reste à payer
+  const montantRestantPDF = Math.max(0, totalTTC - cashAmount);
+  doc.text(`Reste à payer:`, lineX, totalsY + 20);
+  doc.text(formatMoney(montantRestantPDF), lineX + 60, totalsY + 20, { align: 'right' });
 
   // ⭐ QR CODE
-  const qrSize = 12;
+  const qrSize = 30;
   const qrX = pageWidth - margin - qrSize;
-  const qrY = totalsY + 20;
+  const qrY = finalTableY + 5;
 
   if (qrImageBase64) {
     try {
       doc.addImage(qrImageBase64, 'PNG', qrX, qrY, qrSize, qrSize);
-      doc.setFontSize(4);
+      doc.setFontSize(5);
       doc.setTextColor(C.textLight[0], C.textLight[1], C.textLight[2]);
       doc.text('Scan', qrX + qrSize / 2, qrY + qrSize + 3, { align: 'center' });
     } catch (_) {}
   }
 
-  // ============================================================
-  // ⭐ FOOTER (AVEC SIRET, NIF, RCS, TVA)
-  // ============================================================
-  const infoYEnd = totalsY + 38;
-  doc.setDrawColor(pr, pg, pb);
-  doc.line(margin, infoYEnd, pageWidth - margin, infoYEnd);
-
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(pr, pg, pb);
-  doc.text('Merci de votre confiance !', pageWidth / 2, infoYEnd + 5, { align: 'center' });
-
-  doc.setFontSize(5);
+  const infoYEnd = totalsY + 25;
+  doc.setFontSize(5.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(C.textLight[0], C.textLight[1], C.textLight[2]);
-
-  let footerText = `© ${new Date().getFullYear()} ${displayCompanyName}`;
-  if (displayCompanySiret) footerText += ` | SIRET: ${displayCompanySiret}`;
-  if (displayCompanyTaxId) footerText += ` | NIF: ${displayCompanyTaxId}`;
-  if (displayCompanyRcs) footerText += ` | RCS: ${displayCompanyRcs}`;
-  if (displayCompanyVatNumber) footerText += ` | TVA: ${displayCompanyVatNumber}`;
-  if (displayCompanyPhone) footerText += ` | Tél: ${displayCompanyPhone}`;
-  if (displayCompanyEmail) footerText += ` | Email: ${displayCompanyEmail}`;
-  doc.text(footerText, margin, infoYEnd + 10);
+  doc.text(`© ${new Date().getFullYear()} ${displayCompanyName}`, pageWidth / 2, infoYEnd, { align: 'center' });
 
   return doc;
 };
-
-// ============================================================
-// ⭐ EXPORT FUNCTIONS
-// ============================================================
 
 export const downloadVentePDF = async (options: VentesPDFOptions, isDark: boolean = false) => {
   try {
     const doc = await generateVentePDF(options, isDark);
     const orderId = options.type === 'devis'
-      ? (options.vente.reference || options.vente.numero || `DEV-${String(options.vente.id).padStart(6, '0')}`)
-      : (options.vente.reference || options.vente.numero || `FAC-${String(options.vente.id).padStart(6, '0')}`);
+      ? (options.vente.reference || options.vente.numero || `DEV-${String(options.vente.id).padStart(4, '0')}`)
+      : (options.vente.reference || options.vente.numero || `FAC-${String(options.vente.id).padStart(4, '0')}`);
     const defaultFileName = `${options.type === 'devis' ? 'devis' : 'facture'}_${orderId}.pdf`;
     const pdfData = doc.output('arraybuffer');
 
-    const result = await window.api.utils.saveFile(pdfData, defaultFileName);
-
-    if (result && result.canceled) return { success: false, canceled: true };
-    if (!result || !result.success) return { success: false, error: result?.error || 'Erreur lors de la sauvegarde du fichier' };
-    return { success: true, filePath: result.filePath };
+    if (window?.api?.utils?.saveFile) {
+      const result = await window.api.utils.saveFile(pdfData, defaultFileName);
+      if (result && result.canceled) return { success: false, canceled: true };
+      if (!result || !result.success) return { success: false, error: result?.error || 'Erreur lors de la sauvegarde du fichier' };
+      return { success: true, filePath: result.filePath };
+    } else {
+      const blob = new Blob([pdfData], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = defaultFileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return { success: true, filePath: defaultFileName };
+    }
   } catch (error: any) {
     console.error('❌ Erreur génération PDF:', error);
     return { success: false, error: error.message };

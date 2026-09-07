@@ -1,6 +1,7 @@
 // ============================================================
 // electron/ipc/fournisseurs/validation.cjs - VALIDATION (10/10)
-// ⭐ FIX: Nampidirina ny `!data` mialoha ny fanamarinana mba tsy hianjera intsony
+// ⭐ FIX: Nampidirina ny `!data` mialoha ny fanamarinana
+// ⭐ FIX: NESORINA NY image
 // ============================================================
 
 function validateFournisseur(data) {
@@ -18,7 +19,7 @@ function validateFournisseur(data) {
         telephone: null,
         email: null,
         adresse: null,
-        image: null,
+        // image: null,  // ⭐ NESORINA
       },
     };
   }
@@ -55,7 +56,6 @@ function validateFournisseur(data) {
       telephone: data.telephone?.trim() || null,
       email: data.email?.trim().toLowerCase() || null,
       adresse: data.adresse?.trim() || null,
-      image: data.image || null,
     },
   };
 }

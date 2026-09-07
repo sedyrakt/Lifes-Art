@@ -1,62 +1,75 @@
+
 import React from 'react';
-import { Plus, Folder, RefreshCw } from 'lucide-react';
+import { Plus, BarChart3, RefreshCw, TextSelection } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface CategoriesHeaderProps {
   onAddCategorie: () => void;
+  onOpenStats?: () => void;
   refreshing?: boolean;
   onRefresh?: () => void;
+  totalItems?: number;
 }
 
 const CategoriesHeader: React.FC<CategoriesHeaderProps> = ({
   onAddCategorie,
+  onOpenStats,
   refreshing = false,
   onRefresh,
+  totalItems,
 }) => {
+  const { isDark } = useTheme();
+
   return (
-    <div className="mb-5 w-full">
-      <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 md:flex-row md:items-center md:justify-between dark:border-slate-800 dark:bg-[#0F172A]">
-        {/* Gauche – Titre */}
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">
-            <Folder size={19} strokeWidth={2} />
-          </div>
-          <div className="min-w-0">
-            <h1 className="truncate text-[16px] font-semibold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
-              Gestion des catégories
+    <header className="mb-4 w-full">
+      <div className="group relative flex flex-col gap-3 overflow-hidden rounded-xl border bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 md:flex-row md:items-center md:justify-between dark:bg-slate-900" style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}>
+        
+        <div className="absolute left-0 top-0 h-full w-[2px] bg-brand-500" />
+        
+        <div className="relative z-10 flex min-w-0 flex-col">
+          <div className="flex items-center gap-2">
+            <h1 className="text-[19px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 dark:text-slate-100">
+              Catégories
             </h1>
-            <p className="mt-1 truncate text-[12px] font-medium leading-none text-slate-500 dark:text-slate-400">
-              Organisez vos produits par catégorie
-            </p>
+            {totalItems !== undefined && (
+              <span className="inline-flex min-w-[26px] items-center justify-center rounded-md bg-brand-500 px-2 py-0.5 text-[11px] font-bold text-white">
+                {totalItems}
+              </span>
+            )}
           </div>
+          <p className="mt-0.5 text-[13px] font-medium leading-tight text-slate-500 dark:text-slate-400">
+            Gérez et organisez les catégories de vos produits.
+          </p>
         </div>
 
-        {/* Droite – Actions */}
-        <div className="flex w-full shrink-0 items-center justify-end gap-2 md:w-auto">
+        <div className="relative z-10 flex w-full shrink-0 items-center gap-2 md:w-auto">
+          
           {onRefresh && (
             <button
               type="button"
               onClick={onRefresh}
               disabled={refreshing}
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-600 shadow-sm transition-all duration-150 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-[#0F172A] dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:hover:text-white"
-              aria-label="Actualiser les catégories"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border px-3 text-[13px] font-medium text-slate-500 transition-all duration-150 hover:border-slate-300 hover:bg-slate-50 hover:text-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0', background: isDark ? '#1E293B' : '#FFFFFF' }}
+              aria-label="Actualiser"
               title="Actualiser"
             >
-              <RefreshCw size={15} strokeWidth={2} className={refreshing ? 'animate-spin' : ''} />
-              <span className="hidden sm:inline">Actualiser</span>
+              <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
             </button>
           )}
+
           <button
             type="button"
             onClick={onAddCategorie}
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3.5 text-[13px] font-medium text-white shadow-sm transition-all duration-150 hover:bg-indigo-700 hover:shadow-md active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:ring-offset-1 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:focus:ring-offset-[#0F172A]"
+            className="inline-flex h-9 flex-1 sm:flex-none items-center justify-center gap-2 rounded-lg bg-brand-500 px-3.5 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-brand-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:ring-offset-1 active:scale-[0.98] dark:bg-brand-500 dark:hover:bg-brand-600 dark:focus:ring-offset-slate-900"
             aria-label="Ajouter une catégorie"
           >
-            <Plus size={16} strokeWidth={2.2} />
-            <span>Ajouter une catégorie</span>
+            <Plus size={17} strokeWidth={2.2} />
+            <span>Nouvelle catégorie</span>
           </button>
         </div>
       </div>
-    </div>
+    </header>
   );
 };
 

@@ -1,23 +1,7 @@
-// ============================================================
-// src/hooks/useRapportsData.ts
-// ⭐ VERSION FINAL A-Z
-// ⭐ Stable
-// ⭐ Crash-proof
-// ⭐ Promise.allSettled
-// ⭐ Reports IPC
-// ⭐ Anti refresh loop
-// ⭐ Live refresh
-// ⭐ Export Excel / PDF / CSV
-// ============================================================
-
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-
-// ============================================================
-// TYPES
-// ============================================================
 
 export interface RapportsStats {
   totalProduits: number;
@@ -74,30 +58,21 @@ export interface CommandeRecente {
 
 export type Periode = 'jour' | 'semaine' | 'mois' | 'trimestre' | 'annee';
 
-// ============================================================
-// SAFE NUMBER
-// ============================================================
-
 const toNumber = (value: unknown): number => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
 };
 
-// ============================================================
-// SAFE API
-// ============================================================
+const sanitizeMoney = (value: string): string => {
+  return value.replace(/[\u202F\u00A0]/g, ' ').replace(/,/g, '.');
+};
 
 const getReportsApi = () => {
   if (typeof window === 'undefined') return null;
   return (window as any)?.api?.reports || null;
 };
 
-// ============================================================
-// HOOK
-// ============================================================
-
 export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
-  // ✅ FIX: HOOKS REHETRA ETO AMBONY (TSY MISY CONDITION)
   const isMounted = useRef(true);
   const fetchLock = useRef(false);
   const firstLoadDone = useRef(false);
@@ -128,10 +103,6 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     };
   }, []);
 
-  // ==========================================================
-  // STATS
-  // ==========================================================
-
   const stats = useMemo((): RapportsStats => {
     const chiffreAffaires = toNumber(summary?.chiffre_affaires ?? summary?.chiffreAffaires);
     const benefice = toNumber(beneficeData?.benefice_net ?? beneficeData?.beneficeNet ?? beneficeData?.benefice);
@@ -153,10 +124,6 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     };
   }, [summary, beneficeData, stockValue, entreesStock, sortiesStock]);
 
-  // ==========================================================
-  // LOAD DATA
-  // ==========================================================
-
   const loadData = useCallback(async (isRefresh = false) => {
     if (fetchLock.current) return;
     fetchLock.current = true;
@@ -176,10 +143,6 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
       const endDate = now.toISOString().split('T')[0];
       const startDate = `${year}-01-01`;
 
-      // ====================================================
-      // ALL REQUESTS
-      // ====================================================
-
       const results = await Promise.allSettled([
         api.getSummary ? api.getSummary() : Promise.resolve({ success: false }),
         api.getVentesParMois ? api.getVentesParMois(year) : Promise.resolve({ success: false }),
@@ -195,10 +158,6 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
         api.getDepensesParCategorie ? api.getDepensesParCategorie({ startDate, endDate }) : Promise.resolve({ success: false }),
         api.getCommandesStatut ? api.getCommandesStatut() : Promise.resolve({ success: false }),
       ]);
-
-      // ====================================================
-      // EXTRACT
-      // ====================================================
 
       const extract = (result: any) => {
         if (result?.status === 'fulfilled' && result?.value?.success) {
@@ -221,10 +180,6 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
       const depensesResult = extract(results[11]);
       const commandesStatutResult = extract(results[12]);
 
-      // ====================================================
-      // RECENT COMMANDS
-      // ====================================================
-
       const recentCommands = Array.isArray(recentOrdersResult)
         ? recentOrdersResult.map((command: any) => {
             const numero = command?.commande_numero;
@@ -234,10 +189,6 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
             };
           })
         : [];
-
-      // ====================================================
-      // UPDATE STATE
-      // ====================================================
 
       if (!isMounted.current) return;
 
@@ -277,10 +228,6 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     }
   }, [selectedDate, granularity]);
 
-  // ==========================================================
-  // LIVE LISTENER
-  // ==========================================================
-
   useEffect(() => {
     const api = getReportsApi();
     if (!api?.onChanged) return;
@@ -296,27 +243,15 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     };
   }, []);
 
-  // ==========================================================
-  // UPDATE REF
-  // ==========================================================
-
   useEffect(() => {
     loadDataRef.current = loadData;
   }, [loadData]);
-
-  // ==========================================================
-  // INITIAL LOAD
-  // ==========================================================
 
   useEffect(() => {
     if (!firstLoadDone.current) {
       loadData(false);
     }
   }, [loadData]);
-
-  // ==========================================================
-  // EXPORT EXCEL
-  // ==========================================================
 
   const exportToExcel = useCallback((data: any[], filename: string, sheetName = 'Rapport') => {
     if (!data.length) return;
@@ -330,19 +265,15 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     }
   }, []);
 
-  // ==========================================================
-  // EXPORT PDF
-  // ==========================================================
-
-  const exportToPDF = useCallback((data: any[], filename: string, title: string, columns: string[]) => {
+  const exportToPDF = useCallback((data: any[], filename: string, title: string, columns: string[], companyName?: string) => {
     if (!data.length) return;
     try {
       const doc = new jsPDF('landscape', 'mm', 'a4');
-      doc.setFillColor(99, 102, 241);
+      doc.setFillColor(15, 23, 42);
       doc.rect(0, 0, 297, 15, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(12);
-      doc.text("LIFE'S ART - Rapport Officiel", 14, 10);
+      doc.text(`${companyName || "TahiryPro"} - Rapport Officiel`, 14, 10);
       doc.setTextColor(15, 23, 42);
       doc.setFontSize(18);
       doc.text(title, 14, 28);
@@ -360,7 +291,7 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
         body: rows,
         startY: 42,
         styles: { fontSize: 9, cellPadding: 5 },
-        headStyles: { fillColor: [99, 102, 241], textColor: [255, 255, 255], fontStyle: 'bold' },
+        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [248, 250, 252] },
         theme: 'grid',
       });
@@ -370,10 +301,6 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
       console.error('❌ Erreur export PDF:', error);
     }
   }, []);
-
-  // ==========================================================
-  // EXPORT CSV
-  // ==========================================================
 
   const exportToCSV = useCallback((data: any[], filename: string) => {
     if (!data.length) return;
@@ -404,14 +331,10 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     }
   }, []);
 
-  // ==========================================================
-  // EXPORT STATS
-  // ==========================================================
-
   const handleExportStats = useCallback((formatMoneyFn: (value: number) => string) => {
     const data = [
-      { Indicateur: "Chiffre d'affaires", Valeur: formatMoneyFn(stats.chiffreAffaires) },
-      { Indicateur: 'Bénéfice Net', Valeur: formatMoneyFn(stats.benefice) },
+      { Indicateur: "Chiffre d'affaires", Valeur: sanitizeMoney(formatMoneyFn(stats.chiffreAffaires)) },
+      { Indicateur: 'Bénéfice Net', Valeur: sanitizeMoney(formatMoneyFn(stats.benefice)) },
       { Indicateur: 'Total entrées', Valeur: stats.totalEntrees },
       { Indicateur: 'Total sorties', Valeur: stats.totalSorties },
       { Indicateur: 'Commandes', Valeur: stats.nbCommandes },
@@ -421,10 +344,6 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     exportToExcel(data, 'Rapport_Statistiques_LifeArt');
   }, [stats, exportToExcel]);
 
-  // ==========================================================
-  // EXPORT TOP PRODUCTS
-  // ==========================================================
-
   const handleExportTopProduits = useCallback((formatMoneyFn: (value: number) => string) => {
     if (!topProduits.length) return;
     const data = topProduits.map((product, index) => ({
@@ -432,15 +351,11 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
       Produit: product.nom || 'N/A',
       Code: product.code || 'N/A',
       'Quantité vendue': product.total_vendu || 0,
-      'Total ventes': formatMoneyFn(product.total_ventes || 0),
+      'Total ventes': sanitizeMoney(formatMoneyFn(product.total_ventes || 0)),
       Pourcentage: product.pourcentage ? `${product.pourcentage}%` : '0%',
     }));
     exportToExcel(data, 'Top_Produits_LifeArt');
   }, [topProduits, exportToExcel]);
-
-  // ==========================================================
-  // EXPORT COMMANDES
-  // ==========================================================
 
   const handleExportCommandes = useCallback(() => {
     if (!commandesRecentes.length) return;
@@ -455,31 +370,23 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     exportToExcel(data, 'Commandes_Recentes_LifeArt');
   }, [commandesRecentes, exportToExcel]);
 
-  // ==========================================================
-  // EXPORT PDF
-  // ==========================================================
-
-  const handleExportPDF = useCallback((formatMoneyFn: (value: number) => string) => {
+  const handleExportPDF = useCallback((formatMoneyFn: (value: number) => string, companyName = "TahiryPro") => {
     const data = [
-      { Indicateur: "Chiffre d'affaires", Valeur: formatMoneyFn(stats.chiffreAffaires) },
-      { Indicateur: 'Bénéfice Net', Valeur: formatMoneyFn(stats.benefice) },
+      { Indicateur: "Chiffre d'affaires", Valeur: sanitizeMoney(formatMoneyFn(stats.chiffreAffaires)) },
+      { Indicateur: 'Bénéfice Net', Valeur: sanitizeMoney(formatMoneyFn(stats.benefice)) },
       { Indicateur: 'Total entrées', Valeur: stats.totalEntrees },
       { Indicateur: 'Total sorties', Valeur: stats.totalSorties },
       { Indicateur: 'Commandes', Valeur: stats.nbCommandes },
       { Indicateur: 'Clients Actifs', Valeur: stats.nbClients },
       { Indicateur: 'Taux de marge', Valeur: stats.tauxBenefice.toFixed(2) + '%' },
     ];
-    exportToPDF(data, 'Rapport_Statistiques', "Rapport d'analyse financière - Life's Art", ['Indicateur', 'Valeur']);
+    exportToPDF(data, 'Rapport_Statistiques', `Rapport d'analyse financière - ${companyName}`, ['Indicateur', 'Valeur'], companyName);
   }, [stats, exportToPDF]);
-
-  // ==========================================================
-  // EXPORT CSV
-  // ==========================================================
 
   const handleExportCSV = useCallback((formatMoneyFn: (value: number) => string) => {
     const data = [
-      { Indicateur: "Chiffre d'affaires", Valeur: formatMoneyFn(stats.chiffreAffaires) },
-      { Indicateur: 'Bénéfice Net', Valeur: formatMoneyFn(stats.benefice) },
+      { Indicateur: "Chiffre d'affaires", Valeur: sanitizeMoney(formatMoneyFn(stats.chiffreAffaires)) },
+      { Indicateur: 'Bénéfice Net', Valeur: sanitizeMoney(formatMoneyFn(stats.benefice)) },
       { Indicateur: 'Total entrées', Valeur: stats.totalEntrees },
       { Indicateur: 'Total sorties', Valeur: stats.totalSorties },
       { Indicateur: 'Commandes', Valeur: stats.nbCommandes },
@@ -488,10 +395,6 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     ];
     exportToCSV(data, 'Rapport_Statistiques_LifeArt');
   }, [stats, exportToCSV]);
-
-  // ==========================================================
-  // RETURN
-  // ==========================================================
 
   return {
     loading,

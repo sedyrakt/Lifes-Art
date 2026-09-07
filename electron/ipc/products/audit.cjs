@@ -1,6 +1,5 @@
-// ============================================================
 // electron/ipc/products/audit.cjs - AUDIT LOG 10/10
-// ============================================================
+'use strict';
 
 const { getDb } = require('../../database/connection.cjs');
 const { log, error } = require('./logger.cjs');

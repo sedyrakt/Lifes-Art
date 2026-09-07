@@ -30,7 +30,7 @@ function runTopProduits(db, options) {
       INNER JOIN produits p ON d.produit_id = p.id
       LEFT JOIN commandes cmd ON d.commande_id = cmd.id
       LEFT JOIN categories c ON p.categorie_id = c.id
-      WHERE LOWER(cmd.statut) != 'annulée'
+      WHERE LOWER(cmd.statut_paiement) != 'non payé'
         AND date(cmd.date_commande) >= ? AND date(cmd.date_commande) <= ?
         AND p.categorie_id = ?
       GROUP BY p.id
@@ -54,7 +54,7 @@ function runTopProduits(db, options) {
       INNER JOIN produits p ON d.produit_id = p.id
       LEFT JOIN commandes cmd ON d.commande_id = cmd.id
       LEFT JOIN categories c ON p.categorie_id = c.id
-      WHERE LOWER(cmd.statut) != 'annulée'
+      WHERE LOWER(cmd.statut_paiement) != 'non payé'
         AND p.categorie_id = ?
       GROUP BY p.id
       ORDER BY total_vendu DESC, total_ventes DESC, p.nom ASC
@@ -77,7 +77,7 @@ function runTopProduits(db, options) {
       INNER JOIN produits p ON d.produit_id = p.id
       LEFT JOIN commandes cmd ON d.commande_id = cmd.id
       LEFT JOIN categories c ON p.categorie_id = c.id
-      WHERE LOWER(cmd.statut) != 'annulée'
+      WHERE LOWER(cmd.statut_paiement) != 'non payé'
         AND date(cmd.date_commande) >= ? AND date(cmd.date_commande) <= ?
       GROUP BY p.id
       ORDER BY total_vendu DESC, total_ventes DESC, p.nom ASC
@@ -100,7 +100,7 @@ function runTopProduits(db, options) {
       INNER JOIN produits p ON d.produit_id = p.id
       LEFT JOIN commandes cmd ON d.commande_id = cmd.id
       LEFT JOIN categories c ON p.categorie_id = c.id
-      WHERE LOWER(cmd.statut) != 'annulée'
+      WHERE LOWER(cmd.statut_paiement) != 'non payé'
       GROUP BY p.id
       ORDER BY total_vendu DESC, total_ventes DESC, p.nom ASC
       LIMIT ?
@@ -111,7 +111,6 @@ function runTopProduits(db, options) {
 
 function runVentesParCategorie(db, options) {
   const { startDate, endDate, annee } = options;
-  // ⭐ FANITSARA 9: Raha tsy misy annee dia mampiasa ny année actuelle
   const year = validateYear(annee || new Date().getFullYear());
 
   if (startDate && endDate) {
@@ -125,7 +124,7 @@ function runVentesParCategorie(db, options) {
       LEFT JOIN produits p ON d.produit_id = p.id
       LEFT JOIN categories c ON p.categorie_id = c.id
       LEFT JOIN commandes cmd ON d.commande_id = cmd.id
-      WHERE LOWER(cmd.statut) != 'annulée'
+      WHERE LOWER(cmd.statut_paiement) != 'non payé'
         AND date(cmd.date_commande) >= ? AND date(cmd.date_commande) <= ?
       GROUP BY c.id
       ORDER BY total_ventes DESC
@@ -142,7 +141,7 @@ function runVentesParCategorie(db, options) {
       LEFT JOIN produits p ON d.produit_id = p.id
       LEFT JOIN categories c ON p.categorie_id = c.id
       LEFT JOIN commandes cmd ON d.commande_id = cmd.id
-      WHERE LOWER(cmd.statut) != 'annulée'
+      WHERE LOWER(cmd.statut_paiement) != 'non payé'
         AND strftime('%Y', cmd.date_commande) = ?
       GROUP BY c.id
       ORDER BY total_ventes DESC
@@ -164,7 +163,7 @@ function runVentesParClient(db, options) {
         MIN(date_commande) as premiere_commande,
         MAX(date_commande) as derniere_commande
       FROM commandes
-      WHERE LOWER(statut) != 'annulée'
+      WHERE LOWER(statut_paiement) != 'non payé'
         AND date(date_commande) >= ? AND date(date_commande) <= ?
       GROUP BY client_nom
       ORDER BY total_achats DESC
@@ -181,7 +180,7 @@ function runVentesParClient(db, options) {
         MIN(date_commande) as premiere_commande,
         MAX(date_commande) as derniere_commande
       FROM commandes
-      WHERE LOWER(statut) != 'annulée'
+      WHERE LOWER(statut_paiement) != 'non payé'
       GROUP BY client_nom
       ORDER BY total_achats DESC
       LIMIT ?
@@ -201,7 +200,7 @@ function runTopClients(db, options) {
         COALESCE(SUM(total_ttc), 0) as total_achats,
         COALESCE(AVG(total_ttc), 0) as panier_moyen
       FROM commandes
-      WHERE LOWER(statut) != 'annulée'
+      WHERE LOWER(statut_paiement) != 'non payé'
         AND date(date_commande) >= ? AND date(date_commande) <= ?
       GROUP BY client_nom
       ORDER BY total_achats DESC
@@ -216,7 +215,7 @@ function runTopClients(db, options) {
         COALESCE(SUM(total_ttc), 0) as total_achats,
         COALESCE(AVG(total_ttc), 0) as panier_moyen
       FROM commandes
-      WHERE LOWER(statut) != 'annulée'
+      WHERE LOWER(statut_paiement) != 'non payé'
       GROUP BY client_nom
       ORDER BY total_achats DESC
       LIMIT ?

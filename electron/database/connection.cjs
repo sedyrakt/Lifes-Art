@@ -1,7 +1,115 @@
-'use strict'; const Database = require('better-sqlite3'); const path = require('path'); const fs = require('fs'); const { app } = require('electron'); const { log, warn, error, getEncryptionKey } = require('./utils.cjs'); let dbInstance = null;
-function getDbPath() { const userDataPath = app.getPath('userData'); const dbPath = path.join(userDataPath, 'stock.db'); console.log(''); console.log('============================================================'); console.log('📦 LIFE\'S ART DATABASE DEBUG'); console.log('============================================================'); console.log('📁 app.getPath("userData") :', userDataPath); console.log('📁 Database path            :', dbPath); console.log('📊 Database exists          :', fs.existsSync(dbPath)); if (fs.existsSync(dbPath)) { try { const stat = fs.statSync(dbPath); console.log('📦 Database size            :', stat.size, 'bytes'); console.log('🕒 Database modified        :', stat.mtime.toISOString()); } catch (statErr) { console.error('❌ Impossible lire les informations DB:', statErr.message); } } console.log('============================================================'); console.log(''); return dbPath; }
-function createConnection() { const dbPath = getDbPath(); const dbDir = path.dirname(dbPath); if (!fs.existsSync(dbDir)) { try { fs.mkdirSync(dbDir, { recursive: true }); log(`📁 Dossier DB créé: ${dbDir}`); } catch (mkdirErr) { error(`❌ [connection] Impossible de créer '${dbDir}':`, mkdirErr.message); return null; } } log(`📁 [CONNECTION] DB Path: ${dbPath}`); log(`📁 [CONNECTION] DB exists: ${fs.existsSync(dbPath)}`); let encryptionKey = null; try { encryptionKey = getEncryptionKey(); } catch (keyErr) { warn('⚠️ Impossible récupérer encryption key:', keyErr.message); } log(`🔑 Encryption key: ${encryptionKey ? `MISY (${encryptionKey.length} chars)` : 'TSY MISY'}`); try { const options = encryptionKey ? { key: encryptionKey } : {}; const newDb = new Database(dbPath, options); try { newDb.pragma('foreign_keys = ON'); } catch (pragmaErr) { warn('⚠️ foreign_keys pragma:', pragmaErr.message); } try { newDb.pragma('journal_mode = WAL'); } catch (pragmaErr) { warn('⚠️ journal_mode pragma:', pragmaErr.message); } try { newDb.pragma('busy_timeout = 30000'); } catch (pragmaErr) { warn('⚠️ busy_timeout pragma:', pragmaErr.message); } try { newDb.pragma('optimize'); } catch (pragmaErr) { warn('⚠️ optimize pragma:', pragmaErr.message); } const connectionTest = newDb.prepare('SELECT 1 AS ok').get(); if (!connectionTest || Number(connectionTest.ok) !== 1) { throw new Error('SQLite connection test failed'); } let dbFileSize = 0; try { if (fs.existsSync(dbPath)) { dbFileSize = fs.statSync(dbPath).size; } } catch (_) {} console.log(''); console.log('============================================================'); console.log('✅ SQLITE DATABASE CONNECTED'); console.log('============================================================'); console.log('📁 Path       :', dbPath); console.log('📦 Size       :', dbFileSize, 'bytes'); console.log('🔐 Encrypted  :', encryptionKey ? 'YES' : 'NO'); console.log('🟢 Open       :', newDb.open); console.log('============================================================'); console.log(''); log(`✅ DB Connectée: ${dbPath}`); return newDb; } catch (err) { error(`❌ [connection] Erreur ouverture DB:`, err.message); const message = String(err.message || '').toLowerCase(); if (message.includes('file is not a database') || message.includes('sqlite_notadb') || message.includes('not a database')) { warn('⚠️ Database invalide ou mauvaise clé détectée.'); if (fs.existsSync(dbPath)) { const backupPath = `${dbPath}.corrupt.${Date.now()}`; try { fs.renameSync(dbPath, backupPath); log(`📁 Fichier corrompu déplacé vers: ${backupPath}`); } catch (renameErr) { error('❌ Impossible renommer DB corrompue:', renameErr.message); } } } return null; } }
-function getDb() { if (dbInstance && dbInstance.open) { return dbInstance; } log('🔄 [connection] Tentative création DB...'); dbInstance = createConnection(); if (!dbInstance) { error('❌ [connection] dbInstance = NULL'); } return dbInstance; }
-function closeDatabase() { try { if (dbInstance) { if (dbInstance.open) { dbInstance.close(); } dbInstance = null; log('🔌 [connection] DB fermée'); } } catch (err) { warn('⚠️ [connection] Erreur fermeture:', err.message); dbInstance = null; } }
-function getDatabaseDebugInfo() { try { const db = getDb(); if (!db) { return { success: false, error: 'Database indisponible' }; } const dbPath = getDbPath(); let totalProduits = 0, produitsActifs = 0, produitsArchives = 0; try { const row = db.prepare(`SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN status = 'actif' THEN 1 ELSE 0 END),0) AS actifs, COALESCE(SUM(CASE WHEN status = 'archive' THEN 1 ELSE 0 END),0) AS archives FROM produits`).get(); totalProduits = Number(row?.total || 0); produitsActifs = Number(row?.actifs || 0); produitsArchives = Number(row?.archives || 0); } catch (productErr) { return { success: false, error: productErr.message, dbPath }; } return { success: true, dbPath, exists: fs.existsSync(dbPath), dbSize: fs.existsSync(dbPath) ? fs.statSync(dbPath).size : 0, totalProduits, produitsActifs, produitsArchives, open: !!db.open }; } catch (err) { return { success: false, error: err.message }; } }
-module.exports = { getDb, getDbPath, closeDatabase, getDatabaseDebugInfo };
+'use strict';
+
+const Database = require('better-sqlite3');
+const path = require('path');
+const fs = require('fs');
+const { app } = require('electron');
+const { log, warn, error, getEncryptionKey } = require('./utils.cjs');
+
+let dbInstance = null;
+
+function getDbPath() {
+  const userDataPath = app.getPath('userData');
+  const dbPath = path.join(userDataPath, 'stock.db');
+  
+  console.log('============================================================');
+  console.log('📦 LIFE\'S ART DATABASE DEBUG');
+  console.log('============================================================');
+  console.log('📁 app.getPath("userData") :', userDataPath);
+  console.log('📁 Database path            :', dbPath);
+  console.log('📊 Database exists          :', fs.existsSync(dbPath));
+  console.log('============================================================');
+  
+  return dbPath;
+}
+
+function createConnection() {
+  const dbPath = getDbPath();
+  const dbDir = path.dirname(dbPath);
+  
+  if (!fs.existsSync(dbDir)) {
+    try {
+      fs.mkdirSync(dbDir, { recursive: true });
+      log(`📁 Dossier DB créé: ${dbDir}`);
+    } catch (mkdirErr) {
+      error(`❌ [connection] Impossible de créer '${dbDir}':`, mkdirErr.message);
+      return null;
+    }
+  }
+  
+  let encryptionKey = null;
+  try {
+    encryptionKey = getEncryptionKey();
+  } catch (keyErr) {
+    warn('⚠️ Impossible récupérer encryption key:', keyErr.message);
+  }
+  
+  try {
+    const options = encryptionKey ? { key: encryptionKey } : {};
+    const newDb = new Database(dbPath, options);
+    
+    // ⭐ FIX: Aza atao ON satria misy olana amin'ny foreign keys
+    // newDb.pragma('foreign_keys = ON');
+    
+    try {
+      newDb.pragma('journal_mode = WAL');
+    } catch (pragmaErr) {
+      warn('⚠️ journal_mode pragma:', pragmaErr.message);
+    }
+    
+    try {
+      newDb.pragma('busy_timeout = 30000');
+    } catch (pragmaErr) {
+      warn('⚠️ busy_timeout pragma:', pragmaErr.message);
+    }
+    
+    try {
+      newDb.pragma('optimize');
+    } catch (pragmaErr) {
+      warn('⚠️ optimize pragma:', pragmaErr.message);
+    }
+    
+    const connectionTest = newDb.prepare('SELECT 1 AS ok').get();
+    if (!connectionTest || Number(connectionTest.ok) !== 1) {
+      throw new Error('SQLite connection test failed');
+    }
+    
+    console.log('============================================================');
+    console.log('✅ SQLITE DATABASE CONNECTED');
+    console.log('============================================================');
+    console.log('📁 Path       :', dbPath);
+    console.log('📦 Size       :', fs.existsSync(dbPath) ? fs.statSync(dbPath).size : 0, 'bytes');
+    console.log('🔐 Encrypted  :', encryptionKey ? 'YES' : 'NO');
+    console.log('🟢 Open       :', newDb.open);
+    console.log('============================================================');
+    
+    return newDb;
+  } catch (err) {
+    error(`❌ [connection] Erreur ouverture DB:`, err.message);
+    return null;
+  }
+}
+
+function getDb() {
+  if (dbInstance && dbInstance.open) {
+    return dbInstance;
+  }
+  dbInstance = createConnection();
+  return dbInstance;
+}
+
+function closeDatabase() {
+  try {
+    if (dbInstance) {
+      if (dbInstance.open) {
+        dbInstance.close();
+      }
+      dbInstance = null;
+    }
+  } catch (err) {
+    warn('⚠️ [connection] Erreur fermeture:', err.message);
+    dbInstance = null;
+  }
+}
+
+module.exports = { getDb, getDbPath, closeDatabase };

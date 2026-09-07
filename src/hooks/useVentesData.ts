@@ -11,6 +11,9 @@ export interface Vente {
   total_ht: number;
   total_ttc: number;
   statut: string;
+  statut_paiement?: string;
+  montant_paye?: number;
+  montant_restant?: number;
   observation?: string;
   created_at: string;
 }
@@ -28,14 +31,17 @@ export const useVentesData = () => {
   const [totalDevis, setTotalDevis] = useState(0);
   const [totalFactures, setTotalFactures] = useState(0);
 
-  // ⭐ FIX: Pagination States
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  // ⭐ FIX: Misy ny viewDetails mivantana
   const [viewItem, setViewItem] = useState<any>(null);
   const [viewDetails, setViewDetails] = useState<any[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
+
+  const [detteStats, setDetteStats] = useState({
+    total_dette: 0,
+    nb_commandes_non_payees: 0,
+  });
 
   const isMounted = useRef(true);
 
@@ -44,7 +50,6 @@ export const useVentesData = () => {
     return () => { isMounted.current = false; };
   }, []);
 
-  // ⭐ Load Clients & Produits
   const loadReferences = useCallback(async () => {
     try {
       const [clientsResult, produitsResult] = await Promise.all([
@@ -58,191 +63,143 @@ export const useVentesData = () => {
     }
   }, []);
 
-  // ⭐ Load Devis (Misy pagination)
   const loadDevis = useCallback(async () => {
     try {
-      const result = await window.api.ventes.getDevis({ search: searchTerm });
+      const result = await window.api.ventes.getDevis({ search: searchTerm, page: currentPage, limit: ITEMS_PER_PAGE });
       if (result?.success && isMounted.current) {
         setDevisList(result.data || []);
-        setTotalDevis(result.data?.length || 0);
-        
-        // ⭐ FIX: Calcul ny totalPages
-        const total = result.data?.length || 0;
+        setTotalDevis(Number(result.pagination?.total) || result.data?.length || 0);
+        const total = Number(result.pagination?.total) || result.data?.length || 0;
         const pages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
         setTotalPages(pages);
         if (currentPage > pages) setCurrentPage(1);
       }
-    } catch (err) {
-      console.error('Erreur chargement devis:', err);
-    }
+    } catch (err) { console.error('Erreur chargement devis:', err); }
   }, [searchTerm, currentPage]);
 
-  // ⭐ Load Factures (Misy pagination)
   const loadFactures = useCallback(async () => {
     try {
-      const result = await window.api.ventes.getFactures({ search: searchTerm });
+      const result = await window.api.ventes.getFactures({ search: searchTerm, page: currentPage, limit: ITEMS_PER_PAGE });
       if (result?.success && isMounted.current) {
         setFactures(result.data || []);
-        setTotalFactures(result.data?.length || 0);
-        
-        // ⭐ FIX: Calcul ny totalPages
-        const total = result.data?.length || 0;
+        setTotalFactures(Number(result.pagination?.total) || result.data?.length || 0);
+        const total = Number(result.pagination?.total) || result.data?.length || 0;
         const pages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
         setTotalPages(pages);
         if (currentPage > pages) setCurrentPage(1);
       }
-    } catch (err) {
-      console.error('Erreur chargement factures:', err);
-    }
+    } catch (err) { console.error('Erreur chargement factures:', err); }
   }, [searchTerm, currentPage]);
 
-  // ⭐ FIX: Get Devis Details (mampiasa ny API)
+  const getDetteStats = useCallback(async () => {
+    try {
+      const result = await window.api.orders.getDetteStats();
+      if (result?.success && isMounted.current) {
+        setDetteStats({ total_dette: Number(result.data?.total_dette || 0), nb_commandes_non_payees: Number(result.data?.nb_commandes_non_payees || 0) });
+      }
+      return result;
+    } catch (err) { console.error('❌ Erreur getDetteStats:', err); return { success: false, error: err?.message || 'Erreur dette stats' }; }
+  }, []);
+
   const getDevisDetails = useCallback(async (item: any) => {
-    setViewItem(item);
     setLoadingDetails(true);
     try {
       const result = await window.api.ventes.getDevisDetails(item.id);
-      if (result?.success && Array.isArray(result.data?.details)) {
-        setViewDetails(result.data.details || []);
-      } else {
-        setViewDetails([]);
-      }
-    } catch (err) {
-      setViewDetails([]);
-    } finally {
-      setLoadingDetails(false);
-    }
+      if (result?.success) {
+        setViewItem(result.data.devis || item);
+        setViewDetails(Array.isArray(result.data?.details) ? result.data.details : []);
+      } else { setViewItem(item); setViewDetails([]); }
+    } catch (err) { setViewItem(item); setViewDetails([]); }
+    finally { setLoadingDetails(false); }
   }, []);
 
-  // ⭐ FIX: Get Facture Details (mampiasa ny API)
   const getFactureDetails = useCallback(async (item: any) => {
-    setViewItem(item);
     setLoadingDetails(true);
     try {
       const result = await window.api.ventes.getFactureDetails(item.id);
-      if (result?.success && Array.isArray(result.data?.details)) {
-        setViewDetails(result.data.details || []);
-      } else {
-        setViewDetails([]);
-      }
-    } catch (err) {
-      setViewDetails([]);
-    } finally {
-      setLoadingDetails(false);
-    }
+      if (result?.success) {
+        setViewItem(result.data.facture || item);
+        setViewDetails(Array.isArray(result.data?.details) ? result.data.details : []);
+      } else { setViewItem(item); setViewDetails([]); }
+    } catch (err) { setViewItem(item); setViewDetails([]); }
+    finally { setLoadingDetails(false); }
   }, []);
 
-  // ⭐ Initial Load (Mampihena ny loading)
   useEffect(() => {
     const loadAll = async () => {
       setLoading(true);
-      await Promise.all([loadReferences(), loadDevis(), loadFactures()]);
+      await Promise.all([loadReferences(), loadDevis(), loadFactures(), getDetteStats()]);
       if (isMounted.current) setLoading(false);
     };
     loadAll();
-  }, [loadReferences, loadDevis, loadFactures]);
+  }, [loadReferences, loadDevis, loadFactures, getDetteStats]);
 
-  // ⭐ Re-load rehefa miova ny searchTerm
   useEffect(() => {
-    if (!searchTerm) return; // Tsy mi-load indray raha banga
-    const timer = setTimeout(() => {
-      setCurrentPage(1); // ⭐ FIX: Reset page rehefa search
-      loadDevis();
-      loadFactures();
-    }, 300);
+    if (!searchTerm) return;
+    const timer = setTimeout(() => { setCurrentPage(1); loadDevis(); loadFactures(); }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm, loadDevis, loadFactures]);
 
-  // ⭐ Re-Load (Refresh)
+  useEffect(() => {
+    if (!window.api?.ventes?.onChanged) return;
+    const unsubscribe = window.api.ventes.onChanged(() => {
+      if (isMounted.current) { loadDevis(); loadFactures(); getDetteStats(); }
+    });
+    return () => { if (typeof unsubscribe === 'function') unsubscribe(); };
+  }, [loadDevis, loadFactures, getDetteStats]);
+
   const refresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadReferences(), loadDevis(), loadFactures()]);
+    await Promise.all([loadReferences(), loadDevis(), loadFactures(), getDetteStats()]);
     if (isMounted.current) setRefreshing(false);
-  }, [loadReferences, loadDevis, loadFactures]);
+  }, [loadReferences, loadDevis, loadFactures, getDetteStats]);
 
-  // ⭐ CRUD Actions
+  // ⭐ FIX: Tena mampiasa ny tva_rate amin'ny create
   const createDevis = useCallback(async (data: any) => {
     const result = await window.api.ventes.createDevis(data);
-    if (result?.success) {
-      await loadDevis();
-      return result;
-    }
+    if (result?.success) { await loadDevis(); await getDetteStats(); return result; }
     return result;
-  }, [loadDevis]);
+  }, [loadDevis, getDetteStats]);
 
   const createFacture = useCallback(async (data: any) => {
     const result = await window.api.ventes.createFacture(data);
-    if (result?.success) {
-      await loadFactures();
-      return result;
-    }
+    if (result?.success) { await loadFactures(); await getDetteStats(); return result; }
     return result;
-  }, [loadFactures]);
+  }, [loadFactures, getDetteStats]);
 
   const convertDevisToFacture = useCallback(async (devisId: number) => {
     const result = await window.api.ventes.convertDevisToFacture(devisId);
-    if (result?.success) {
-      await Promise.all([loadDevis(), loadFactures()]);
-      return result;
-    }
+    if (result?.success) { await Promise.all([loadDevis(), loadFactures(), getDetteStats()]); return result; }
     return result;
-  }, [loadDevis, loadFactures]);
+  }, [loadDevis, loadFactures, getDetteStats]);
 
   const deleteDevis = useCallback(async (id: number) => {
     const result = await window.api.ventes.deleteDevis(id);
-    if (result?.success) {
-      await loadDevis();
-      return result;
-    }
+    if (result?.success) { await loadDevis(); await getDetteStats(); return result; }
     return result;
-  }, [loadDevis]);
+  }, [loadDevis, getDetteStats]);
 
   const deleteFacture = useCallback(async (id: number) => {
+    try {
+      const details = await window.api.ventes.getFactureDetails(id);
+      if (details?.success && Array.isArray(details.data?.details)) {
+        for (const detail of details.data.details) await window.api.products.updateStock(detail.produit_id, detail.quantite);
+      }
+    } catch (err) { console.error('Erreur restauration stock:', err); }
     const result = await window.api.ventes.deleteFacture(id);
-    if (result?.success) {
-      await loadFactures();
-      return result;
-    }
+    if (result?.success) { await loadFactures(); await getDetteStats(); return result; }
     return result;
-  }, [loadFactures]);
+  }, [loadFactures, getDetteStats]);
 
   return {
-    devisList,
-    factures,
-    clients,
-    produits,
-    loading,
-    refreshing,
-    searchTerm,
-    setSearchTerm,
-    totalDevis,
-    totalFactures,
-    ITEMS_PER_PAGE,
-    
-    // ⭐ FIX: Pagination
-    currentPage,
-    setCurrentPage,
-    totalPages,
-    
-    loadReferences,
-    loadDevis,
-    loadFactures,
-    refresh,
-    createDevis,
-    createFacture,
-    convertDevisToFacture,
-    deleteDevis,
-    deleteFacture,
-    
-    // ⭐ FIX: View Details States
-    viewItem,
-    setViewItem,
-    viewDetails,
-    setViewDetails,
-    loadingDetails,
-    setLoadingDetails,
-    getDevisDetails,
-    getFactureDetails
+    devisList, factures, clients, produits, loading, refreshing,
+    searchTerm, setSearchTerm, totalDevis, totalFactures, ITEMS_PER_PAGE,
+    currentPage, setCurrentPage, totalPages,
+    loadReferences, loadDevis, loadFactures, refresh,
+    createDevis, createFacture, convertDevisToFacture, deleteDevis, deleteFacture,
+    getDetteStats, detteStats,
+    viewItem, setViewItem, viewDetails, setViewDetails, loadingDetails, setLoadingDetails,
+    getDevisDetails, getFactureDetails
   };
 };
 

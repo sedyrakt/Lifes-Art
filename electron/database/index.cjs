@@ -1,6 +1,7 @@
 // ============================================================
 // database/index.cjs - RE-EXPORT (CommonJS)
 // ⭐ Re-export rehetra avy amin'ny components
+// ⭐ FIX: ESRINA NY database/backup.cjs (TSY AMPIASANA)
 // ============================================================
 
 const config = require('./config.cjs');
@@ -8,7 +9,6 @@ const utils = require('./utils.cjs');
 const connection = require('./connection.cjs');
 const queries = require('./queries.cjs');
 
-const backup = require('./backup.cjs');
 const tables = require('./tables.cjs');
 const financial = require('./financial.cjs');
 
@@ -59,11 +59,11 @@ module.exports.buildUpdateQuery = queries.buildUpdateQuery;
 module.exports.buildSelectQuery = queries.buildSelectQuery;
 module.exports.buildCountQuery = queries.buildCountQuery;
 
-// Backup
-module.exports.createBackup = backup.createBackup;
-module.exports.restoreBackup = backup.restoreBackup;
-module.exports.listBackups = backup.listBackups;
-module.exports.deleteBackup = backup.deleteBackup;
+// ⭐ FIX: ESRINA NY BACKUP RE-EXPORTS (TSY AMPIASANA)
+// module.exports.createBackup = backup.createBackup;
+// module.exports.restoreBackup = backup.restoreBackup;
+// module.exports.listBackups = backup.listBackups;
+// module.exports.deleteBackup = backup.deleteBackup;
 
 // Tables
 module.exports.ensureTables = tables.ensureTables;
@@ -93,3 +93,4 @@ module.exports.initDatabase = () => {
 
 console.log('✅ database/index.cjs - Tous les modules chargés (CommonJS)');
 console.log('   - ensureTables disponible');
+console.log('   - backup module ESRINA (tsy ampiasaina)');

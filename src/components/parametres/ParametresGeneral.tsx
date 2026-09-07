@@ -1,23 +1,36 @@
-// ============================================================
-// src/components/parametres/ParametresGeneral.tsx - SYNCED FONTS
-// ⭐ FIX: Font Size mifanaraka amin'ny Sidebar (14px/15px/13px)
-// ⭐ FIX: ESRINA NY ICON REHETRA
-// ============================================================
 
-import React from 'react'; 
 
-interface AppSettings { appName: string; companyName: string; language: string; currency: string; dateFormat: string; timeZone: string; }
-interface ParametresGeneralProps { settings: AppSettings; onSettingsChange: (settings: AppSettings) => void; }
-interface FormCellProps { label: string; icon?: React.ReactNode; children: React.ReactNode; borderRight?: boolean; borderBottom?: boolean; }
+import React from 'react';
+
+interface AppSettings {
+  appName: string;
+  companyName: string;
+  language: string;
+  currency: string;
+  dateFormat: string;
+  timeZone: string;
+}
+
+interface ParametresGeneralProps {
+  settings: AppSettings;
+  onSettingsChange: (settings: AppSettings) => void;
+}
+
+interface FormCellProps {
+  label: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  borderRight?: boolean;
+  borderBottom?: boolean;
+}
 
 const FormCell: React.FC<FormCellProps> = ({ label, icon, children, borderRight = true, borderBottom = true }) => {
   return (
-    <div className={`group relative flex flex-col px-4 py-4 bg-white dark:bg-[#0F172A] transition-colors duration-200 ${borderRight ? 'border-r border-slate-200 dark:border-slate-800' : ''} ${borderBottom ? 'border-b border-slate-200 dark:border-slate-800' : ''} hover:bg-slate-50/70 dark:hover:bg-slate-900/30`}>
-      <div className="absolute left-0 top-0 h-full w-[2px] bg-indigo-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+    <div className={`group relative flex flex-col px-4 py-4 bg-white dark:bg-[#0F172A] transition-colors duration-200 ${borderRight ? 'border-r border-slate-200 dark:border-white/[0.08]' : ''} ${borderBottom ? 'border-b border-slate-200 dark:border-white/[0.08]' : ''} hover:bg-slate-50 dark:hover:bg-white/[0.03]`}>
+      <div className="absolute left-0 top-0 h-full w-[2px] bg-brand-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
       <div className="mb-2 flex items-center gap-1.5">
-        {/* ⭐ FIX: ESRINA NY ICON */}
-        {/* ⭐ LABEL: 13px (nohavaozina avy amin'ny 11px) */}
         <span className="text-[13px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
+        {icon && <span className="text-brand-500 dark:text-brand-400">{icon}</span>}
       </div>
       <div className="w-full">{children}</div>
     </div>
@@ -25,18 +38,18 @@ const FormCell: React.FC<FormCellProps> = ({ label, icon, children, borderRight 
 };
 
 const ParametresGeneral: React.FC<ParametresGeneralProps> = ({ settings, onSettingsChange }) => {
-  const handleChange = (key: keyof AppSettings, value: string) => { onSettingsChange({ ...settings, [key]: value }); };
-  const fieldClass = `w-full h-10 rounded-lg border px-3 text-[14px] font-medium outline-none transition-all duration-150 bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:bg-[#0F172A] dark:border-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-slate-600 dark:focus:border-indigo-400 dark:focus:ring-indigo-400/10`;
-  
+  const handleChange = (key: keyof AppSettings, value: string) => {
+    onSettingsChange({ ...settings, [key]: value });
+  };
+
+  const fieldClass = `w-full h-10 rounded-lg border px-3 text-[14px] font-medium outline-none transition-all duration-150 bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:bg-[#0F172A] dark:border-white/[0.12] dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-white/[0.18] dark:focus:border-brand-500 dark:focus:ring-brand-500/10`;
+
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-[#0F172A] dark:shadow-none">
-      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-white/[0.12] dark:bg-[#0F172A] dark:shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
+      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-white/[0.08]">
         <div className="flex items-center gap-3">
-          {/* ⭐ FIX: ESRINA NY ICON */}
           <div className="min-w-0">
-            {/* ⭐ TITRE: 15px */}
             <h2 className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">Paramètres généraux</h2>
-            {/* ⭐ SUBTITRE: 13px (nohavaozina avy amin'ny 12px) */}
             <p className="mt-0.5 text-[13px] text-slate-500 dark:text-slate-400">Configurez les informations principales de votre application</p>
           </div>
         </div>
@@ -50,17 +63,23 @@ const ParametresGeneral: React.FC<ParametresGeneralProps> = ({ settings, onSetti
         </FormCell>
         <FormCell label="Langue" borderRight={false} borderBottom>
           <select value={settings.language} onChange={e => handleChange('language', e.target.value)} className={fieldClass}>
-            <option value="fr">Français</option><option value="en">English</option><option value="mg">Malagasy</option>
+            <option value="fr">Français</option>
+            <option value="en">English</option>
+            <option value="mg">Malagasy</option>
           </select>
         </FormCell>
         <FormCell label="Devise" borderRight borderBottom={false}>
           <select value={settings.currency} onChange={e => handleChange('currency', e.target.value)} className={fieldClass}>
-            <option value="Ar">Ariary (Ar)</option><option value="€">Euro (€)</option><option value="$">Dollar ($)</option>
+            <option value="Ar">Ariary (Ar)</option>
+            <option value="€">Euro (€)</option>
+            <option value="$">Dollar ($)</option>
           </select>
         </FormCell>
         <FormCell label="Format de date" borderRight borderBottom={false}>
           <select value={settings.dateFormat} onChange={e => handleChange('dateFormat', e.target.value)} className={fieldClass}>
-            <option value="DD/MM/YYYY">DD/MM/YYYY</option><option value="MM/DD/YYYY">MM/DD/YYYY</option><option value="YYYY-MM-DD">YYYY-MM-DD</option>
+            <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+            <option value="YYYY-MM-DD">YYYY-MM-DD</option>
           </select>
         </FormCell>
         <FormCell label="Fuseau horaire" borderRight={false} borderBottom={false}>
@@ -75,4 +94,5 @@ const ParametresGeneral: React.FC<ParametresGeneralProps> = ({ settings, onSetti
     </section>
   );
 };
+
 export default ParametresGeneral;

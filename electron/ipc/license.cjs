@@ -1,5 +1,4 @@
 // electron/ipc/license.cjs
-// ⭐ FIX: Raha tsy misy ny handler dia avereno
 
 const licenseService = require('../services/license/index.cjs');
 const activation = require('../services/license/activation.cjs');
@@ -22,7 +21,6 @@ const registerLicenseHandlers = (ipcMain) => {
     'license:load', 'license:save', 'license:reset',
     'license:check-status', 'license:get-path', 'license:get-status-code',
     'license:validate', 'license:get-machine-id',
-    'license:verify', 'license:activate',
     'license:verify-checksum', 'license:get-packages',
     'license:security-check', 'license:get-integrity-hashes',
     'license:get-current', 'license:deactivate',
@@ -30,8 +28,8 @@ const registerLicenseHandlers = (ipcMain) => {
     'license:refresh-timer', 'license:get-expiration',
     'license:revocation:check', 'license:revocation:stats',
     'license:revocation:revoke', 'license:revocation:unrevoke',
-    'license:activate-with-code', 'license:generate-code',
-    'license:verify-code'
+    'license:activate-with-code', 'license:verify-code'
+    // ⭐ Esorina: 'license:verify', 'license:activate', 'license:generate-code'
   ];
   for (const ch of channels) {
     try { ipcMain.removeHandler(ch); } catch (_) {}
@@ -50,12 +48,6 @@ const registerLicenseHandlers = (ipcMain) => {
     } catch (err) {
       return { valid: false, message: err.message };
     }
-  });
-
-  // ✅ NOUVEAU: GENERATE CODE
-  ipcMain.handle('license:generate-code', (event, packageType) => {
-    try { return activation.generateActivationCode(packageType); }
-    catch (err) { return { success: false, error: err.message }; }
   });
 
   // HANDLERS EXISTANTS
@@ -94,16 +86,6 @@ const registerLicenseHandlers = (ipcMain) => {
   });
 
   ipcMain.handle('license:get-machine-id', () => licenseService.getMachineId());
-
-  ipcMain.handle('license:verify', (event, licenseKey, signature, payload) => {
-    try { return activation.verifyLicense(licenseKey, signature, payload); }
-    catch (err) { return { valid: false, message: err.message }; }
-  });
-
-  ipcMain.handle('license:activate', (event, licenseKey, signature, payload) => {
-    try { return activation.activateLicense(licenseKey, signature, payload); }
-    catch (err) { return { valid: false, message: err.message }; }
-  });
 
   ipcMain.handle('license:verify-checksum', (event, licenseKey) => {
     return licenseService.verifyChecksum(licenseKey);

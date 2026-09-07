@@ -32,10 +32,13 @@ function canonicalizeJSON(obj) {
   return obj;
 }
 
-// ⭐ FANITSARA: Mifanaraka 100% amin'ny Generator - TSY misy isLifetime/isTest
+// ⭐ FIX: Mifanaraka 100% amin'ny Generator - TSY misy isLifetime/isTest
 function createCanonicalString(data) {
   const keys = Object.keys(data).filter(k => k !== 'signature').sort();
-  const parts = keys.map(key => `${key}=${String(data[key])}`);
+  const parts = keys.map(key => {
+    const value = typeof data[key] === 'object' ? JSON.stringify(data[key]) : String(data[key]);
+    return `${key}=${value}`;
+  });
   const result = parts.join('&');
 
   if (process.env.DEBUG === 'true') {

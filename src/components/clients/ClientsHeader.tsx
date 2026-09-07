@@ -1,74 +1,97 @@
+
 import React from 'react';
-import { Plus, Folder, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
-interface CategoriesHeaderProps {
-  onAddCategorie: () => void;
+interface ClientsHeaderProps {
+  onAddClient: () => void;
   refreshing?: boolean;
   onRefresh?: () => void;
   isLoading?: boolean;
+  totalItems?: number;
 }
 
-const CategoriesHeader: React.FC<CategoriesHeaderProps> = ({
-  onAddCategorie,
+const ClientsHeader: React.FC<ClientsHeaderProps> = ({
+  onAddClient,
   refreshing = false,
   onRefresh,
   isLoading = false,
+  totalItems,
 }) => {
   const { isDark } = useTheme();
 
   if (isLoading) {
     return (
-      <div className="mb-5">
-        <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-[#0F172A] md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 shrink-0 rounded-lg bg-slate-200 dark:bg-slate-800" />
-            <div className="space-y-2">
-              <div className="h-4 w-40 rounded-md bg-slate-200 dark:bg-slate-800" />
-              <div className="h-3 w-56 rounded-md bg-slate-100 dark:bg-slate-800/70" />
+      <header className="mb-4 w-full">
+        <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-white/[0.12] dark:bg-[#0F172A]">
+          <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 flex-col">
+              <div className="h-5 w-36 rounded-md bg-slate-200 dark:bg-white/[0.06]" />
+              <div className="mt-1.5 h-3.5 w-56 rounded-md bg-slate-200 dark:bg-white/[0.06]" />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-24 rounded-lg bg-slate-200 dark:bg-white/[0.06]" />
+              <div className="h-9 w-40 rounded-lg bg-slate-200 dark:bg-white/[0.06]" />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {onRefresh && <div className="h-9 w-24 rounded-lg bg-slate-200 dark:bg-slate-800" />}
-            <div className="h-9 w-40 rounded-lg bg-slate-200 dark:bg-slate-800" />
-          </div>
         </div>
-      </div>
+        <style>{`@keyframes shimmer { 100% { transform: translateX(100%); } }`}</style>
+      </header>
     );
   }
 
   return (
-    <div className="mb-5">
-      <div className="group relative flex flex-col gap-4 overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 hover:border-indigo-200 hover:shadow-[0_4px_14px_rgba(15,23,42,0.05)] dark:border-slate-800 dark:bg-[#0F172A] dark:hover:border-indigo-500/30 dark:hover:shadow-none md:flex-row md:items-center md:justify-between">
-        <div className="absolute left-0 top-0 h-full w-[2px] bg-indigo-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-colors group-hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:group-hover:bg-indigo-500/15">
-            <Folder size={19} strokeWidth={2} />
+    <header className="mb-4 w-full">
+      <div
+        className="group relative flex flex-col gap-3 overflow-hidden rounded-xl border bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 md:flex-row md:items-center md:justify-between dark:bg-[#0F172A]"
+        style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}
+      >
+        <div className="absolute left-0 top-0 h-full w-[2px] bg-brand-500" />
+
+        <div className="relative z-10 flex min-w-0 flex-col">
+          <div className="flex items-center gap-2">
+            <h1 className="text-[19px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 dark:text-slate-100">
+              Clients
+            </h1>
+            {totalItems !== undefined && (
+              <span className="inline-flex min-w-[26px] items-center justify-center rounded-md bg-brand-500 px-2 py-0.5 text-[11px] font-bold text-white">
+                {totalItems}
+              </span>
+            )}
           </div>
-          <div className="min-w-0">
-            <h1 className="truncate text-[16px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">Gestion des catégories</h1>
-            <p className="mt-1 truncate text-[12px] font-medium text-slate-500 dark:text-slate-400">Organisez vos produits par catégorie</p>
-          </div>
+          <p className="mt-0.5 text-[13px] font-medium leading-tight text-slate-500 dark:text-slate-400">
+            Gérez votre carnet d'adresses clients.
+          </p>
         </div>
-        <div className="flex w-full items-center gap-2 md:w-auto">
+
+        <div className="relative z-10 flex w-full shrink-0 items-center gap-2 md:w-auto">
           {onRefresh && (
-            <button type="button" onClick={onRefresh} disabled={refreshing}
-              className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-600 transition-all duration-150 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-[#0F172A] dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:hover:text-white md:w-auto"
-              aria-label="Actualiser les catégories">
-              <RefreshCw size={15} strokeWidth={2} className={refreshing ? 'animate-spin' : ''} />
-              <span>Actualiser</span>
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={refreshing}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border px-3 text-[13px] font-medium text-slate-500 transition-all duration-150 hover:border-slate-300 hover:bg-slate-50 hover:text-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0', background: isDark ? '#0F172A' : '#FFFFFF' }}
+              aria-label="Actualiser les clients"
+              title="Actualiser"
+            >
+              <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
             </button>
           )}
-          <button type="button" onClick={onAddCategorie}
-            className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 text-[13px] font-medium text-white shadow-[0_1px_2px_rgba(79,70,229,0.25)] transition-all duration-150 hover:bg-indigo-700 hover:shadow-[0_3px_8px_rgba(79,70,229,0.20)] active:scale-[0.98] dark:bg-indigo-500 dark:hover:bg-indigo-600 md:flex-none"
-            aria-label="Ajouter une catégorie">
-            <Plus size={16} strokeWidth={2.2} />
-            <span>Ajouter une catégorie</span>
+
+          <button
+            type="button"
+            onClick={onAddClient}
+            className="inline-flex h-9 flex-1 sm:flex-none items-center justify-center gap-2 rounded-lg bg-brand-500 px-3.5 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-brand-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:ring-offset-1 active:scale-[0.98] dark:bg-brand-500 dark:hover:bg-brand-600 dark:focus:ring-offset-[#0F172A]"
+            aria-label="Ajouter un client"
+          >
+            <Plus size={17} strokeWidth={2.2} />
+            <span>Nouveau client</span>
           </button>
         </div>
       </div>
-    </div>
+    </header>
   );
 };
 
-export default CategoriesHeader;
+export default ClientsHeader;

@@ -1,7 +1,5 @@
-// ============================================================
-// src/components/paiements/PaiementsDropdown.tsx
-// ⭐ FIX: Nampidirina ny setTimeout mba tsy hiantso ny onOpenChange ao anatin'ny render
-// ============================================================
+
+
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MoreVertical, Eye, Edit, Trash2 } from 'lucide-react';
 import { DeleteType } from './PaiementsUtils';
@@ -26,10 +24,8 @@ const EllipsisDropdown: React.FC<DropdownProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
 
-  // ⭐ FANITSANA: Mampiasa setTimeout mba tsy hiantso ny onOpenChange ao anatin'ny render
   const close = useCallback(() => {
     setOpen(false);
-    // Atao deferred ny fampahafantarana ny parent
     setTimeout(() => onOpenChange?.(false), 0);
   }, [onOpenChange]);
 
@@ -48,7 +44,6 @@ const EllipsisDropdown: React.FC<DropdownProps> = ({
   const toggle = useCallback(() => {
     setOpen(current => {
       const next = !current;
-      // ⭐ Deferred ny fampahafantarana ny parent
       setTimeout(() => onOpenChange?.(next), 0);
       return next;
     });
@@ -100,7 +95,7 @@ const EllipsisDropdown: React.FC<DropdownProps> = ({
         ref={buttonRef}
         type="button"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggle(); }}
-        className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+        className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-white/[0.06] dark:hover:text-slate-200"
       >
         <MoreVertical size={18} />
       </button>
@@ -110,7 +105,7 @@ const EllipsisDropdown: React.FC<DropdownProps> = ({
           <div
             ref={menuRef}
             className={`fixed z-[99999] w-[205px] overflow-hidden rounded-xl border py-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 ${
-              isDark ? 'border-0 bg-[#0F172A]' : 'border-slate-200 bg-white'
+              isDark ? 'border-white/[0.10] bg-[#2A2A2A]' : 'border-rose-100 bg-white'
             }`}
             style={{ top: position.top, left: position.left }}
             onMouseDown={(e) => e.stopPropagation()}
@@ -118,18 +113,18 @@ const EllipsisDropdown: React.FC<DropdownProps> = ({
             <button
               type="button"
               onClick={(e) => action(e, 'view')}
-              className="flex w-full items-center px-4 py-2.5 text-left text-[14px] text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
+              className="flex w-full items-center px-4 py-2.5 text-left text-[14px] text-slate-700 transition-colors hover:bg-rose-50 dark:text-slate-200 dark:hover:bg-white/[0.06]"
             >
               <Eye size={16} className="mr-3 shrink-0 text-slate-500 dark:text-slate-400" /> Voir les détails
             </button>
             <button
               type="button"
               onClick={(e) => action(e, 'edit')}
-              className="flex w-full items-center px-4 py-2.5 text-left text-[14px] text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10"
+              className="flex w-full items-center px-4 py-2.5 text-left text-[14px] text-slate-700 transition-colors hover:bg-rose-50 dark:text-slate-200 dark:hover:bg-white/[0.06]"
             >
               <Edit size={16} className="mr-3 shrink-0 text-slate-500 dark:text-slate-400" /> Modifier
             </button>
-            <div className={`my-1 border-t ${isDark ? 'border-0' : 'border-slate-200'}`} />
+            <div className={`my-1 border-t ${isDark ? 'border-white/[0.08]' : 'border-rose-100'}`} />
             <button
               type="button"
               onClick={(e) => action(e, 'delete')}

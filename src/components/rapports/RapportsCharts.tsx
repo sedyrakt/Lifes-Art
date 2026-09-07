@@ -1,11 +1,6 @@
-// ============================================================
-// src/components/rapports/RapportsCharts.tsx
-// ⭐ PRO / PREMIUM RAPPORTS CHARTS - COMPACT
-// ⭐ FONT SIZE 13px-15px
-// ============================================================
 
 import React, { useMemo } from 'react';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, TrendingUp, TrendingDown, Wallet, Package, Users, AlertCircle } from 'lucide-react';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -24,17 +19,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { format, parseISO, isValid, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Tooltip,
-  Legend,
-  Filler
-);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend, Filler);
 
 type Granularity = 'jour' | 'semaine' | 'mois' | 'annee';
 type ChartTab = 'ventes' | 'stock' | 'top' | 'categories' | 'clients' | 'depenses' | 'commandes';
@@ -55,28 +40,13 @@ interface RapportsChartsProps {
   stockStatus?: { en_stock: number; stock_bas: number; rupture: number };
 }
 
-const formatMoney = (value: number): string =>
-  `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0))} Ar`;
-
-const toNumber = (value: unknown): number => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const formatNumber = (value: unknown): string =>
-  new Intl.NumberFormat('fr-FR').format(toNumber(value));
-
-const sum = (array: any[], key: string): number =>
-  array.reduce((total, item) => total + toNumber(item?.[key]), 0);
-
-const first = (array: any[], key: string, fallback = 'Aucun'): string =>
-  array?.[0]?.[key] || fallback;
-
-const firstNum = (array: any[], key: string): number =>
-  toNumber(array?.[0]?.[key]);
-
-const hasData = (array: any[], key: string): boolean =>
-  array.some((item) => toNumber(item?.[key]) > 0);
+const formatMoney = (value: number): string => `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Number(value || 0))} Ar`;
+const toNumber = (value: unknown): number => { const n = Number(value); return Number.isFinite(n) ? n : 0; };
+const formatNumber = (value: unknown): string => new Intl.NumberFormat('fr-FR').format(toNumber(value));
+const sum = (array: any[], key: string): number => array.reduce((total, item) => total + toNumber(item?.[key]), 0);
+const first = (array: any[], key: string, fallback = 'Aucun'): string => array?.[0]?.[key] || fallback;
+const firstNum = (array: any[], key: string): number => toNumber(array?.[0]?.[key]);
+const hasData = (array: any[], key: string): boolean => array.some((item) => toNumber(item?.[key]) > 0);
 
 const RapportsCharts: React.FC<RapportsChartsProps> = ({
   ventesParMois = [], topProduits = [], categorieRepartition = [],
@@ -89,35 +59,33 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
   const isDark = propIsDark !== undefined ? propIsDark : themeIsDark;
 
   const theme = useMemo(() => ({
-    card: isDark ? '#111c30' : '#FFFFFF',
+    card: isDark ? '#0F172A' : '#FFFFFF', // ⭐ FIX: dark card #0F172A
     text: isDark ? '#F8FAFC' : '#0F172A',
     muted: isDark ? '#94A3B8' : '#64748B',
-    subtle: isDark ? '#64748B' : '#94A3B8',
-    primary: '#635BFF',
+    subtle: isDark ? '#94A3B8' : '#94A3B8',
+    primary: '#4F46E5', // ⭐ BRAND INDIGO
     green: '#10B981',
     purple: '#8B5CF6',
     cyan: '#06B6D4',
   }), [isDark]);
 
   const chartColors = useMemo(() => ({
-    grid: isDark ? 'rgba(148,163,184,0.055)' : 'rgba(15,23,42,0.06)',
-    text: isDark ? '#71809A' : '#64748B',
-    tooltipBackground: isDark ? '#101A2D' : '#FFFFFF',
-    tooltipText: isDark ? '#FFFFFF' : '#0F172A',
-    tooltipBorder: isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0',
+    grid: isDark ? 'rgba(79,70,229,0.055)' : 'rgba(79,70,229,0.15)',
+    text: isDark ? '#94A3B8' : '#94A3B8',
+    tooltipBackground: isDark ? '#0F172A' : '#FFFFFF',
+    tooltipText: isDark ? '#F8FAFC' : '#0F172A',
+    tooltipBorder: isDark ? 'rgba(79,70,229,0.12)' : '#E2E8F0',
   }), [isDark]);
 
   const normalizedCategories = useMemo(() =>
-    categorieRepartition
-      .map((category) => ({
-        id: category?.id,
-        nom: category?.nom || 'Sans catégorie',
-        total_produits: toNumber(category?.total_produits),
-        total_stock: toNumber(category?.total_stock),
-        valeur_vente: toNumber(category?.valeur_vente),
-        valeur_achat: toNumber(category?.valeur_achat),
-      }))
-      .filter((category) => category.total_produits > 0 || category.valeur_vente > 0),
+    categorieRepartition.map((category) => ({
+      id: category?.id,
+      nom: category?.nom || 'Sans catégorie',
+      total_produits: toNumber(category?.total_produits),
+      total_stock: toNumber(category?.total_stock),
+      valeur_vente: toNumber(category?.valeur_vente),
+      valeur_achat: toNumber(category?.valeur_achat),
+    })).filter((category) => category.total_produits > 0 || category.valeur_vente > 0),
     [categorieRepartition]);
 
   const categorySalesTotal = useMemo(() => {
@@ -127,76 +95,38 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
 
   const categoryChartValues = useMemo(() => {
     const hasSalesValue = normalizedCategories.some((category) => category.valeur_vente > 0);
-    return hasSalesValue
-      ? normalizedCategories.map((category) => category.valeur_vente)
-      : normalizedCategories.map((category) => category.total_produits);
+    return hasSalesValue ? normalizedCategories.map((category) => category.valeur_vente) : normalizedCategories.map((category) => category.total_produits);
   }, [normalizedCategories]);
 
   const kpis = useMemo(() => {
     const C = (label: string, value: any, formatType: 'money' | 'number' | 'text') => ({ label, value, format: formatType });
-
     switch (activeTab) {
       case 'ventes': {
         const ca = sum(ventesParMois, 'total_ventes');
         const cmd = sum(ventesParMois, 'nb_commandes');
-        return { items: [
-          C("Chiffre d'affaires", ca, 'money'),
-          C('Commandes', cmd, 'number'),
-          C('Panier moyen', cmd > 0 ? ca / cmd : 0, 'money'),
-          C('Vente max', Math.max(...ventesParMois.map((i) => toNumber(i?.total_ventes)), 0), 'money'),
-        ]};
+        return { items: [C("Chiffre d'affaires", ca, 'money'), C('Commandes', cmd, 'number'), C('Panier moyen', cmd > 0 ? ca / cmd : 0, 'money'), C('Vente max', Math.max(...ventesParMois.map((i) => toNumber(i?.total_ventes)), 0), 'money')] };
       }
       case 'stock': {
         const ent = sum(entreesStock, 'total_quantite');
         const sor = sum(sortiesStock, 'total_quantite');
-        return { items: [
-          C('Entrées', ent, 'number'),
-          C('Sorties', sor, 'number'),
-          C('Solde', ent - sor, 'number'),
-          C('En stock', stockStatus.en_stock, 'number'),
-        ]};
+        return { items: [C('Entrées', ent, 'number'), C('Sorties', sor, 'number'), C('Solde', ent - sor, 'number'), C('En stock', stockStatus.en_stock, 'number')] };
       }
       case 'top':
-        return { items: [
-          C('Top produit', first(topProduits, 'nom'), 'text'),
-          C('Quantité vendue', firstNum(topProduits, 'total_vendu'), 'number'),
-          C('Total vendu', sum(topProduits, 'total_vendu'), 'number'),
-          C('Total ventes', sum(topProduits, 'total_ventes'), 'money'),
-        ]};
+        return { items: [C('Top produit', first(topProduits, 'nom'), 'text'), C('Quantité vendue', firstNum(topProduits, 'total_vendu'), 'number'), C('Total vendu', sum(topProduits, 'total_vendu'), 'number'), C('Total ventes', sum(topProduits, 'total_ventes'), 'money')] };
       case 'categories': {
         const totalProd = sum(normalizedCategories, 'total_produits');
         const totalStock = sum(normalizedCategories, 'total_stock');
         const topCategory = first(normalizedCategories, 'nom');
         const topVal = categoryChartValues[0] || 0;
         const topPct = categorySalesTotal > 0 ? (topVal / categorySalesTotal) * 100 : 0;
-        return { items: [
-          C('Catégories', normalizedCategories.length, 'number'),
-          C('Produits', totalProd, 'number'),
-          C('Stock total', totalStock, 'number'),
-          C('Top catégorie', topPct > 0 ? `${topCategory} (${topPct.toFixed(1)}%)` : topCategory, 'text'),
-        ]};
+        return { items: [C('Catégories', normalizedCategories.length, 'number'), C('Produits', totalProd, 'number'), C('Stock total', totalStock, 'number'), C('Top catégorie', topPct > 0 ? `${topCategory} (${topPct.toFixed(1)}%)` : topCategory, 'text')] };
       }
       case 'clients':
-        return { items: [
-          C('Clients', topClients.length, 'number'),
-          C('Total achats', sum(topClients, 'total_achats'), 'money'),
-          C('Top client', first(topClients, 'client_nom'), 'text'),
-          C('Achats top client', firstNum(topClients, 'total_achats'), 'money'),
-        ]};
+        return { items: [C('Clients', topClients.length, 'number'), C('Total achats', sum(topClients, 'total_achats'), 'money'), C('Top client', first(topClients, 'client_nom'), 'text'), C('Achats top client', firstNum(topClients, 'total_achats'), 'money')] };
       case 'depenses':
-        return { items: [
-          C('Total dépenses', sum(depensesParCategorie, 'total'), 'money'),
-          C('Catégories', depensesParCategorie.length, 'number'),
-          C('Top catégorie', first(depensesParCategorie, 'categorie'), 'text'),
-          C('Montant top', firstNum(depensesParCategorie, 'total'), 'money'),
-        ]};
+        return { items: [C('Total dépenses', sum(depensesParCategorie, 'total'), 'money'), C('Catégories', depensesParCategorie.length, 'number'), C('Top catégorie', first(depensesParCategorie, 'categorie'), 'text'), C('Montant top', firstNum(depensesParCategorie, 'total'), 'money')] };
       case 'commandes':
-        return { items: [
-          C('Total commandes', sum(commandesStatut, 'nb'), 'number'),
-          C('Statuts', commandesStatut.length, 'number'),
-          C('Top statut', first(commandesStatut, 'statut'), 'text'),
-          C('Nb top statut', firstNum(commandesStatut, 'nb'), 'number'),
-        ]};
+        return { items: [C('Total commandes', sum(commandesStatut, 'nb'), 'number'), C('Statuts', commandesStatut.length, 'number'), C('Top statut', first(commandesStatut, 'statut'), 'text'), C('Nb top statut', firstNum(commandesStatut, 'nb'), 'number')] };
       default: return { items: [] };
     }
   }, [activeTab, ventesParMois, entreesStock, sortiesStock, topProduits, normalizedCategories, categoryChartValues, categorySalesTotal, topClients, depensesParCategorie, commandesStatut, stockStatus]);
@@ -214,12 +144,7 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
 
     if (granularity === 'jour' || granularity === 'semaine') {
       const fmt = granularity === 'semaine' ? 'EEEE' : 'EEEE dd';
-      labels = ventesParMois.map((item) => {
-        try {
-          const parsed = parseISO(item?.jour);
-          return isValid(parsed) ? format(parsed, fmt, { locale: fr }) : 'N/A';
-        } catch { return 'N/A'; }
-      });
+      labels = ventesParMois.map((item) => { try { const parsed = parseISO(item?.jour); return isValid(parsed) ? format(parsed, fmt, { locale: fr }) : 'N/A'; } catch { return 'N/A'; } });
       values = ventesParMois.map((item) => toNumber(item?.total_ventes));
     } else if (ventesParMois.length) {
       labels = ventesParMois.map((item) => months[toNumber(item?.mois) - 1] || 'N/A');
@@ -247,98 +172,60 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
       borderWidth: 2.5,
       tension: 0.42,
       pointBackgroundColor: theme.primary,
-      pointBorderColor: '#A99EFF',
+      pointBorderColor: '#FFFFFF',
       pointBorderWidth: 2,
       pointRadius: 3.5,
       pointHoverRadius: 6,
       fill: true,
       backgroundColor: (ctx: any) => {
         const { chartArea } = ctx.chart;
-        if (!chartArea) return 'rgba(99,91,255,0.15)';
+        if (!chartArea) return '#4F46E5';
         const gradient = ctx.chart.ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-        gradient.addColorStop(0, 'rgba(99,91,255,0.42)');
-        gradient.addColorStop(0.45, 'rgba(99,91,255,0.16)');
-        gradient.addColorStop(1, 'rgba(99,91,255,0)');
+        gradient.addColorStop(0, isDark ? '#4F46E534' : '#4F46E53c');
+        gradient.addColorStop(0.45, '#4F46E53a');
+        gradient.addColorStop(1, '#4F46E533');
         return gradient;
       },
     }],
-  }), [salesChart, theme]);
+  }), [salesChart, theme, isDark]);
 
   const topProduitsData = useMemo(() => ({
     labels: topProduits.length ? topProduits.map((p) => p?.nom || 'N/A') : ['Aucun produit'],
     datasets: [{
       label: 'Ventes (Ar)',
       data: topProduits.length ? topProduits.map((p) => toNumber(p?.total_ventes)) : [0],
-      backgroundColor: [theme.primary, theme.green, theme.purple, theme.cyan, isDark ? '#4F46E5' : '#818CF8'],
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
       borderWidth: 0,
       borderRadius: 6,
       maxBarThickness: 42,
     }],
-  }), [topProduits, theme, isDark]);
+  }), [topProduits, theme]);
 
-  const stockLabels = useMemo(() =>
-    [...new Set([...entreesStock.map((i) => i?.date), ...sortiesStock.map((i) => i?.date)])]
-      .filter(Boolean)
-      .sort(),
-    [entreesStock, sortiesStock]);
+  const stockLabels = useMemo(() => [...new Set([...entreesStock.map((i) => i?.date), ...sortiesStock.map((i) => i?.date)])].filter(Boolean).sort(), [entreesStock, sortiesStock]);
 
   const stockData = useMemo(() => ({
     labels: stockLabels.length ? stockLabels : ['Aucune donnée'],
     datasets: [
-      {
-        label: 'Entrées',
-        data: stockLabels.length ? stockLabels.map((date) => toNumber(entreesStock.find((i) => i?.date === date)?.total_quantite)) : [0],
-        backgroundColor: theme.green,
-        borderWidth: 0,
-        borderRadius: 5,
-        maxBarThickness: 38,
-      },
-      {
-        label: 'Sorties',
-        data: stockLabels.length ? stockLabels.map((date) => toNumber(sortiesStock.find((i) => i?.date === date)?.total_quantite)) : [0],
-        backgroundColor: theme.cyan,
-        borderWidth: 0,
-        borderRadius: 5,
-        maxBarThickness: 38,
-      },
+      { label: 'Entrées', data: stockLabels.length ? stockLabels.map((date) => toNumber(entreesStock.find((i) => i?.date === date)?.total_quantite)) : [0], backgroundColor: theme.primary, borderColor: theme.primary, borderWidth: 0, borderRadius: 5, maxBarThickness: 38 },
+      { label: 'Sorties', data: stockLabels.length ? stockLabels.map((date) => toNumber(sortiesStock.find((i) => i?.date === date)?.total_quantite)) : [0], backgroundColor: theme.primary, borderColor: theme.primary, borderWidth: 0, borderRadius: 5, maxBarThickness: 38 },
     ],
   }), [stockLabels, entreesStock, sortiesStock, theme]);
 
   const topClientsData = useMemo(() => ({
     labels: topClients.length ? topClients.map((client) => client?.client_nom || 'N/A') : ['Aucun client'],
-    datasets: [{
-      label: 'Total achats (Ar)',
-      data: topClients.length ? topClients.map((client) => toNumber(client?.total_achats)) : [0],
-      backgroundColor: theme.purple,
-      borderWidth: 0,
-      borderRadius: 6,
-      maxBarThickness: 42,
-    }],
+    datasets: [{ label: 'Total achats (Ar)', data: topClients.length ? topClients.map((client) => toNumber(client?.total_achats)) : [0], backgroundColor: theme.primary, borderColor: theme.primary, borderWidth: 0, borderRadius: 6, maxBarThickness: 42 }],
   }), [topClients, theme]);
 
   const depensesData = useMemo(() => ({
     labels: depensesParCategorie.length ? depensesParCategorie.map((item) => item?.categorie || 'Autre') : ['Aucune dépense'],
-    datasets: [{
-      label: 'Montant (Ar)',
-      data: depensesParCategorie.length ? depensesParCategorie.map((item) => toNumber(item?.total)) : [0],
-      backgroundColor: theme.cyan,
-      borderWidth: 0,
-      borderRadius: 6,
-      maxBarThickness: 42,
-    }],
+    datasets: [{ label: 'Montant (Ar)', data: depensesParCategorie.length ? depensesParCategorie.map((item) => toNumber(item?.total)) : [0], backgroundColor: theme.primary, borderColor: theme.primary, borderWidth: 0, borderRadius: 6, maxBarThickness: 42 }],
   }), [depensesParCategorie, theme]);
 
   const commandesData = useMemo(() => ({
     labels: commandesStatut.length ? commandesStatut.map((item) => item?.statut || 'Inconnu') : ['Aucune commande'],
-    datasets: [{
-      label: 'Nombre de commandes',
-      data: commandesStatut.length ? commandesStatut.map((item) => toNumber(item?.nb)) : [0],
-      backgroundColor: [theme.primary, theme.green, theme.purple, theme.cyan, isDark ? '#4F46E5' : '#818CF8'],
-      borderWidth: 0,
-      borderRadius: 6,
-      maxBarThickness: 48,
-    }],
-  }), [commandesStatut, theme, isDark]);
+    datasets: [{ label: 'Nombre de commandes', data: commandesStatut.length ? commandesStatut.map((item) => toNumber(item?.nb)) : [0], backgroundColor: theme.primary, borderColor: theme.primary, borderWidth: 0, borderRadius: 6, maxBarThickness: 48 }],
+  }), [commandesStatut, theme]);
 
   const formatMoneyAxis = (value: number): string => {
     if (value === 0) return '0 Ar';
@@ -366,24 +253,12 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
           borderWidth: 1,
           padding: 12,
           displayColors: false,
-          callbacks: {
-            title: (items: any[]) => items?.[0]?.label || '',
-            label: (ctx: any) => ` ${formatter(Number(ctx.parsed.y))}`,
-          },
+          callbacks: { title: (items: any[]) => items?.[0]?.label || '', label: (ctx: any) => ` ${formatter(Number(ctx.parsed.y))}` },
         },
       },
       scales: {
-        x: {
-          grid: { display: false, drawBorder: false },
-          border: { display: false },
-          ticks: { color: chartColors.text, font: { size: 12 }, maxTicksLimit: 7 },
-        },
-        y: {
-          beginAtZero: true,
-          border: { display: false },
-          grid: { color: chartColors.grid, drawBorder: false },
-          ticks: { color: chartColors.text, font: { size: 12 }, padding: 8, callback: (value: any) => formatter(Number(value)) },
-        },
+        x: { grid: { display: false, drawBorder: false }, border: { display: false }, ticks: { color: chartColors.text, font: { size: 13.5 }, maxTicksLimit: 7 } },
+        y: { beginAtZero: true, border: { display: false }, grid: { color: chartColors.grid, drawBorder: false }, ticks: { color: chartColors.text, font: { size: 13.5 }, padding: 8, callback: (value: any) => formatter(Number(value)) } },
       },
       interaction: { intersect: false, mode: 'index' },
     };
@@ -407,46 +282,34 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
         bodyColor: chartColors.tooltipText,
         borderColor: chartColors.tooltipBorder,
         borderWidth: 1,
-        padding: 10,
-        callbacks: {
-          label: (ctx: any) => {
-            const value = Number(ctx.parsed) || 0;
-            const total = categoryChartValues.reduce((a, b) => a + b, 0);
-            const pct = total > 0 ? (value / total) * 100 : 0;
-            return ` ${formatMoney(value)} — ${pct.toFixed(1)}%`;
-          },
-        },
+        padding: 12,
+        callbacks: { label: (ctx: any) => { const value = Number(ctx.parsed) || 0; const total = categoryChartValues.reduce((a, b) => a + b, 0); const pct = total > 0 ? (value / total) * 100 : 0; return ` ${formatMoney(value)} — ${pct.toFixed(1)}%`; } },
       },
     },
   }), [chartColors, categoryChartValues]);
 
   const ChartCard = ({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) => (
-    <section className={`overflow-hidden rounded-xl border bg-white dark:bg-[#111c30] ${isDark ? 'border-white/[0.055] shadow-[0_12px_40px_rgba(0,0,0,0.18)]' : 'border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04)]'}`}>
-      <div className={`flex items-center justify-between gap-4 border-b px-4 py-3 ${isDark ? 'border-white/[0.055]' : 'border-slate-200'}`}>
+    <section className={`overflow-hidden rounded-xl border bg-white dark:bg-[#0F172A] ${isDark ? 'border-white/[0.12] shadow-[0_12px_40px_rgba(0,0,0,0.18)]' : 'border-slate-200 shadow-[0_1px_2px_rgba(79,70,229,0.04)]'}`}>
+      <div className={`flex items-center justify-between gap-4 border-b px-5 py-3.5 ${isDark ? 'border-white/[0.08]' : 'border-slate-200'}`}>
         <div className="min-w-0">
-          <h2 className="truncate text-[15px] font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
-          {subtitle && <p className="mt-0.5 truncate text-[13px] text-slate-500 dark:text-slate-400">{subtitle}</p>}
+          <h2 className="truncate text-[16.5px] font-bold tracking-tight text-slate-900 dark:text-[#F8FAFC]">{title}</h2>
+          {subtitle && <p className="mt-0.5 truncate text-[13.5px] font-medium text-slate-500 dark:text-[#94A3B8]">{subtitle}</p>}
         </div>
       </div>
-      <div className="p-4">{children}</div>
+      <div className="p-5">{children}</div>
     </section>
   );
 
   const EmptyState = ({ message }: { message: string }) => (
     <div className="flex h-full min-h-[260px] flex-col items-center justify-center gap-2">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
-        <BarChart3 size={18} className="text-slate-400 dark:text-slate-500" />
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 dark:bg-brand-500/10">
+        <BarChart3 size={18} className="text-brand-500 dark:text-brand-400" />
       </div>
-      <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">{message}</p>
+      <p className="text-[13.5px] font-medium text-slate-500 dark:text-[#94A3B8]">{message}</p>
     </div>
   );
 
-  const hasStockData = useMemo(() =>
-    stockLabels.some((date) =>
-      toNumber(entreesStock.find((item) => item?.date === date)?.total_quantite) > 0 ||
-      toNumber(sortiesStock.find((item) => item?.date === date)?.total_quantite) > 0
-    ),
-    [stockLabels, entreesStock, sortiesStock]);
+  const hasStockData = useMemo(() => stockLabels.some((date) => toNumber(entreesStock.find((item) => item?.date === date)?.total_quantite) > 0 || toNumber(sortiesStock.find((item) => item?.date === date)?.total_quantite) > 0), [stockLabels, entreesStock, sortiesStock]);
 
   const renderChart = () => {
     switch (activeTab) {
@@ -454,11 +317,7 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
         return (
           <ChartCard title="Évolution des ventes" subtitle={`Chiffre d'affaires — ${granularity}`}>
             <div className="h-[280px] sm:h-[300px]">
-              {salesChart.values.some((value) => value > 0) ? (
-                <Line data={ventesChartData} options={getChartOptions('ventes')} />
-              ) : (
-                <EmptyState message="Aucune donnée de vente pour cette période" />
-              )}
+              {salesChart.values.some((value) => value > 0) ? (<Line data={ventesChartData} options={getChartOptions('ventes')} />) : (<EmptyState message="Aucune donnée de vente pour cette période" />)}
             </div>
           </ChartCard>
         );
@@ -466,11 +325,7 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
         return (
           <ChartCard title="Mouvements de stock" subtitle="Entrées et sorties par période">
             <div className="h-[280px] sm:h-[300px]">
-              {hasStockData ? (
-                <Bar data={stockData} options={getBarOptions('stock')} />
-              ) : (
-                <EmptyState message="Aucun mouvement de stock" />
-              )}
+              {hasStockData ? (<Bar data={stockData} options={getBarOptions('stock')} />) : (<EmptyState message="Aucun mouvement de stock" />)}
             </div>
           </ChartCard>
         );
@@ -478,43 +333,22 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
         return (
           <ChartCard title="Top 5 produits" subtitle="Produits les plus vendus">
             <div className="h-[280px] sm:h-[300px]">
-              {hasData(topProduits, 'total_ventes') ? (
-                <Bar data={topProduitsData} options={getBarOptions('top')} />
-              ) : (
-                <EmptyState message="Aucune donnée de vente" />
-              )}
+              {hasData(topProduits, 'total_ventes') ? (<Bar data={topProduitsData} options={getBarOptions('top')} />) : (<EmptyState message="Aucune donnée de vente" />)}
             </div>
           </ChartCard>
         );
       case 'categories': {
-        const catColors = ['#6366F1', '#3B82F6', '#10B981', '#F59E0B', '#F43F5E', '#8B5CF6', '#06B6D4', '#EC4899', '#14B8A6', '#F97316'];
+        const catColors = [theme.primary]; 
         const hasCatData = normalizedCategories.length > 0 && categoryChartValues.some((value) => value > 0);
         return (
           <ChartCard title="Répartition des ventes" subtitle="Chiffre d'affaires par catégorie">
-            {!hasCatData ? (
-              <EmptyState message="Aucune vente par catégorie" />
-            ) : (
+            {!hasCatData ? (<EmptyState message="Aucune vente par catégorie" />) : (
               <div className="grid grid-cols-1 items-center gap-5 px-2 pb-2 pt-1 sm:grid-cols-[190px_1fr]">
                 <div className="relative mx-auto h-[220px] w-[220px]">
-                  <Doughnut
-                    data={{
-                      labels: normalizedCategories.map((category) => category.nom),
-                      datasets: [{
-                        data: categoryChartValues,
-                        backgroundColor: normalizedCategories.map((_, index) => catColors[index % catColors.length]),
-                        borderColor: theme.card,
-                        borderWidth: 3,
-                        hoverOffset: 6,
-                        spacing: 2,
-                      }],
-                    }}
-                    options={doughnutOptions}
-                  />
+                  <Doughnut data={{ labels: normalizedCategories.map((category) => category.nom), datasets: [{ data: categoryChartValues, backgroundColor: theme.primary, borderColor: theme.card, borderWidth: 3, hoverOffset: 6, spacing: 2 }] }} options={doughnutOptions} />
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="max-w-[150px] truncate text-center text-[15px] font-bold tracking-tight" style={{ color: theme.text }}>
-                      {formatMoney(categorySalesTotal)}
-                    </span>
-                    <span className="mt-1 text-[13px] font-medium" style={{ color: theme.subtle }}>Total ventes</span>
+                    <span className="max-w-[150px] truncate text-center text-[16.5px] font-bold tracking-tight" style={{ color: theme.text }}>{formatMoney(categorySalesTotal)}</span>
+                    <span className="mt-1 text-[13.5px] font-medium" style={{ color: theme.subtle }}>Total ventes</span>
                   </div>
                 </div>
                 <div className="min-w-0 space-y-2.5">
@@ -524,12 +358,12 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
                     return (
                       <div key={category.id || `${category.nom}-${index}`} className="group flex items-center justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-2">
-                          <span className="h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: catColors[index % catColors.length] }} />
-                          <span className="truncate text-[13px] font-medium" style={{ color: theme.muted }}>{category.nom}</span>
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: theme.primary }} />
+                          <span className="truncate text-[13.5px] font-medium" style={{ color: theme.muted }}>{category.nom}</span>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
-                          <span className="text-[13px] font-semibold" style={{ color: theme.text }}>{formatMoney(value)}</span>
-                          <span className="w-[38px] text-right text-[13px] font-medium" style={{ color: theme.subtle }}>{percentage.toFixed(1)}%</span>
+                          <span className="text-[13.5px] font-semibold" style={{ color: theme.text }}>{formatMoney(value)}</span>
+                          <span className="w-[38px] text-right text-[13.5px] font-medium" style={{ color: theme.subtle }}>{percentage.toFixed(1)}%</span>
                         </div>
                       </div>
                     );
@@ -544,11 +378,7 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
         return (
           <ChartCard title="Top clients" subtitle="Clients par volume d'achats">
             <div className="h-[280px] sm:h-[300px]">
-              {hasData(topClients, 'total_achats') ? (
-                <Bar data={topClientsData} options={getBarOptions('clients')} />
-              ) : (
-                <EmptyState message="Aucun achat client disponible" />
-              )}
+              {hasData(topClients, 'total_achats') ? (<Bar data={topClientsData} options={getBarOptions('clients')} />) : (<EmptyState message="Aucun achat client disponible" />)}
             </div>
           </ChartCard>
         );
@@ -556,11 +386,7 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
         return (
           <ChartCard title="Dépenses par catégorie" subtitle="Répartition des dépenses">
             <div className="h-[280px] sm:h-[300px]">
-              {hasData(depensesParCategorie, 'total') ? (
-                <Bar data={depensesData} options={getBarOptions('depenses')} />
-              ) : (
-                <EmptyState message="Aucune dépense enregistrée" />
-              )}
+              {hasData(depensesParCategorie, 'total') ? (<Bar data={depensesData} options={getBarOptions('depenses')} />) : (<EmptyState message="Aucune dépense enregistrée" />)}
             </div>
           </ChartCard>
         );
@@ -568,11 +394,7 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
         return (
           <ChartCard title="Commandes par statut" subtitle="Répartition des commandes">
             <div className="h-[280px] sm:h-[300px]">
-              {hasData(commandesStatut, 'nb') ? (
-                <Bar data={commandesData} options={getBarOptions('commandes')} />
-              ) : (
-                <EmptyState message="Aucune commande disponible" />
-              )}
+              {hasData(commandesStatut, 'nb') ? (<Bar data={commandesData} options={getBarOptions('commandes')} />) : (<EmptyState message="Aucune commande disponible" />)}
             </div>
           </ChartCard>
         );
@@ -585,14 +407,21 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
       {kpis.items.length > 0 && (
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           {kpis.items.map((item, index) => (
-            <div
-              key={`${item.label}-${index}`}
-              className="group relative min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[0_4px_12px_rgba(15,23,42,0.06)] dark:border-white/[0.055] dark:bg-[#111c30] dark:shadow-[0_10px_35px_rgba(0,0,0,0.20)]"
+            <div 
+              key={`${item.label}-${index}`} 
+              className={`group relative min-w-0 h-[110px] overflow-hidden rounded-xl border px-4 py-3 transition-all duration-300 hover:-translate-y-[1px] ${
+                isDark 
+                  ? 'border-white/[0.12] bg-[#0F172A] hover:border-brand-500/20 hover:bg-[#1E293B] hover:shadow-[0_4px_12px_rgba(79,70,229,0.06)]' 
+                  : 'border-slate-200 bg-white hover:border-brand-500/10 hover:bg-brand-50/50 hover:shadow-[0_4px_12px_rgba(79,70,229,0.06)]'
+              }`}
             >
-              <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-slate-400">{item.label}</p>
-              <p className="mt-1 truncate text-[20px] font-bold tracking-tight text-slate-900 dark:text-white">
-                {formatValue(item.value, item.format)}
-              </p>
+              <div className="pointer-events-none absolute -right-8 -top-10 h-24 w-24 rounded-full bg-brand-500/[0.035] blur-2xl" />
+              <div className="relative min-w-0">
+                <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{item.label}</p>
+                <p className="mt-1 truncate text-[16.5px] font-bold tracking-tight text-slate-900 dark:text-white">
+                  {formatValue(item.value, item.format)}
+                </p>
+              </div>
             </div>
           ))}
         </div>

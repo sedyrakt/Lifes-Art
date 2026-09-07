@@ -1,100 +1,63 @@
-// ============================================================
-// src/components/employes/EmployesHeader.tsx
-// ⭐ FANITSARA: Nesoriko ny bokotra "Statistiques" (BarChart3) sy ny onOpenStats
-// ============================================================
 
 import React from 'react';
-import { Plus, RefreshCw, Users } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-
-const COLORS = {
-  light: {
-    text: '#0F172A',
-    muted: '#64748B',
-    primary: '#6366F1',
-    primaryHover: '#4F46E5',
-    primaryLight: '#818CF8',
-    card: '#FFFFFF',
-    border: '#E2E8F0',
-    primaryBg: 'rgba(99,102,241,0.08)',
-  },
-  dark: {
-    text: '#F8FAFC',
-    muted: '#94A3B8',
-    primary: '#6366F1',
-    primaryHover: '#4F46E5',
-    primaryLight: '#818CF8',
-    card: '#1E293B',
-    border: '#334155',
-    primaryBg: 'rgba(99,102,241,0.15)',
-  }
-};
 
 interface EmployesHeaderProps {
   onAddEmploye: () => void;
   refreshing?: boolean;
   onRefresh?: () => void;
+  totalItems?: number;
 }
 
-const EmployesHeader: React.FC<EmployesHeaderProps> = ({ 
-  onAddEmploye, 
-  refreshing = false,
-  onRefresh 
+const EmployesHeader: React.FC<EmployesHeaderProps> = ({
+  onAddEmploye, refreshing = false, onRefresh, totalItems,
 }) => {
   const { isDark } = useTheme();
-  const theme = isDark ? COLORS.dark : COLORS.light;
-
-  const borderStyle = isDark 
-    ? `1px solid rgba(255,255,255,0.08)` 
-    : `1px solid ${theme.border}`;
 
   return (
-    <div className="mb-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 p-4 rounded-2xl border shadow-sm transition-all duration-300" style={{ background: theme.card, border: borderStyle }}>
+    <header className="mb-4 w-full">
+      <div className="group relative flex flex-col gap-3 overflow-hidden rounded-xl border bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 md:flex-row md:items-center md:justify-between dark:bg-[#0F172A]" style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}>
         
-        {/* ⭐ TITLE: 15px */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner flex-shrink-0" style={{ background: theme.primaryBg, color: theme.primary }}>
-            <Users size={22} />
+        <div className="absolute left-0 top-0 h-full w-[2px] bg-brand-500" />
+
+        <div className="relative z-10 flex min-w-0 flex-col">
+          <div className="flex items-center gap-2">
+            <h1 className="text-[19px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 dark:text-slate-100">Employés</h1>
+            {totalItems !== undefined && (
+              <span className="inline-flex min-w-[26px] items-center justify-center rounded-md bg-brand-500 px-2 py-0.5 text-[11px] font-bold text-white dark:bg-brand-500 dark:text-white">{totalItems}</span>
+            )}
           </div>
-          <div>
-            <h1 className="text-[15px] font-black tracking-tight" style={{ color: theme.text }}>
-              Gestion des employés
-            </h1>
-            <p className="text-[11px] font-bold uppercase tracking-wider mt-0.5" style={{ color: theme.muted }}>
-              Gérez votre équipe en temps réel
-            </p>
-          </div>
+          <p className="mt-0.5 text-[13px] font-medium leading-tight text-slate-500 dark:text-slate-400">Gérez vos ressources humaines et vos paiements.</p>
         </div>
-        
-        {/* ⭐ 2 BOUTONS SUR UNE SEULE LIGNE */}
-        <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-nowrap">
+
+        <div className="relative z-10 flex w-full shrink-0 items-center gap-2 md:w-auto">
           {onRefresh && (
-            <button 
+            <button
+              type="button"
               onClick={onRefresh}
               disabled={refreshing}
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl shadow-sm transition-all duration-200 text-[11px] font-bold uppercase tracking-wider border disabled:opacity-50 whitespace-nowrap"
-              style={{ background: theme.card, color: theme.text, borderColor: theme.border }}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border px-3 text-[13px] font-medium text-slate-500 transition-all duration-150 hover:border-brand-500/20 hover:bg-brand-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0', background: isDark ? '#0F172A' : '#FFFFFF' }}
               aria-label="Actualiser les employés"
+              title="Actualiser"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>Actualiser</span>
+              <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
             </button>
           )}
 
-          <button 
+          <button
+            type="button"
             onClick={onAddEmploye}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl shadow-md transition-all duration-200 text-[11px] font-bold uppercase tracking-wider text-white hover:opacity-90 whitespace-nowrap"
-            style={{ background: theme.primary }}
+            className="inline-flex h-9 flex-1 sm:flex-none items-center justify-center gap-2 rounded-lg bg-brand-500 px-3.5 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-brand-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:ring-offset-1 active:scale-[0.98] dark:bg-brand-500 dark:hover:bg-brand-600 dark:focus:ring-offset-[#0F172A]"
             aria-label="Ajouter un employé"
           >
-            <Plus size={15} />
-            <span>Ajouter un employé</span>
+            <Plus size={17} strokeWidth={2.2} />
+            <span>Nouvel employé</span>
           </button>
         </div>
-
       </div>
-    </div>
+    </header>
   );
 };
 

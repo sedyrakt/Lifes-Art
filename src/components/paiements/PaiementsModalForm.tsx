@@ -1,290 +1,424 @@
-// ============================================================
-// src/components/paiements/PaiementsModalForm.tsx
-// ⭐ FIX: TSY MISY createPortal - MAMPISAO RETURN NULL
-// ⭐ FIX: MAMPISAO FALLBACK HO AN'NY moisOptions SY annees
-// ⭐ FIX: ESRINA NY ICON REHETRA AFA-TSY NY BOUTON
-// ============================================================
-
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CreditCard, X, Plus } from 'lucide-react';
+import React, { FormEvent, useEffect, useMemo, useState, useCallback } from 'react';
+import { Loader2, Save, X, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
 
-const COLORS = {
-  light: {
-    overlay: 'rgba(15, 23, 42, 0.55)', card: '#FFFFFF', header: '#FFFFFF', footer: '#F8FAFC', border: '#E2E8F0',
-    input: '#FFFFFF', inputMuted: '#F8FAFC', text: '#202124', muted: '#5F6368', subMuted: '#80868B',
-    primary: '#6366F1', primaryHover: '#4F46E5', primarySoft: '#EEF2FF', danger: '#D93025', dangerSoft: '#FCE8E6', success: '#188038'
-  },
-  dark: {
-    overlay: 'rgba(0, 0, 0, 0.72)', card: '#0F172A', header: '#0F172A', footer: '#0F172A', border: '#334155',
-    input: '#0F172A', inputMuted: '#111827', text: '#F8FAFC', muted: '#CBD5E1', subMuted: '#94A3B8',
-    primary: '#6366F1', primaryHover: '#818CF8', primarySoft: 'rgba(99, 102, 241, 0.12)', danger: '#F28B82', dangerSoft: 'rgba(242, 139, 130, 0.10)', success: '#81C995'
-  },
-};
-
-const defaultMoisOptions = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Mois ${i + 1}` }));
-const defaultAnnees = [new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1];
-
-interface Employe { id: number; nom?: string; prenom?: string; poste?: string; email?: string; }
+export type PaiementStatut = 'Brouillon' | 'Payé' | 'Partiel' | 'Non payé';
+export type ModePaiement = 'Espèces' | 'Virement' | 'Chèque' | 'Mobile Money' | 'Carte' | 'Autre';
+export interface PaiementEmploye {
+  id?: number; employe_id: number; mois: number; annee: number; montant: number;
+  mode_paiement?: string; statut?: string; reference?: string | null; observation?: string | null;
+  salaire_brut?: number; cnaps?: number; ostie?: number; irsa?: number; avance?: number;
+  date_paiement?: string | null; created_at?: string | null;
+  employe_nom?: string | null; employe_prenom?: string | null; employe_poste?: string | null; salaire_base?: number | null;
+}
+export interface EmployePaiement { id: number; nom?: string; prenom?: string; poste?: string; salaire?: number; salaire_base?: number; }
 interface PaiementsModalFormProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
-  editingPaiement: any | null;
-  employes: Employe[];
-  moisOptions?: { value: number; label: string }[];
-  annees?: number[];
-  isDark?: boolean;
+  isOpen: boolean; onClose: () => void; employes?: EmployePaiement[];
+  paiement?: PaiementEmploye | null; employeId?: number | null;
+  onSuccess?: (paiement: PaiementEmploye) => void | Promise<void>;
 }
 
-const PaiementsModalForm: React.FC<PaiementsModalFormProps> = ({ isOpen, onClose, onSubmit, editingPaiement, employes, moisOptions, annees, isDark: propIsDark }) => {
-  const { isDark: contextIsDark } = useTheme();
-  const isDark = propIsDark !== undefined ? propIsDark : contextIsDark;
-  const theme = isDark ? COLORS.dark : COLORS.light;
-  const formRef = useRef<HTMLFormElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [amount, setAmount] = useState<number>(Number(editingPaiement?.montant || 0));
-  const [selectedEmployeId, setSelectedEmployeId] = useState<number | null>(null);
-  const borderClass = isDark ? 'border-slate-700' : 'border-gray-300';
+const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const MODES_PAIEMENT: ModePaiement[] = ['Espèces','Virement','Chèque','Mobile Money','Carte','Autre'];
 
-  const safeMoisOptions = moisOptions && moisOptions.length > 0 ? moisOptions : defaultMoisOptions;
-  const safeAnnees = annees && annees.length > 0 ? annees : defaultAnnees;
+const STATUT_STYLES: Record<string, { light: { bg: string; text: string; border: string }; dark: { bg: string; text: string; border: string } }> = {
+  'Brouillon': { light: { bg: '#F1F5F9', text: '#64748B', border: '#CBD5E1' }, dark: { bg: 'rgba(148, 163, 184, 0.15)', text: '#94A3B8', border: 'rgba(148, 163, 184, 0.3)' } },
+  'Payé': { light: { bg: '#DCFCE7', text: '#166534', border: '#86EFAC' }, dark: { bg: 'rgba(34, 197, 94, 0.15)', text: '#4ADE80', border: 'rgba(34, 197, 94, 0.3)' } },
+  'Partiel': { light: { bg: '#FEF9C3', text: '#854D0E', border: '#FDE047' }, dark: { bg: 'rgba(234, 179, 8, 0.15)', text: '#FACC15', border: 'rgba(234, 179, 8, 0.3)' } },
+  'Non payé': { light: { bg: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' }, dark: { bg: 'rgba(239, 68, 68, 0.15)', text: '#F87171', border: 'rgba(239, 68, 68, 0.3)' } }
+};
 
-  const defaultDate = useMemo(() => {
-    if (editingPaiement) return new Date(Number(editingPaiement.annee), Number(editingPaiement.mois) - 1, 1);
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  }, [editingPaiement]);
+function getLocalDateISO(date = new Date()): string {
+  const year = date.getFullYear(), month = String(date.getMonth()+1).padStart(2,'0'), day = String(date.getDate()).padStart(2,'0');
+  return `${year}-${month}-${day}`;
+}
+function normalizeDateISO(value?: string | null): string {
+  if (!value) return getLocalDateISO();
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+  return getLocalDateISO();
+}
+function toNumber(value: unknown, fallback = 0): number { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
+function formatAriary(value: unknown): string { return `${Math.round(toNumber(value)).toLocaleString('fr-FR')} Ar`; }
+function getEmployeeName(employee?: EmployePaiement): string { if (!employee) return ''; return `${employee.prenom ?? ''} ${employee.nom ?? ''}`.trim(); }
 
-  // ⭐ FIX: Console.log mba hahitana ny isOpen
-  useEffect(() => {
-    console.log('🟢 PaiementsModalForm useEffect isOpen:', isOpen);
-    if (!isOpen) { setIsVisible(false); return; }
-    const timer = window.setTimeout(() => setIsVisible(true), 10);
-    console.log('🟢 Timer natomboka, hisokatra ny modal');
-    return () => window.clearTimeout(timer);
-  }, [isOpen]);
+export default function PaiementsModalForm({ isOpen, onClose, employes = [], paiement = null, employeId = null, onSuccess }: PaiementsModalFormProps) {
+  const { isDark } = useTheme(); 
+  const isEdit = Boolean(paiement?.id);
+  const today = useMemo(() => getLocalDateISO(), []);
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const [selectedEmployeId, setSelectedEmployeId] = useState<number | ''>('');
+  const [mois, setMois] = useState<number>(new Date().getMonth()+1);
+  const [annee, setAnnee] = useState<number>(currentYear);
+  const [datePaiement, setDatePaiement] = useState<string>(today);
+  const [salaireBrut, setSalaireBrut] = useState<number>(0);
+  const [cnaps, setCnaps] = useState<number>(0);
+  const [ostie, setOstie] = useState<number>(0);
+  const [irsa, setIrsa] = useState<number>(0);
+  const [avance, setAvance] = useState<number>(0);
+  const [montant, setMontant] = useState<number>(0);
+  const [modePaiement, setModePaiement] = useState<string>('Espèces');
+  const [statut, setStatut] = useState<PaiementStatut>('Payé');
+  const [reference, setReference] = useState<string>('');
+  const [observation, setObservation] = useState<string>('');
+  const [saving, setSaving] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
-  useEffect(() => {
-    if (!isOpen) return;
-    setSelectedDate(defaultDate);
-    setAmount(Number(editingPaiement?.montant || 0));
-    setSelectedEmployeId(editingPaiement?.employe_id || null);
-  }, [isOpen, defaultDate, editingPaiement]);
+  const [workflowStatus, setWorkflowStatus] = useState<'Brouillon' | 'Validé'>('Brouillon');
+  const [absencesCount, setAbsencesCount] = useState(0);
+  const [absencesDeduction, setAbsencesDeduction] = useState(0);
+  const [isEmployeDropdownOpen, setIsEmployeDropdownOpen] = useState(false);
+  const [isMoisDropdownOpen, setIsMoisDropdownOpen] = useState(false);
+  const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); formRef.current?.requestSubmit(); }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  // ⭐ FIX: Tsy misy createPortal, mampiasa return null
-  if (!isOpen) return null;
-
-  const handleDateChange = (date: Date | null) => setSelectedDate(date);
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => { const value = Number(e.target.value); setAmount(Number.isFinite(value) ? value : 0); };
-  const handleClose = () => { setIsVisible(false); window.setTimeout(() => onClose(), 100); };
-
-  const inputClass = `w-full h-10 px-3 rounded-lg border text-[14.5px] font-medium outline-none transition-all duration-150 focus:ring-2 ${isDark ? 'border-slate-700 bg-[#0F172A] text-slate-100 placeholder:text-slate-600 focus:border-[#8AB4F8] focus:ring-[#8AB4F8]/15' : 'border-gray-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#6366F1] focus:ring-[#6366F1]/15'}`;
-  const selectedEmployee = useMemo(() => {
-    if (!selectedEmployeId) return null;
-    return employes.find(e => Number(e.id) === Number(selectedEmployeId)) || null;
+  const selectedEmploye = useMemo(() => {
+    if (!selectedEmployeId) return undefined;
+    return employes.find(employee => Number(employee.id) === Number(selectedEmployeId));
   }, [employes, selectedEmployeId]);
 
-  const employeeName = selectedEmployee ? `${selectedEmployee.prenom || ''} ${selectedEmployee.nom || ''}`.trim() : (editingPaiement ? `${editingPaiement.prenom || ''} ${editingPaiement.nom || ''}`.trim() : '—');
-  const formatAmount = (value: number) => `${Number(value || 0).toLocaleString('fr-FR')} Ar`;
-  const periodLabel = selectedDate ? selectedDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) : '—';
+  const retenues = useMemo(() => toNumber(cnaps)+toNumber(ostie)+toNumber(irsa), [cnaps, ostie, irsa]);
+  const netAvantAvance = useMemo(() => Math.max(0, toNumber(salaireBrut)-retenues), [salaireBrut, retenues]);
+  const netApresAvance = useMemo(() => Math.max(0, netAvantAvance - toNumber(avance)), [netAvantAvance, avance]);
+
+  const fetchAbsences = useCallback(async (empId: number, m: number, a: number) => {
+    if (!empId || !m || !a) return;
+    try {
+      if (window.api?.payments?.getAbsencesCount) {
+        const res = await window.api.payments.getAbsencesCount(empId, m, a);
+        if (res?.success) {
+          const count = Number(res.data.count || 0);
+          setAbsencesCount(count);
+          if (count > 0 && Number(salaireBrut) > 0) {
+            const deduction = Math.round((Number(salaireBrut) / 26) * count);
+            setAbsencesDeduction(deduction);
+            setAvance((prev) => Number(prev) + deduction);
+          } else { setAbsencesDeduction(0); }
+        }
+      } else {
+        setAbsencesCount(0); setAbsencesDeduction(0);
+      }
+    } catch (e) {
+      console.error('Erreur fetchAbsences:', e);
+      setAbsencesCount(0); setAbsencesDeduction(0);
+    }
+  }, [salaireBrut]);
+
+  useEffect(() => {
+    if (selectedEmployeId && mois && annee) fetchAbsences(Number(selectedEmployeId), mois, annee);
+  }, [selectedEmployeId, mois, annee, fetchAbsences]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setErrorMessage('');
+    if (paiement) {
+      setSelectedEmployeId(Number(paiement.employe_id));
+      setMois(Math.min(12, Math.max(1, Number(paiement.mois) || new Date().getMonth()+1)));
+      setAnnee(Number(paiement.annee) || currentYear);
+      setDatePaiement(normalizeDateISO(paiement.date_paiement));
+      setSalaireBrut(toNumber(paiement.salaire_brut));
+      setCnaps(toNumber(paiement.cnaps));
+      setOstie(toNumber(paiement.ostie));
+      setIrsa(toNumber(paiement.irsa));
+      setAvance(toNumber(paiement.avance));
+      setMontant(toNumber(paiement.montant));
+      setModePaiement(paiement.mode_paiement || 'Espèces');
+      setStatut((paiement.statut as PaiementStatut) || 'Payé');
+      setReference(paiement.reference || '');
+      setObservation(paiement.observation || '');
+      return;
+    }
+    setSelectedEmployeId(employeId ? Number(employeId) : '');
+    const now = new Date();
+    setMois(now.getMonth()+1);
+    setAnnee(now.getFullYear());
+    setDatePaiement(getLocalDateISO());
+    setSalaireBrut(0); setCnaps(0); setOstie(0); setIrsa(0); setAvance(0); setMontant(0);
+    setModePaiement('Espèces'); setStatut('Payé'); setReference(''); setObservation('');
+    setWorkflowStatus('Brouillon');
+    setAbsencesCount(0); setAbsencesDeduction(0);
+  }, [isOpen, paiement, employeId, currentYear]);
+
+  useEffect(() => {
+    if (!selectedEmploye || isEdit) return;
+    const salary = toNumber(selectedEmploye.salaire_base ?? selectedEmploye.salaire);
+    if (salary <= 0) return;
+    setSalaireBrut(salary);
+    const cnapsValue = salary * 0.01, ostieValue = salary * 0.05;
+    let irsaValue = 0;
+    if (salary <= 400_000) irsaValue = 0;
+    else if (salary <= 500_000) irsaValue = (salary - 400_000) * 0.05;
+    else if (salary <= 600_000) irsaValue = 100_000*0.05 + (salary - 500_000)*0.10;
+    else if (salary <= 700_000) irsaValue = 100_000*0.05 + 100_000*0.10 + (salary - 600_000)*0.15;
+    else irsaValue = 100_000*0.05 + 100_000*0.10 + 100_000*0.15 + (salary - 700_000)*0.20;
+    setCnaps(Math.round(cnapsValue));
+    setOstie(Math.round(ostieValue));
+    setIrsa(Math.round(irsaValue));
+    setMontant(Math.max(0, Math.round(salary - cnapsValue - ostieValue - irsaValue)));
+  }, [selectedEmploye, isEdit]);
+
+  useEffect(() => {
+    if (isEdit || (salaireBrut <= 0 && retenues <= 0)) return;
+    setMontant(Math.max(0, Math.round(salaireBrut - retenues - toNumber(avance))));
+  }, [salaireBrut, retenues, avance, isEdit]);
+
+  useEffect(() => {
+    if (workflowStatus === 'Brouillon') { setStatut('Brouillon'); return; }
+    const net = netApresAvance;
+    if (net <= 0) setStatut(montant > 0 ? 'Payé' : 'Non payé');
+    else if (montant <= 0) setStatut('Non payé');
+    else if (montant >= net) setStatut('Payé');
+    else setStatut('Partiel');
+  }, [workflowStatus, montant, netApresAvance]);
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setErrorMessage('');
+    if (!selectedEmployeId) { setErrorMessage('Veuillez sélectionner un employé.'); return; }
+    if (!Number.isInteger(mois) || mois < 1 || mois > 12) { setErrorMessage('Le mois de paie est invalide.'); return; }
+    if (!Number.isInteger(annee) || annee < 2000 || annee > 2100) { setErrorMessage("L'année de paie est invalide."); return; }
+    if (!datePaiement) { setErrorMessage('La date réelle de paiement est obligatoire.'); return; }
+    if (montant < 0) { setErrorMessage('Le montant ne peut pas être négatif.'); return; }
+
+    // ⭐ VAOVAO: FANAMARINANA ALOHAN'NY FAMORONANA
+    if (!isEdit && window.api?.payments?.getSalaireMensuel) {
+      try {
+        const checkRes = await window.api.payments.getSalaireMensuel(Number(selectedEmployeId), Number(mois), Number(annee));
+        if (checkRes?.success && Number(checkRes.data?.nombre_paiements) > 0) {
+          setErrorMessage(`Un paiement existe déjà pour ${getEmployeeName(selectedEmploye) || 'cet employé'} pour ${MONTHS[mois-1]} ${annee}.`);
+          return;
+        }
+      } catch (checkErr) {
+        console.warn('Check paiement existant échoué:', checkErr);
+      }
+    }
+
+    const payload = {
+      id: paiement?.id, employe_id: Number(selectedEmployeId),
+      mois: Number(mois), annee: Number(annee),
+      date_paiement: normalizeDateISO(datePaiement),
+      salaire_brut: Math.round(toNumber(salaireBrut)),
+      cnaps: Math.round(toNumber(cnaps)), ostie: Math.round(toNumber(ostie)),
+      irsa: Math.round(toNumber(irsa)), avance: Math.round(toNumber(avance)),
+      montant: Math.round(toNumber(montant)),
+      mode_paiement: modePaiement || 'Espèces',
+      statut: statut || 'Payé',
+      reference: reference.trim() || null,
+      observation: observation.trim() || null,
+      absences_count: absencesCount,
+    };
+    try {
+      setSaving(true);
+      if (!window.api?.payments) throw new Error('API paiements indisponible.');
+      let result: any;
+      if (isEdit) {
+        const paymentId = payload.id;
+        if (!paymentId) throw new Error('ID de paiement invalide');
+        result = await window.api.payments.update(paymentId, payload);
+      } else {
+        result = await window.api.payments.create(payload);
+      }
+      const responseData = result?.data ?? result;
+      if (result?.success === false) throw new Error(result?.error || result?.message || 'Impossible d’enregistrer le paiement.');
+      const returnedPayment = responseData && typeof responseData === 'object' ? responseData : { ...payload, id: paiement?.id ?? responseData };
+      if (onSuccess) await onSuccess(returnedPayment as PaiementEmploye);
+      onClose();
+    } catch (error: any) {
+      console.error('[PaiementsModalForm] save error:', error);
+      setErrorMessage(error?.message || 'Une erreur est survenue lors de l’enregistrement.');
+    } finally { setSaving(false); }
+  };
+
+  const handleClose = () => { if (saving) return; onClose(); };
+  if (!isOpen) return null;
+
+  const statusStyle = STATUT_STYLES[statut] || STATUT_STYLES['Non payé'];
+  const statusColors = isDark ? statusStyle.dark : statusStyle.light;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 transition-opacity duration-200" style={{ background: theme.overlay, backdropFilter: 'blur(4px)' }} role="dialog" aria-modal="true" aria-labelledby="paiement-modal-title" onMouseDown={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
-      <div className={`relative flex w-full max-w-4xl max-h-[82vh] flex-col overflow-hidden rounded-2xl border shadow-[0_24px_70px_rgba(0,0,0,0.25)] transition-all duration-200 ${isVisible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-2 scale-[0.985] opacity-0'} ${borderClass}`} style={{ background: theme.card }} onMouseDown={(e) => e.stopPropagation()}>
-        
-        {/* HEADER */}
-        <div className={`flex shrink-0 items-center justify-between border-b px-6 py-4 ${borderClass}`} style={{ background: theme.header }}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: theme.primarySoft, color: theme.primary }}><CreditCard className="h-[18px] w-[18px]" strokeWidth={2} /></div>
-            <div>
-              <h2 id="paiement-modal-title" className="text-[17px] font-semibold tracking-tight" style={{ color: theme.text }}>{editingPaiement ? 'Modifier le paiement' : 'Nouveau paiement'}</h2>
-              <p className="mt-0.5 text-[14px]" style={{ color: theme.subMuted }}>{editingPaiement ? 'Modifiez les informations de ce paiement.' : 'Enregistrez un nouveau paiement.'}</p>
-            </div>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onMouseDown={event => { if (event.target === event.currentTarget) handleClose(); }}>
+      <div className="w-full max-w-[70%] max-h-[90vh] overflow-hidden rounded-2xl border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-white/[0.08]">
+          <div>
+            <h2 className="text-[18px] font-bold text-slate-900 dark:text-white">{isEdit ? 'Modifier le paiement' : 'Nouveau paiement'}</h2>
+            <p className="text-[14px] text-slate-500 dark:text-slate-400">Gestion de paie</p>
           </div>
-          <button type="button" onClick={handleClose} aria-label="Fermer" className="flex h-8 w-8 items-center justify-center rounded-full transition-colors" style={{ color: theme.muted }} onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.06)' : '#F1F3F4'; e.currentTarget.style.color = theme.text; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = theme.muted; }}><X className="h-[18px] w-[18px]" strokeWidth={2} /></button>
+          <button type="button" onClick={handleClose} disabled={saving} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.06] transition disabled:opacity-50"><X size={18} /></button>
         </div>
 
-        {/* FORM */}
-        <form ref={formRef} onSubmit={onSubmit} className="flex-1 overflow-y-auto custom-modal-scrollbar">
-          <div className="p-6">
-            <div className="grid grid-cols-1 gap-7 lg:grid-cols-[220px_minmax(0,1fr)]">
-              {/* SIDEBAR */}
-              <aside>
-                <div className={`sticky top-0 overflow-hidden rounded-xl border ${borderClass}`} style={{ background: isDark ? '#111827' : '#F8FAFC' }}>
-                  <div className={`flex items-center gap-2 border-b px-4 py-3 ${borderClass}`}>
-                    {/* ⭐ FIX: ESRINA NY ICON */}
-                    <span className="text-[14.5px] font-semibold" style={{ color: theme.text }}>Résumé</span>
-                  </div>
-                  <div className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-[14.5px]" style={{ color: theme.muted }}>Employé</span>
-                        <span className="max-w-[120px] truncate text-right text-[14.5px] font-medium" style={{ color: theme.text }} title={employeeName}>{employeeName || '—'}</span>
+        <form onSubmit={handleSubmit} className="flex flex-col">
+          <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            {errorMessage && <div className="col-span-1 md:col-span-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[15px] text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">{errorMessage}</div>}
+
+            <div className="space-y-3">
+              <div>
+                <label className="field-label">Employé</label>
+                <div className="relative">
+                  <button type="button" onClick={() => setIsEmployeDropdownOpen(!isEmployeDropdownOpen)} className="field-input flex items-center justify-between text-left" disabled={isEdit}>
+                    <span className="truncate">{getEmployeeName(selectedEmploye) || 'Sélectionner'}</span>
+                    <ChevronDown size={16} className="shrink-0 text-slate-400" />
+                  </button>
+                  {isEmployeDropdownOpen && (
+                    <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] shadow-lg">
+                      <button type="button" onClick={() => { setSelectedEmployeId(''); setIsEmployeDropdownOpen(false); }} className="w-full px-3 py-2 text-left text-[14px] hover:bg-slate-100 dark:hover:bg-white/[0.06]">Sélectionner</button>
+                      {employes.map(employee => (
+                        <button key={employee.id} type="button" onClick={() => { setSelectedEmployeId(employee.id); setIsEmployeDropdownOpen(false); }} className={`w-full px-3 py-2 text-left text-[14px] hover:bg-slate-100 dark:hover:bg-white/[0.06] ${selectedEmployeId === employee.id ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400' : ''}`}>
+                          {getEmployeeName(employee)}{employee.poste ? ` — ${employee.poste}` : ''}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {selectedEmploye && (
+                <div className="rounded-lg border border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-white/[0.03] px-4 py-3">
+                  <p className="text-[15px] font-semibold text-slate-900 dark:text-white">{getEmployeeName(selectedEmploye)}</p>
+                  <p className="text-[13px] text-slate-500 dark:text-slate-400">{selectedEmploye.poste || '—'}</p>
+                  <p className="text-[15px] font-bold text-brand-600 dark:text-brand-400 mt-1">{formatAriary(selectedEmploye.salaire_base ?? selectedEmploye.salaire)}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="field-label">Mois</label>
+                  <div className="relative">
+                    <button type="button" onClick={() => setIsMoisDropdownOpen(!isMoisDropdownOpen)} className="field-input flex items-center justify-between text-left">
+                      <span>{MONTHS[mois-1]}</span><ChevronDown size={16} className="shrink-0 text-slate-400" />
+                    </button>
+                    {isMoisDropdownOpen && (
+                      <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] shadow-lg">
+                        {MONTHS.map((month, index) => (
+                          <button key={month} type="button" onClick={() => { setMois(index+1); setIsMoisDropdownOpen(false); }} className={`w-full px-3 py-2 text-left text-[14px] hover:bg-slate-100 dark:hover:bg-white/[0.06] ${mois === index+1 ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400' : ''}`}>{month}</button>
+                        ))}
                       </div>
-                      {(selectedEmployee?.poste || editingPaiement?.poste) && <div className="flex items-center justify-between gap-3">
-                        <span className="text-[14.5px]" style={{ color: theme.muted }}>Poste</span>
-                        <span className="max-w-[120px] truncate text-right text-[14px] font-medium" style={{ color: theme.text }}>{selectedEmployee?.poste || editingPaiement?.poste}</span>
-                      </div>}
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-[14.5px]" style={{ color: theme.muted }}>Période</span>
-                        <span className="text-right text-[14px] font-medium capitalize" style={{ color: theme.text }}>{periodLabel}</span>
-                      </div>
-                    </div>
-                    <div className="my-4 h-px" style={{ background: theme.border }} />
-                    <div>
-                      <div className="mb-1 text-[14.5px] font-medium" style={{ color: theme.muted }}>Montant</div>
-                      <div className="text-[22px] font-semibold tracking-tight" style={{ color: theme.primary }}>{formatAmount(amount)}</div>
-                    </div>
-                    <div className="mt-4 flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: isDark ? 'rgba(99,102,241,0.08)' : '#EEF2FF' }}>
-                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                      <span className="text-[12px] font-medium" style={{ color: isDark ? '#A5B4FC' : '#4F46E5' }}>{editingPaiement ? 'Modification' : 'Nouveau paiement'}</span>
-                    </div>
+                    )}
                   </div>
                 </div>
-              </aside>
-
-              {/* MAIN FORM */}
-              <div className="min-w-0">
-                <div className="grid grid-cols-1 gap-x-5 gap-y-5 md:grid-cols-2">
-                  <FormField label="Employé" required className="md:col-span-2">
-                    <div className="relative">
-                      <select name="employe_id" defaultValue={editingPaiement?.employe_id || ''} required className={`${inputClass} appearance-none cursor-pointer pr-9`}>
-                        <option value="">Sélectionner un employé</option>
-                        {employes.map((employee) => <option key={employee.id} value={employee.id}>{employee.prenom || ''} {employee.nom || ''}</option>)}
-                      </select>
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: theme.subMuted }}>▾</span>
-                    </div>
-                  </FormField>
-
-                  <FormField label="Période" required className="md:col-span-2">
-                    <DatePicker
-                      selected={selectedDate}
-                      onChange={handleDateChange}
-                      dateFormat="MMMM yyyy"
-                      showMonthYearPicker
-                      showFullMonthYearPicker
-                      className={`${inputClass} w-full`}
-                      wrapperClassName="w-full"
-                      popperClassName={isDark ? 'dark-datepicker-popper' : 'light-datepicker-popper'}
-                      calendarClassName={`${isDark ? 'dark-datepicker' : 'light-datepicker'} ${borderClass}`}
-                      placeholderText="Sélectionner un mois/année"
-                      isClearable={false}
-                    />
-                    <input type="hidden" name="mois" value={selectedDate ? selectedDate.getMonth() + 1 : ''} />
-                    <input type="hidden" name="annee" value={selectedDate ? selectedDate.getFullYear() : ''} />
-                  </FormField>
-
-                  <FormField label="Montant" required>
-                    <div className="relative">
-                      <input type="number" name="montant" value={amount} onChange={handleAmountChange} required min="0" step="1" inputMode="numeric" className={`${inputClass} pr-14 text-[15px] font-semibold`} placeholder="0" />
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[14.5px] font-medium" style={{ color: theme.subMuted }}>Ar</span>
-                    </div>
-                  </FormField>
-
-                  <FormField label="Mode de paiement">
-                    <div className="relative">
-                      <select name="mode_paiement" defaultValue={editingPaiement?.mode_paiement || 'Espèces'} className={`${inputClass} appearance-none cursor-pointer pr-9`}>
-                        <option value="Espèces">Espèces</option>
-                        <option value="Virement">Virement</option>
-                        <option value="Chèque">Chèque</option>
-                        <option value="Mobile Money">Mobile Money</option>
-                      </select>
-                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: theme.subMuted }}>▾</span>
-                    </div>
-                  </FormField>
-
-                  <FormField label="Référence">
-                    <input type="text" name="reference" defaultValue={editingPaiement?.reference || ''} className={inputClass} placeholder="REF-001" autoComplete="off" />
-                  </FormField>
-
-                  <FormField label="Date de paiement">
-                    <input type="date" name="date_paiement" defaultValue={editingPaiement?.date_paiement ? String(editingPaiement.date_paiement).slice(0, 10) : new Date().toISOString().slice(0, 10)} className={inputClass} />
-                  </FormField>
-
-                  <div className="md:col-span-2">
-                    <FormField label="Observation">
-                      <textarea
-                        name="observation"
-                        defaultValue={editingPaiement?.observation || ''}
-                        rows={3}
-                        className={`w-full resize-none rounded-lg border px-3 py-2.5 text-[14.5px] font-medium outline-none transition-all focus:ring-2 ${isDark ? 'border-slate-700 bg-[#0F172A] text-slate-100 placeholder:text-slate-600 focus:border-[#8AB4F8] focus:ring-[#8AB4F8]/15' : 'border-gray-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#6366F1] focus:ring-[#6366F1]/15'}`}
-                        placeholder="Ajoutez une observation si nécessaire..."
-                      />
-                    </FormField>
-                  </div>
+                <div>
+                  <label className="field-label">Année</label>
+                  <input type="number" min={2000} max={2100} value={annee} onChange={event => setAnnee(Number(event.target.value))} className="field-input" />
                 </div>
+              </div>
+
+              <div>
+                <label className="field-label">Date paiement</label>
+                <input type="date" value={datePaiement} onChange={event => setDatePaiement(event.target.value)} className="field-input" />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <MoneyField label="Salaire brut" value={salaireBrut} onChange={setSalaireBrut} />
+              <div className="grid grid-cols-2 gap-3">
+                <MoneyField label="CNaPS" value={cnaps} onChange={setCnaps} />
+                <MoneyField label="OSTIE" value={ostie} onChange={setOstie} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <MoneyField label="IRSA" value={irsa} onChange={setIrsa} />
+                <MoneyField label="Avance" value={avance} onChange={setAvance} />
+              </div>
+              <MoneyField label="Montant payé" value={montant} onChange={setMontant} emphasized />
+              <div className="grid grid-cols-2 gap-3 mt-1">
+                <SummaryCard label="Retenues" value={retenues} />
+                <SummaryCard label="Net après avance" value={netApresAvance} emphasized />
+              </div>
+              {absencesCount > 0 && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+                  ⚠️ {absencesCount} jour(s) d'absence(s) détecté(s) — Déduction : {formatAriary(absencesDeduction)}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="field-label">Mode de paiement</label>
+                <div className="relative">
+                  <button type="button" onClick={() => setIsModeDropdownOpen(!isModeDropdownOpen)} className="field-input flex items-center justify-between text-left">
+                    <span>{modePaiement}</span><ChevronDown size={16} className="shrink-0 text-slate-400" />
+                  </button>
+                  {isModeDropdownOpen && (
+                    <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] shadow-lg">
+                      {MODES_PAIEMENT.map(mode => (
+                        <button key={mode} type="button" onClick={() => { setModePaiement(mode); setIsModeDropdownOpen(false); }} className={`w-full px-3 py-2 text-left text-[14px] hover:bg-slate-100 dark:hover:bg-white/[0.06] ${modePaiement === mode ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400' : ''}`}>{mode}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="field-label">État</label>
+                <div className="relative">
+                  <select value={workflowStatus} onChange={(e) => setWorkflowStatus(e.target.value as 'Brouillon' | 'Validé')} className="field-input appearance-none cursor-pointer">
+                    <option value="Brouillon">Brouillon</option>
+                    <option value="Validé">Validé</option>
+                  </select>
+                  <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                </div>
+              </div>
+
+              <div>
+                <label className="field-label">Statut (Automatique)</label>
+                <div className="relative">
+                  <select value={statut} disabled style={{ backgroundColor: statusColors.bg, color: statusColors.text, borderColor: statusColors.border }} className="field-input appearance-none cursor-not-allowed font-bold">
+                    <option value="Brouillon">Brouillon</option>
+                    <option value="Payé">Payé</option>
+                    <option value="Partiel">Partiel</option>
+                    <option value="Non payé">Non payé</option>
+                  </select>
+                  <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                </div>
+              </div>
+
+              <div>
+                <label className="field-label">Référence</label>
+                <input type="text" value={reference} onChange={event => setReference(event.target.value)} placeholder="N° transaction..." className="field-input" />
+              </div>
+              <div>
+                <label className="field-label">Observation</label>
+                <input type="text" value={observation} onChange={event => setObservation(event.target.value)} placeholder="Note..." className="field-input" />
+              </div>
+              <div className="mt-2 text-[14px] text-slate-500 dark:text-slate-400">
+                Période comptable : <strong className="text-slate-900 dark:text-white">{MONTHS[mois-1]} {annee}</strong>
               </div>
             </div>
           </div>
-        </form>
 
-        {/* FOOTER */}
-        <div className={`flex shrink-0 items-center justify-between border-t px-6 py-3 ${borderClass}`} style={{ background: theme.footer }}>
-          <span className="hidden text-[12px] sm:block" style={{ color: theme.subMuted }}>Échap pour fermer · Ctrl + Entrée pour enregistrer</span>
-          <div className="ml-auto flex items-center gap-2">
-            <button type="button" onClick={handleClose} className="h-9 rounded-lg px-4 text-[14.5px] font-medium transition-colors" style={{ color: theme.muted }} onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? '#1E293B' : '#F1F3F4'; e.currentTarget.style.color = theme.text; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = theme.muted; }}>Annuler</button>
-            <button type="button" onClick={() => formRef.current?.requestSubmit()} className="flex h-9 items-center gap-1.5 rounded-lg px-4 text-[14.5px] font-medium text-white shadow-sm transition-all hover:shadow-md active:scale-[0.98]" style={{ background: theme.primary }} onMouseEnter={(e) => { e.currentTarget.style.background = theme.primaryHover; }} onMouseLeave={(e) => { e.currentTarget.style.background = theme.primary; }}><Plus className="h-4 w-4" strokeWidth={2} />{editingPaiement ? 'Enregistrer' : 'Ajouter le paiement'}</button>
+          <div className="flex items-center justify-end gap-2 border-t border-slate-200 dark:border-white/[0.08] bg-slate-50/80 dark:bg-[#0F172A] px-5 py-3">
+            <button type="button" onClick={handleClose} disabled={saving} className="h-10 rounded-lg px-4 text-[15px] font-semibold text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-white/[0.06] transition">Annuler</button>
+            <button type="submit" disabled={saving} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-brand-500 px-5 text-[15px] font-semibold text-white shadow-sm hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60 transition">
+              {saving ? <><Loader2 size={15} className="animate-spin" /> Enregistrement...</> : <><Save size={15} /> {isEdit ? 'Enregistrer' : 'Créer le paiement'}</>}
+            </button>
           </div>
-        </div>
+        </form>
       </div>
-
       <style>{`
-        @keyframes modalIn { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        .custom-modal-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-modal-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-modal-scrollbar::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.25); border-radius: 999px; }
-        .custom-modal-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.4); }
-        .react-datepicker-wrapper { width: 100%; }
-        .react-datepicker-popper { z-index: 100000 !important; }
-        .react-datepicker { border-radius: 12px !important; overflow: hidden; font-family: inherit !important; box-shadow: 0 20px 50px rgba(0,0,0,0.18) !important; }
-        .react-datepicker__header { padding-top: 12px !important; }
-        .react-datepicker__current-month { font-size: 14px !important; font-weight: 600 !important; }
-        .react-datepicker__month-text { border-radius: 8px !important; margin: 4px !important; padding: 8px 4px !important; transition: all 120ms ease; }
-        .react-datepicker__month-text:hover { background: #6366F1 !important; color: white !important; }
-        .react-datepicker__month-text--selected, .react-datepicker__month-text--keyboard-selected { background: #6366F1 !important; color: white !important; font-weight: 600 !important; }
-        .dark-datepicker-popper .react-datepicker, .dark-datepicker { background-color: #0F172A !important; border-color: #334155 !important; color: #F8FAFC !important; }
-        .dark-datepicker-popper .react-datepicker__header { background-color: #111827 !important; border-color: #334155 !important; }
-        .dark-datepicker-popper .react-datepicker__current-month, .dark-datepicker-popper .react-datepicker__month-text { color: #F8FAFC !important; }
-        .dark-datepicker-popper .react-datepicker__month-text:hover { background: #6366F1 !important; color: #FFFFFF !important; }
-        .dark-datepicker-popper .react-datepicker__month-text--selected, .dark-datepicker-popper .react-datepicker__month-text--keyboard-selected { background: #6366F1 !important; color: #FFFFFF !important; }
-        .dark-datepicker-popper .react-datepicker__navigation-icon::before { border-color: #CBD5E1 !important; }
-        .light-datepicker-popper .react-datepicker, .light-datepicker { background-color: #FFFFFF !important; border-color: #E2E8F0 !important; }
-        .light-datepicker-popper .react-datepicker__header { background-color: #F8FAFC !important; border-color: #E2E8F0 !important; }
-        .light-datepicker-popper .react-datepicker__current-month, .light-datepicker-popper .react-datepicker__month-text { color: #0F172A !important; }
-        .light-datepicker-popper .react-datepicker__month-text:hover { background: #6366F1 !important; color: #FFFFFF !important; }
-        .light-datepicker-popper .react-datepicker__month-text--selected, .light-datepicker-popper .react-datepicker__month-text--keyboard-selected { background: #6366F1 !important; color: #FFFFFF !important; }
+        .field-label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 600; color: rgb(100 116 139); }
+        .dark .field-label { color: rgb(148 163 184); }
+        .field-input { width: 100%; height: 38px; border-radius: 8px; border: 1px solid #E2E8F0; background: white; padding: 0 12px; font-size: 15px; color: #0F172A; outline: none; transition: all 0.15s ease; }
+        .field-input:focus { border-color: #4F46E5; box-shadow: 0 0 0 3px rgba(79,70,229,0.10); }
+        .dark .field-input { border-color: rgba(255,255,255,0.12); background: #0F172A; color: #F8FAFC; }
+        .dark .field-input:focus { border-color: #4F46E5; box-shadow: 0 0 0 3px rgba(79,70,229,0.10); }
+        .field-input:disabled { opacity: 0.7; cursor: not-allowed; }
       `}</style>
     </div>
   );
-};
+}
 
-// ⭐ FormField - ESRINA NY ICON
-const FormField: React.FC<{ label: string; children: React.ReactNode; icon?: React.ReactNode; required?: boolean; className?: string; }> = ({ label, children, icon, required = false, className = '' }) => {
-  const { isDark } = useTheme();
-  const theme = isDark ? COLORS.dark : COLORS.light;
+function MoneyField({ label, value, onChange, emphasized = false }: { label?: string; value: number; onChange: (value: number) => void; emphasized?: boolean }) {
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
-      <label className="flex items-center gap-1.5 text-[14.5px] font-medium" style={{ color: theme.muted }}>
-        {/* ⭐ FIX: ESRINA NY ICON */}
-        <span>{label}{required && <span className="ml-1" style={{ color: theme.danger }}>*</span>}</span>
-      </label>
-      {children}
+    <div>
+      {label && <label className="field-label">{label}</label>}
+      <div className="relative">
+        <input type="number" min={0} step={1} value={value} onChange={event => onChange(Math.max(0, Number(event.target.value) || 0))} className={`field-input pr-10 ${emphasized ? 'border-brand-300 dark:border-brand-500/50' : ''}`} />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-semibold text-slate-400">Ar</span>
+      </div>
     </div>
   );
-};
+}
 
-export default PaiementsModalForm;
+function SummaryCard({ label, value, emphasized = false }: { label: string; value: number; emphasized?: boolean }) {
+  return <div className={`rounded-xl border px-4 py-3 ${emphasized ? 'border-brand-200 bg-brand-50 dark:border-brand-500/20 dark:bg-brand-500/10' : 'border-slate-200 bg-slate-50 dark:border-white/[0.08] dark:bg-white/[0.03]'}`}>
+    <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400">{label}</p>
+    <p className={`mt-1 text-[16px] font-bold ${emphasized ? 'text-brand-600 dark:text-brand-400' : 'text-slate-900 dark:text-white'}`}>{formatAriary(value)}</p>
+  </div>;
+}

@@ -1,36 +1,141 @@
-// ============================================================
-// electron/ipc/orders/validation.cjs
-// ⭐ 20M READY
-// ============================================================
+// electron/ipc/orders/validation.cjs — ORDERS VALIDATION (FIXED)
 'use strict';
-const ORDER_STATUS = Object.freeze({ PENDING: 'En attente', CONFIRMED: 'Confirmée', DELIVERED: 'Livrée', CANCELLED: 'Annulée' });
-const VALID_STATUSES = Object.freeze(Object.values(ORDER_STATUS));
 
-function normalizeStatus(statut) {
-  if (!statut) return ORDER_STATUS.PENDING;
-  const value = String(statut).trim();
-  const map = { 'En attente': ORDER_STATUS.PENDING, pending: ORDER_STATUS.PENDING, 'Confirmée': ORDER_STATUS.CONFIRMED, confirmed: ORDER_STATUS.CONFIRMED, 'Livrée': ORDER_STATUS.DELIVERED, delivered: ORDER_STATUS.DELIVERED, 'Annulée': ORDER_STATUS.CANCELLED, cancelled: ORDER_STATUS.CANCELLED };
-  return map[value] || null;
+const VALID_PAIEMENT_STATUSES = ['Payé', 'Partiel', 'Non payé'];
+
+function normalizePaiement(value) {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase();
+  switch (normalized) {
+    case 'payé': case 'paye': case 'paid': case 'payee':
+    case 'payé complet': case 'paye complet': case 'paiement complet':
+      return 'Payé';
+    case 'partiel': case 'partial': case 'partielle':
+    case 'partiellement payé': case 'partiellement paye': case 'paiement partiel':
+      return 'Partiel';
+    case 'non payé': case 'non paye': case 'unpaid':
+    case 'non_payé': case 'non_paye': case 'impayé':
+    case 'impaye': case 'en attente':
+      return 'Non payé';
+    default: return null;
+  }
+}
+
+function toNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function computePaiementStatus(totalTTC, montantPaye) {
+  const total = Math.max(0, toNumber(totalTTC));
+  const paye = Math.max(0, Math.min(total, toNumber(montantPaye)));
+  if (paye <= 0) return 'Non payé';
+  if (paye >= total) return 'Payé';
+  return 'Partiel';
+}
+
+function normalizePaymentValues(totalTTC, montantPaye) {
+  const total = Math.max(0, toNumber(totalTTC));
+  const paye = Math.max(0, Math.min(total, toNumber(montantPaye)));
+  const restant = Math.max(0, total - paye);
+  return {
+    totalTTC: Number(total.toFixed(2)),
+    montantPaye: Number(paye.toFixed(2)),
+    montantRestant: Number(restant.toFixed(2)),
+    statutPaiement: computePaiementStatus(total, paye)
+  };
+}
+
+// ⭐ NAMPIANA NY tva_rate
+function validateOrderProduct(product, index) {
+  const errors = [];
+  if (!product || typeof product !== 'object' || Array.isArray(product)) {
+    errors.push(`Produit #${index + 1} invalide`);
+    return errors;
+  }
+  const id = Number(product.id);
+  const quantity = Number(product.quantity);
+  const price = Number(product.price);
+  const tvaRate = Number(product.tva_rate);
+  
+  if (!Number.isInteger(id) || id <= 0) errors.push(`Produit #${index + 1}: ID invalide`);
+  if (!Number.isInteger(quantity) || quantity <= 0) errors.push(`Produit #${index + 1}: quantité invalide`);
+  if (!Number.isFinite(price) || price < 0) errors.push(`Produit #${index + 1}: prix invalide`);
+  if (!Number.isFinite(tvaRate)) errors.push(`Produit #${index + 1}: taux TVA invalide`);
+  return errors;
 }
 
 function validateOrder(data = {}) {
   const errors = [];
-  const clientNom = typeof data.client_nom === 'string' ? data.client_nom.trim() : '';
-  if (!clientNom) errors.push('Le nom du client est obligatoire');
-  if (!Array.isArray(data.products) || data.products.length === 0) errors.push('Au moins un produit est requis');
-  const totalHT = Number(data.total_ht ?? 0);
-  const totalTTC = Number(data.total_ttc ?? 0);
-  if (!Number.isFinite(totalHT) || totalHT < 0) errors.push('Le total HT doit être un nombre positif');
-  if (!Number.isFinite(totalTTC) || totalTTC < 0) errors.push('Le total TTC doit être un nombre positif');
-  const statut = normalizeStatus(data.statut);
-  if (!statut) errors.push(`Statut invalide: ${data.statut}`);
-  const products = Array.isArray(data.products) ? data.products.map(item => ({ id: Number(item.id), name: String(item.name || ''), price: Number(item.price), quantity: Number(item.quantity) })) : [];
-  for (const item of products) {
-    if (!Number.isInteger(item.id) || item.id <= 0) errors.push('Produit invalide');
-    if (!Number.isFinite(item.price) || item.price < 0) errors.push(`Prix invalide pour le produit ${item.id}`);
-    if (!Number.isInteger(item.quantity) || item.quantity <= 0) errors.push(`Quantité invalide pour le produit ${item.id}`);
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { valid: false, errors: ['Données commande invalides'] };
   }
-  return { valid: errors.length === 0, errors, data: { client_nom: clientNom, client_id: data.client_id ? Number(data.client_id) : null, products, total_ht: totalHT, total_ttc: totalTTC, statut } };
+  
+  const clientId = data.client_id ? Number(data.client_id) : null;
+  const clientNom = typeof data.client_nom === 'string' ? data.client_nom.trim() : '';
+
+  if (clientId !== null) {
+    if (!Number.isInteger(clientId) || clientId <= 0) {
+      errors.push('Client invalide');
+    }
+  }
+
+  if (!clientNom) {
+    errors.push('Nom client requis');
+  }
+
+  if (!Array.isArray(data.products) || data.products.length === 0) {
+    errors.push('Au moins un produit est requis');
+  } else {
+    data.products.forEach((product, index) => {
+      errors.push(...validateOrderProduct(product, index));
+    });
+  }
+
+  const totalHT = toNumber(data.total_ht);
+  const totalTTC = toNumber(data.total_ttc);
+  if (totalHT < 0) errors.push('Total HT invalide');
+  if (totalTTC < 0) errors.push('Total TTC invalide');
+
+  const montantPaye = Math.max(0, Math.min(totalTTC, toNumber(data.montant_paye)));
+  if (montantPaye < 0) errors.push('Montant payé invalide');
+  if (montantPaye > totalTTC) errors.push('Le montant payé ne peut pas dépasser le total TTC');
+
+  const payment = normalizePaymentValues(totalTTC, montantPaye);
+  const requestedStatus = normalizePaiement(data.statut_paiement);
+  
+  if (requestedStatus) {
+    payment.statutPaiement = requestedStatus;
+  }
+
+  if (errors.length > 0) return { valid: false, errors };
+  
+  return {
+    valid: true,
+    data: {
+      client_id: clientId,
+      client_nom: clientNom,
+      products: data.products.map(product => ({
+        id: Number(product.id),
+        name: typeof product.name === 'string' ? product.name.trim() : '',
+        price: Number(product.price),
+        quantity: Number(product.quantity),
+        // ⭐ NAMPIANA NY tva_rate
+        tva_rate: Number(product.tva_rate) || 0.20
+      })),
+      total_ht: Number(totalHT.toFixed(2)),
+      total_ttc: payment.totalTTC,
+      statut_paiement: payment.statutPaiement,
+      montant_paye: payment.montantPaye,
+      montant_restant: payment.montantRestant
+    }
+  };
 }
 
-module.exports = { ORDER_STATUS, VALID_STATUSES, normalizeStatus, validateOrder };
+module.exports = {
+  VALID_PAIEMENT_STATUSES,
+  normalizePaiement,
+  computePaiementStatus,
+  normalizePaymentValues,
+  validateOrder
+};

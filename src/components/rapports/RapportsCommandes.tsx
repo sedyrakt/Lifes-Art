@@ -1,12 +1,9 @@
-// ============================================================
 // src/components/rapports/RapportsCommandes.tsx
-// ⭐ FIX: ESRINA NY ICON REHETRA
-// ⭐ FIX: AHENAO NY FONTSIZE
-// ============================================================
-
+// ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
+// ⭐ FIX: DARK MODE BG = #0F172A
+// ⭐ FIX: Statut miaraka amin'ny fond couleur (Payé = Vert, Partiel = Amber, Non payé = Mena)
 import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { formatMoney } from '../../lib/formatMoney';
 
 interface Commande {
   id: number;
@@ -24,18 +21,29 @@ interface RapportsCommandesProps { commandes?: Commande[]; }
 const RapportsCommandes: React.FC<RapportsCommandesProps> = ({ commandes = [] }) => {
   const { isDark } = useTheme();
 
-  const borderColor = isDark ? 'border-white/[0.055]' : 'border-slate-200';
-  const cardBg = isDark ? 'bg-[#111c30]' : 'bg-white';
-  const shadow = isDark ? 'shadow-[0_12px_40px_rgba(0,0,0,0.18)]' : 'shadow-[0_1px_2px_rgba(15,23,42,0.04)]';
+  const borderColor = isDark ? 'border-white/[0.12]' : 'border-slate-200';
+  const cardBg = isDark ? 'bg-[#0F172A]' : 'bg-white'; // ⭐ FIX: dark bg #0F172A
+  const shadow = isDark ? 'shadow-[0_12px_40px_rgba(0,0,0,0.18)]' : 'shadow-[0_1px_2px_rgba(79,70,229,0.04)]';
 
-  const getStatusColor = (statut: string) => {
+  const getStatusBadge = (statut: string) => {
     const normalized = statut?.toLowerCase().trim();
     switch (normalized) {
-      case 'livrée': case 'livree': return 'text-emerald-400';
-      case 'confirmée': case 'confirmee': return 'text-indigo-400';
-      case 'en attente': return 'text-amber-400';
-      case 'annulée': case 'annulee': return 'text-rose-400';
-      default: return 'text-slate-400';
+      case 'payé': case 'paye':
+        return 'bg-success-500/10 text-success-600 border-success-500/20 dark:bg-success-500/15 dark:text-success-400 dark:border-success-500/30';
+      case 'partiel':
+        return 'bg-warning-500/10 text-warning-600 border-warning-500/20 dark:bg-warning-500/15 dark:text-warning-400 dark:border-warning-500/30';
+      case 'non payé': case 'non paye':
+        return 'bg-danger-500/10 text-danger-600 border-danger-500/20 dark:bg-danger-500/15 dark:text-danger-400 dark:border-danger-500/30';
+      case 'livrée': case 'livree':
+        return 'bg-success-500/10 text-success-600 border-success-500/20 dark:bg-success-500/15 dark:text-success-400 dark:border-success-500/30';
+      case 'confirmée': case 'confirmee':
+        return 'bg-brand-500/10 text-brand-600 border-brand-500/20 dark:bg-brand-500/15 dark:text-brand-400 dark:border-brand-500/30';
+      case 'en attente':
+        return 'bg-warning-500/10 text-warning-600 border-warning-500/20 dark:bg-warning-500/15 dark:text-warning-400 dark:border-warning-500/30';
+      case 'annulée': case 'annulee':
+        return 'bg-danger-500/10 text-danger-600 border-danger-500/20 dark:bg-danger-500/15 dark:text-danger-400 dark:border-danger-500/30';
+      default:
+        return 'bg-slate-500/10 text-slate-600 border-slate-500/20 dark:bg-slate-500/15 dark:text-slate-400 dark:border-slate-500/30';
     }
   };
 
@@ -50,7 +58,6 @@ const RapportsCommandes: React.FC<RapportsCommandesProps> = ({ commandes = [] })
     return (
       <div className={`relative h-full overflow-hidden rounded-xl border ${borderColor} ${cardBg} ${shadow}`}>
         <div className="flex min-h-[280px] flex-col items-center justify-center px-6 text-center">
-          {/* ⭐ FIX: ESRINA NY ICON */}
           <h3 className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">Aucune commande récente</h3>
           <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">Les commandes apparaîtront ici une fois qu'elles auront été enregistrées.</p>
         </div>
@@ -62,14 +69,12 @@ const RapportsCommandes: React.FC<RapportsCommandesProps> = ({ commandes = [] })
     <div className={`relative h-full overflow-hidden rounded-xl border ${borderColor} ${cardBg} ${shadow}`}>
       <div className="relative">
         <div className={`flex items-center justify-between border-b ${borderColor} px-4 py-3.5`}>
-          {/* ⭐ FIX: AHENAO NY FONTSIZE */}
           <h2 className="text-[14px] font-semibold text-slate-900 dark:text-slate-100">Commandes récentes</h2>
           <span className="text-[11px] text-slate-400 dark:text-slate-500">Dernières {commandes.length}</span>
         </div>
 
         <div className="overflow-x-auto custom-scrollbar">
           <div className="min-w-[600px]">
-            {/* HEADER */}
             <div className={`grid grid-cols-[minmax(180px,1.4fr)_100px_125px_100px] gap-2 border-b ${borderColor} px-4 py-2.5 text-[13px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-500`}>
               <span>N° Commande</span>
               <span className="text-right">Client</span>
@@ -77,27 +82,18 @@ const RapportsCommandes: React.FC<RapportsCommandesProps> = ({ commandes = [] })
               <span className="text-right">Statut</span>
             </div>
 
-            {/* ROWS */}
             <div>
               {commandes.map((cmd, index) => {
-                const statusColor = getStatusColor(cmd.statut);
+                const statusBadge = getStatusBadge(cmd.statut);
                 const numeroAffichage = cmd.commande_numero || cmd.numero || `#${String(cmd.id).padStart(4, '0')}`;
 
                 return (
-                  <div key={cmd.id} className={`grid grid-cols-[minmax(180px,1.4fr)_100px_125px_100px] gap-2 border-b ${borderColor} px-4 py-3 last:border-b-0 hover:bg-white/[0.03]`}>
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      {/* ⭐ FIX: ESRINA NY ICON */}
-                      <span className="truncate text-[14px] font-medium text-slate-900 dark:text-slate-200">
-                        {numeroAffichage}
-                      </span>
-                    </div>
-                    <span className="self-center text-right text-[13px] text-slate-700 dark:text-slate-400">
-                      {cmd.client_nom || 'Client inconnu'}
-                    </span>
-                    <span className="self-center text-right text-[13px] text-slate-600 dark:text-slate-300">
-                      {formatMoney(cmd.total_ttc || 0)}
-                    </span>
-                    <span className={`self-center text-right text-[13px] font-semibold ${statusColor}`}>
+                  <div key={cmd.id} className={`grid grid-cols-[minmax(180px,1.4fr)_100px_125px_100px] gap-2 border-b ${borderColor} px-4 py-3 last:border-b-0 hover:bg-slate-50 dark:hover:bg-slate-700/30`}>
+                    <span className="truncate text-[14px] font-medium text-slate-900 dark:text-slate-100">{numeroAffichage}</span>
+                    <span className="self-center text-right text-[13px] text-slate-700 dark:text-slate-400">{cmd.client_nom || 'Client inconnu'}</span>
+                    <span className="self-center text-right text-[13px] text-slate-600 dark:text-slate-300">{`${Number(cmd.total_ttc || 0).toLocaleString('fr-FR')} Ar`}</span>
+                    
+                    <span className={`self-center justify-self-end rounded-md border px-2.5 py-1 text-[11px] font-semibold ${statusBadge}`}>
                       {cmd.statut || '—'}
                     </span>
                   </div>
@@ -105,15 +101,9 @@ const RapportsCommandes: React.FC<RapportsCommandesProps> = ({ commandes = [] })
               })}
             </div>
 
-            {/* FOOTER */}
-            <div className={`flex items-center justify-between border-t ${borderColor} bg-white/[0.03] px-4 py-3`}>
-              {/* ⭐ FIX: AHENAO NY FONTSIZE */}
-              <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">
-                {commandes.length} commande{commandes.length > 1 ? 's' : ''} affichée{commandes.length > 1 ? 's' : ''}
-              </span>
-              <span className="flex items-center gap-1.5 text-[13px] font-medium text-emerald-600 dark:text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />À jour
-              </span>
+            <div className={`flex items-center justify-between border-t ${borderColor} bg-slate-50/30 dark:bg-slate-700/20 px-4 py-3`}>
+              <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">{commandes.length} commande{commandes.length > 1 ? 's' : ''} affichée{commandes.length > 1 ? 's' : ''}</span>
+              <span className="flex items-center gap-1.5 text-[13px] font-medium text-success-600 dark:text-success-400"><span className="h-2 w-2 rounded-full bg-success-500" />À jour</span>
             </div>
           </div>
         </div>
@@ -122,8 +112,8 @@ const RapportsCommandes: React.FC<RapportsCommandesProps> = ({ commandes = [] })
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 999px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(79,70,229,0.25); border-radius: 999px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(79,70,229,0.45); }
       `}</style>
     </div>
   );

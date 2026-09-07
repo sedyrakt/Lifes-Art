@@ -9,37 +9,90 @@ interface ClientsPaginationProps {
   onPageChange: (page: number) => void;
 }
 
-const ClientsPagination: React.FC<ClientsPaginationProps> = ({ currentPage, totalPages, totalItems, onPageChange }) => {
+const ClientsPagination: React.FC<ClientsPaginationProps> = ({
+  currentPage,
+  totalPages,
+  totalItems,
+  onPageChange,
+}) => {
   const { isDark } = useTheme();
-  const theme = isDark ? { border: '#334155', text: '#F8FAFC', muted: '#94A3B8', primary: '#6366F1', surface: 'rgba(255,255,255,0.03)' } : { border: '#E2E8F0', text: '#0F172A', muted: '#64748B', primary: '#6366F1', surface: '#FFFFFF' };
 
-  // ⭐ BLOC 7: 1-7, 8-14, 15-21...
   const pages = useMemo<number[]>(() => {
     if (totalPages <= 1) return [];
-    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
     const blockSize = 7;
     const blockIndex = Math.floor((currentPage - 1) / blockSize);
     const startPage = blockIndex * blockSize + 1;
     const endPage = Math.min(startPage + blockSize - 1, totalPages);
+
     return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
   }, [currentPage, totalPages]);
 
-  if (totalPages <= 1) return null;
+  if (totalItems === 0 || totalPages === 0) return null;
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages && page !== currentPage) {
+      onPageChange(page);
+    }
+  };
+
+  const textColor = isDark ? 'text-gray-400' : 'text-gray-500';
+  const textColorHighlight = isDark ? 'text-gray-100' : 'text-gray-900';
+  const borderColor = isDark ? 'border-white/[0.12]' : 'border-gray-200';
+  const hoverBg = isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-50';
 
   return (
-    <div className="flex w-full flex-col items-center justify-between gap-3 px-1 sm:flex-row">
-      <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: theme.muted }}>
-        Total : <span className="font-black" style={{ color: theme.text }}>{totalItems}</span> clients
+    <div className="flex w-full items-center justify-between px-1 py-3">
+      
+      <div className={`text-[12px] font-bold uppercase tracking-widest ${textColor}`}>
+        Total : <span className={textColorHighlight}>{totalItems}</span> CLIENT{totalItems > 1 ? 'S' : ''}
       </div>
+
       <div className="flex items-center gap-1.5">
-        <button type="button" onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-all duration-200 hover:bg-indigo-500/10 hover:border-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-30" style={{ borderColor: theme.border, color: theme.muted, background: theme.surface }}><ChevronLeft size={16} /></button>
-        {pages.map(page => {
-          const active = currentPage === page;
-          return (<button key={page} type="button" onClick={() => onPageChange(page)} aria-current={active ? 'page' : undefined} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border text-xs font-bold shadow-sm transition-all duration-200 active:scale-95" style={{ background: active ? theme.primary : theme.surface, color: active ? '#FFFFFF' : theme.text, borderColor: active ? theme.primary : theme.border }}>{page}</button>);
+        
+        <button
+          onClick={() => goToPage(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`flex h-8 w-8 items-center justify-center rounded-xl border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${borderColor} bg-transparent ${hoverBg}`}
+          style={{ color: isDark ? '#B0B0B0' : '#64748B' }}
+          aria-label="Page précédente"
+        >
+          <ChevronLeft size={15} />
+        </button>
+
+        {pages.map((page) => {
+          const isActive = page === currentPage;
+          return (
+            <button
+              key={page}
+              onClick={() => goToPage(page)}
+              className={`flex h-8 min-w-[32px] items-center justify-center rounded-xl px-2 text-[13.5px] font-bold transition-all ${
+                isActive
+                  ? 'border-brand-500 bg-brand-500 text-white shadow-sm'
+                  : `border bg-transparent ${borderColor} ${hoverBg}`
+              }`}
+              style={{ color: isActive ? '#FFFFFF' : (isDark ? '#B0B0B0' : '#475569') }}
+            >
+              {page}
+            </button>
+          );
         })}
-        <button type="button" onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-all duration-200 hover:bg-indigo-500/10 hover:border-indigo-500/30 disabled:cursor-not-allowed disabled:opacity-30" style={{ borderColor: theme.border, color: theme.muted, background: theme.surface }}><ChevronRight size={16} /></button>
+
+        <button
+          onClick={() => goToPage(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`flex h-8 w-8 items-center justify-center rounded-xl border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${borderColor} bg-transparent ${hoverBg}`}
+          style={{ color: isDark ? '#B0B0B0' : '#64748B' }}
+          aria-label="Page suivante"
+        >
+          <ChevronRight size={15} />
+        </button>
       </div>
     </div>
   );
 };
+
 export default ClientsPagination;

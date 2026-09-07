@@ -1,6 +1,7 @@
 // ============================================================
 // electron/ipc/fournisseurs/statements.cjs - CORRIGÉ
 // ⭐ FIX: stmtGetStats mamerina total, avec_contact, avec_email
+// ⭐ FIX: NESORINA NY image
 // ============================================================
 'use strict';
 
@@ -23,13 +24,17 @@ function prepareStatements() {
     db.exec('CREATE INDEX IF NOT EXISTS idx_fournisseurs_created ON fournisseurs(created_at)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_fournisseurs_telephone ON fournisseurs(telephone)');
 
-    stmtGetById = db.prepare('SELECT id, nom, contact, telephone, email, adresse, image, created_at, updated_at FROM fournisseurs WHERE id = ?');
+    // ⭐ NESORINA NY image
+    stmtGetById = db.prepare('SELECT id, nom, contact, telephone, email, adresse, created_at, updated_at FROM fournisseurs WHERE id = ?');
     stmtGetByName = db.prepare('SELECT id FROM fournisseurs WHERE LOWER(nom) = LOWER(?)');
     stmtGetByNameExcept = db.prepare('SELECT id FROM fournisseurs WHERE LOWER(nom) = LOWER(?) AND id != ?');
-    stmtGetByEmail = db.prepare('SELECT id, nom, contact, telephone, email, adresse, image FROM fournisseurs WHERE LOWER(email) = LOWER(?)');
+    // ⭐ NESORINA NY image
+    stmtGetByEmail = db.prepare('SELECT id, nom, contact, telephone, email, adresse FROM fournisseurs WHERE LOWER(email) = LOWER(?)');
     stmtGetByEmailExcept = db.prepare('SELECT id FROM fournisseurs WHERE LOWER(email) = LOWER(?) AND id != ?');
-    stmtCreate = db.prepare("INSERT INTO fournisseurs (nom, contact, telephone, email, adresse, image, created_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))");
-    stmtUpdate = db.prepare('UPDATE fournisseurs SET nom = ?, contact = ?, telephone = ?, email = ?, adresse = ?, image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+    // ⭐ NESORINA NY image
+    stmtCreate = db.prepare("INSERT INTO fournisseurs (nom, contact, telephone, email, adresse, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))");
+    // ⭐ NESORINA NY image
+    stmtUpdate = db.prepare('UPDATE fournisseurs SET nom = ?, contact = ?, telephone = ?, email = ?, adresse = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
     stmtDelete = db.prepare('DELETE FROM fournisseurs WHERE id = ?');
     stmtProductCount = db.prepare('SELECT COUNT(*) as total FROM produits WHERE fournisseur_id = ?');
     stmtExpenseCount = db.prepare('SELECT COUNT(*) as total FROM depenses WHERE fournisseur_id = ?');

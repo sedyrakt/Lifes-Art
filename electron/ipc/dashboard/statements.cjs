@@ -62,7 +62,7 @@ function prepareStatements() {
         (SELECT COUNT(*) FROM produits WHERE status != 'archive') AS totalProduits,
         (SELECT COALESCE(SUM(quantite_stock), 0) FROM produits) AS stockTotal,
         (SELECT COUNT(*) FROM commandes) AS commandesTotal,
-        (SELECT COALESCE(SUM(total_ttc), 0) FROM commandes WHERE statut != 'Annulée') AS chiffreAffaires,
+        (SELECT COALESCE(SUM(total_ttc), 0) FROM commandes WHERE statut_paiement != 'Non payé') AS chiffreAffaires,
         (SELECT COALESCE(SUM(montant), 0) FROM depenses) AS depenses,
         (SELECT COALESCE(SUM(montant), 0) FROM paiements_employes) AS salaires,
         (SELECT COUNT(*) FROM clients) AS totalClients
@@ -73,7 +73,7 @@ function prepareStatements() {
     // ==========================================================
     stmtQuickStats = getStatement(db, `
       SELECT
-        (SELECT COUNT(*) FROM commandes WHERE statut = 'En attente') AS commandesEnAttente,
+        (SELECT COUNT(*) FROM commandes WHERE statut_paiement = 'Non payé') AS commandesEnAttente,
         (SELECT COUNT(*) FROM produits WHERE quantite_stock <= 0 AND status = 'actif') AS ruptureStock,
         (SELECT COUNT(*) FROM produits WHERE quantite_stock > 0 AND quantite_stock <= quantite_minimale AND status = 'actif') AS alertesStock,
         (SELECT COUNT(*) FROM produits WHERE quantite_stock > quantite_minimale AND status = 'actif') AS stockNormal
@@ -84,7 +84,7 @@ function prepareStatements() {
     // ==========================================================
     stmtFinancialSummary = getStatement(db, `
       SELECT
-        COALESCE((SELECT SUM(total_ttc) FROM commandes WHERE statut != 'Annulée'), 0) AS chiffreAffaires,
+        COALESCE((SELECT SUM(total_ttc) FROM commandes WHERE statut_paiement != 'Non payé'), 0) AS chiffreAffaires,
         COALESCE((SELECT SUM(montant) FROM depenses), 0) AS depenses,
         COALESCE((SELECT SUM(montant) FROM paiements_employes), 0) AS salaires
     `);
@@ -95,7 +95,7 @@ function prepareStatements() {
     stmtChartCommandes = getStatement(db, `
       SELECT strftime('%m', date_commande) AS mois, COUNT(*) AS nb_commandes,
              COALESCE(SUM(total_ttc), 0) AS total_ventes
-      FROM commandes WHERE statut != 'Annulée' AND strftime('%Y', date_commande) = ?
+      FROM commandes WHERE statut_paiement != 'Non payé' AND strftime('%Y', date_commande) = ?
       GROUP BY strftime('%m', date_commande) ORDER BY mois
     `);
 
@@ -133,7 +133,7 @@ function prepareStatements() {
     stmtChartTopClients = getStatement(db, `
       SELECT c.nom AS client_nom, COALESCE(SUM(cmd.total_ttc), 0) AS total_achats
       FROM clients c INNER JOIN commandes cmd ON c.id = cmd.client_id
-      WHERE cmd.statut != 'Annulée'
+      WHERE cmd.statut_paiement != 'Non payé'
       GROUP BY c.id, c.nom ORDER BY total_achats DESC LIMIT 5
     `);
 
@@ -146,14 +146,14 @@ function prepareStatements() {
 
     // ⭐ VAOVAO: CHART: COMMANDES PAR STATUT
     stmtChartCommandesStatut = getStatement(db, `
-      SELECT statut, COUNT(*) AS nb FROM commandes GROUP BY statut
+      SELECT statut_paiement, COUNT(*) AS nb FROM commandes GROUP BY statut_paiement
     `);
 
     // ==========================================================
     // COMMANDES RÉCENTES
     // ==========================================================
     stmtRecentOrders = getStatement(db, `
-      SELECT id, client_nom, total, statut, date_commande
+      SELECT id, client_nom, total, statut_paiement, date_commande
       FROM commandes ORDER BY date_commande DESC LIMIT 5
     `);
 

@@ -1,4 +1,8 @@
 // src/hooks/useProduitsData.ts
+// ⭐ PERFORMANCE: useMemo / useCallback / useRef / Debounce 300ms
+// ⭐ CRUD OPTIMIZED + CODE SPLITTING
+// ⭐ FIX: NESORINA NY UPLOAD IMAGE SY NY CHARGEMENT SARY
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const ITEMS_PER_PAGE = 8;
@@ -10,6 +14,8 @@ const SORT_MAP = {
   'Prix (Décroissant)': { field: 'prix_vente', direction: 'DESC' },
   'Stock (Croissant)': { field: 'quantite_stock', direction: 'ASC' },
   'Stock (Décroissant)': { field: 'quantite_stock', direction: 'DESC' },
+  // ✅ Ajout: Nouveaux d'abord
+  'Nouveaux d\'abord': { field: 'id', direction: 'DESC' },
 } as const;
 
 type SortOption = keyof typeof SORT_MAP;
@@ -27,14 +33,11 @@ interface ProduitFilters {
 interface ApiResponse { success?: boolean; data?: any; pagination?: any; error?: string; }
 
 export const useProduitsData = () => {
-  // ✅ FIX: HOOKS REHETRA ETO AMBONY (TSY MISY CONDITION)
   const isMounted = useRef(true);
   const fetchLock = useRef(false);
   const firstLoadDone = useRef(false);
   const referencesLoaded = useRef(false);
   const loadDataRef = useRef<() => Promise<void>>(async () => {});
-  const loadedImageIds = useRef<Set<number>>(new Set());
-  const imageLoadingIds = useRef<Set<number>>(new Set());
 
   const [produits, setProduits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +46,6 @@ export const useProduitsData = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   
-  // ⭐ FIX: Ny filters dia manana valeur par défaut
   const [filters, setFilters] = useState<ProduitFilters>({
     searchTerm: '',
     filterCategorie: '',
@@ -54,9 +56,8 @@ export const useProduitsData = () => {
     dateTo: '',
   });
 
-  const [sortOption, setSortOption] = useState<SortOption>('Nom (A-Z)');
-  const [imageUrls, setImageUrls] = useState<Record<number, string | null>>({});
-  const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
+  // ✅ Changé: default sort = "Nouveaux d'abord"
+  const [sortOption, setSortOption] = useState<SortOption>('Nouveaux d\'abord');
   const [categories, setCategories] = useState<any[]>([]);
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -69,18 +70,17 @@ export const useProduitsData = () => {
     };
   }, []);
 
-  // ⭐ FIX: Miaro amin'ny undefined
+  // ⭐ FIX: Debounce 300ms
   useEffect(() => {
     const timer = setTimeout(() => {
       if (isMounted.current) {
-        const searchTerm = filters?.searchTerm || ''; // ⭐ FIX
+        const searchTerm = filters?.searchTerm || ''; 
         setDebouncedSearch(searchTerm.trim());
       }
     }, 300);
     return () => clearTimeout(timer);
   }, [filters?.searchTerm]);
 
-  // Normalisation
   const normalizeCategory = useCallback((item: any): { id: number; nom: string } | null => {
     if (!item) return null;
     const id = Number(item.id);
@@ -97,7 +97,6 @@ export const useProduitsData = () => {
     return { id, nom };
   }, []);
 
-  // Extraction de tableau depuis la réponse API
   const extractArray = useCallback((response: ApiResponse | null | undefined, specificKey?: string): any[] => {
     if (!response) return [];
     if (Array.isArray(response.data)) return response.data;
@@ -108,11 +107,9 @@ export const useProduitsData = () => {
     return [];
   }, []);
 
-  // Chargement des références
   const loadReferences = useCallback(async (force = false) => {
     if (referencesLoaded.current && !force) return;
     try {
-      // Catégories
       if (window.api?.categories?.getAll) {
         try {
           const result = await window.api.categories.getAll({ page: 1, limit: 10000 });
@@ -133,7 +130,6 @@ export const useProduitsData = () => {
         if (isMounted.current) setCategories([]);
       }
 
-      // Fournisseurs
       if (window.api?.fournisseurs?.getAll) {
         try {
           const result = await window.api.fournisseurs.getAll({ page: 1, limit: 10000 });
@@ -160,7 +156,6 @@ export const useProduitsData = () => {
     }
   }, [extractArray, normalizeCategory, normalizeFournisseur]);
 
-  // Chargement initial des références
   useEffect(() => {
     let cancelled = false;
     const loadInitial = async () => { if (!cancelled) await loadReferences(false); };
@@ -168,7 +163,6 @@ export const useProduitsData = () => {
     return () => { cancelled = true; };
   }, [loadReferences]);
 
-  // Chargement des produits
   const loadProduits = useCallback(async (isRefresh = false) => {
     if (fetchLock.current) return;
     fetchLock.current = true;
@@ -232,39 +226,6 @@ export const useProduitsData = () => {
     if (isMounted.current && firstLoadDone.current) loadDataRef.current(false);
   }, [currentPage]);
 
-  // Images
-  const loadImageUrl = useCallback(async (produit: any) => {
-    if (!produit?.id || !produit?.image) return;
-    if (loadedImageIds.current.has(produit.id) || imageLoadingIds.current.has(produit.id)) return;
-    imageLoadingIds.current.add(produit.id);
-    try {
-      if (!window.api?.images?.getUrl) return;
-      const result = await window.api.images.getUrl(produit.image);
-      const url = result?.success && typeof result.data === 'string' ? result.data : null;
-      if (!url) {
-        if (isMounted.current) setImageErrors(prev => ({ ...prev, [produit.id]: true }));
-        return;
-      }
-      if (!isMounted.current) return;
-      setImageUrls(prev => ({ ...prev, [produit.id]: url }));
-      setImageErrors(prev => { const next = { ...prev }; delete next[produit.id]; return next; });
-      loadedImageIds.current.add(produit.id);
-    } catch (error) {
-      console.error('❌ [Produits] loadImageUrl:', error);
-      if (isMounted.current) setImageErrors(prev => ({ ...prev, [produit.id]: true }));
-    } finally {
-      imageLoadingIds.current.delete(produit.id);
-    }
-  }, []);
-
-  const handleImageError = useCallback((id: number) => {
-    loadedImageIds.current.delete(id);
-    imageLoadingIds.current.delete(id);
-    setImageErrors(prev => ({ ...prev, [id]: true }));
-    setImageUrls(prev => { const next = { ...prev }; delete next[id]; return next; });
-  }, []);
-
-  // Stats
   const getStats = useCallback(async () => {
     if (!window.api?.products?.getStats) throw new Error('API products.getStats tsy hita');
     const result = await window.api.products.getStats();
@@ -272,7 +233,6 @@ export const useProduitsData = () => {
     return result.data || {};
   }, []);
 
-  // Actions
   const loadData = useCallback(async () => { setCurrentPage(1); }, []);
   const refresh = useCallback(async () => {
     await loadReferences(true);
@@ -290,6 +250,8 @@ export const useProduitsData = () => {
     if (!window.api?.products?.create) throw new Error('API products.create indisponible');
     const result = await window.api.products.create(data);
     if (!result?.success) throw new Error(result?.error || 'Erreur création produit');
+    // ⭐ (Optionnel) Mamerina ny sort ho "Nouveaux d'abord" rehefa vita
+    // setSortOption('Nouveaux d\'abord');
     await loadDataRef.current(true);
     return result.data;
   }, []);
@@ -298,10 +260,6 @@ export const useProduitsData = () => {
     if (!window.api?.products?.update) throw new Error('API products.update indisponible');
     const result = await window.api.products.update(id, data);
     if (!result?.success) throw new Error(result?.error || 'Erreur mise à jour produit');
-    loadedImageIds.current.delete(id);
-    imageLoadingIds.current.delete(id);
-    setImageUrls(prev => { const next = { ...prev }; delete next[id]; return next; });
-    setImageErrors(prev => { const next = { ...prev }; delete next[id]; return next; });
     await loadDataRef.current(true);
     return result.data;
   }, []);
@@ -310,10 +268,6 @@ export const useProduitsData = () => {
     if (!window.api?.products?.delete) throw new Error('API products.delete indisponible');
     const result = await window.api.products.delete(id);
     if (!result?.success) throw new Error(result?.error || 'Erreur suppression produit');
-    loadedImageIds.current.delete(id);
-    imageLoadingIds.current.delete(id);
-    setImageUrls(prev => { const next = { ...prev }; delete next[id]; return next; });
-    setImageErrors(prev => { const next = { ...prev }; delete next[id]; return next; });
     await loadDataRef.current(true);
     return result;
   }, []);
@@ -324,9 +278,6 @@ export const useProduitsData = () => {
     if (!validIds.length) throw new Error('Aucun produit valide');
     const result = await window.api.products.bulkDelete(validIds);
     if (!result?.success) throw new Error(result?.error || 'Erreur suppression lot');
-    validIds.forEach(id => { loadedImageIds.current.delete(id); imageLoadingIds.current.delete(id); });
-    setImageUrls(prev => { const next = { ...prev }; validIds.forEach(id => delete next[id]); return next; });
-    setImageErrors(prev => { const next = { ...prev }; validIds.forEach(id => delete next[id]); return next; });
     await loadDataRef.current(true);
     return result;
   }, []);
@@ -340,23 +291,6 @@ export const useProduitsData = () => {
     const result = await window.api.products.bulkUpdateStatus(validIds, status);
     if (!result?.success) throw new Error(result?.error || 'Erreur mise à jour lot');
     await loadDataRef.current(true);
-    return result;
-  }, []);
-
-  // Images upload/delete
-  const uploadImage = useCallback(async (base64: string) => {
-    if (!window.api?.images?.upload) throw new Error('API images.upload indisponible');
-    if (!base64) throw new Error('Image invalide');
-    const result = await window.api.images.upload(base64, 'produits');
-    if (!result?.success) throw new Error(result?.error || 'Erreur upload image');
-    return result.data;
-  }, []);
-
-  const deleteImage = useCallback(async (path: string) => {
-    if (!window.api?.images?.delete) throw new Error('API images.delete indisponible');
-    if (!path) return null;
-    const result = await window.api.images.delete(path);
-    if (!result?.success) throw new Error(result?.error || 'Erreur suppression image');
     return result;
   }, []);
 
@@ -387,10 +321,6 @@ export const useProduitsData = () => {
     loadReferences,
     refresh,
     loadData,
-    imageUrls,
-    imageErrors,
-    loadImageUrl,
-    handleImageError,
     getStats,
     generateCode,
     createProduit,
@@ -398,8 +328,6 @@ export const useProduitsData = () => {
     deleteProduit,
     bulkDelete,
     bulkUpdateStatus,
-    uploadImage,
-    deleteImage,
     getProduitById,
   };
 };

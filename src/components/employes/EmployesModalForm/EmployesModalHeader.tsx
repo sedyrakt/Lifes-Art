@@ -1,13 +1,18 @@
+// src/components/employes/EmployesModalHeader.tsx
+// ⭐ BRAND BLEU + GRIS FONCÉ DARK MODE
 import React from 'react';
 import { X, UserRound } from 'lucide-react';
 
-interface EmployesModalHeaderProps { editingEmploye: any | null; onClose: () => void; isDark: boolean; }
+interface EmployesModalHeaderProps {
+  editingEmploye: any | null;
+  onClose: () => void;
+  isDark: boolean;
+}
 
 const EmployesModalHeader: React.FC<EmployesModalHeaderProps> = ({ editingEmploye, onClose, isDark }) => {
-  // ⭐ Boridy mifanaraka amin'ny gray-300 / slate-700
   const theme = isDark
-    ? { surface: '#0F172A', border: '#334155', text: '#F8FAFC', muted: '#94A3B8', primary: '#818CF8', primarySoft: 'rgba(99,102,241,0.12)' }
-    : { surface: '#FFFFFF', border: '#D1D5DB', text: '#0F172A', muted: '#64748B', primary: '#6366F1', primarySoft: 'rgba(99,102,241,0.07)' };
+    ? { surface: '#2A2A2A', border: 'rgba(255,255,255,0.12)', text: '#FDE2E4', muted: '#B0B0B0', primary: '#0d80d2', primarySoft: 'rgba(13,128,210,0.1)' }
+    : { surface: '#FFFFFF', border: '#E2E8F0', text: '#264653', muted: '#64748B', primary: '#0d80d2', primarySoft: 'rgba(13,128,210,0.08)' };
 
   return (
     <header className="flex shrink-0 items-center justify-between gap-4 border-b px-5 py-3.5 sm:px-6" style={{ background: theme.surface, borderColor: theme.border }}>
@@ -24,10 +29,11 @@ const EmployesModalHeader: React.FC<EmployesModalHeaderProps> = ({ editingEmploy
           </p>
         </div>
       </div>
-      <button type="button" onClick={onClose} aria-label="Fermer" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-150 active:scale-95" style={{ color: theme.muted }} onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9'; e.currentTarget.style.color = theme.text; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = theme.muted; }}>
+      <button type="button" onClick={onClose} aria-label="Fermer" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-150 active:scale-95" style={{ color: theme.muted }} onMouseEnter={(e) => { e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.06)' : '#F0F7FD'; e.currentTarget.style.color = theme.text; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = theme.muted; }}>
         <X className="h-[18px] w-[18px]" strokeWidth={2} />
       </button>
     </header>
   );
 };
+
 export default EmployesModalHeader;

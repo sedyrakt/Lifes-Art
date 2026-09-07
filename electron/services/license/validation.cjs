@@ -1,57 +1,52 @@
+// electron/services/license/validation.cjs
+// ⭐ FIX: Mampiseho activatedAt ao amin'ny status
 'use strict';
 
 const fs = require('fs');
 const { GRACE_PERIOD_DAYS } = require('./constants.cjs');
 const { getLicensePath } = require('./utils.cjs');
 const { decryptData, verifyRSASignature } = require('./crypto.cjs');
+const { verifyMachineBinding } = require('./machine.cjs');
 
 function checkExpiration(expirationDate, packageType = null, activatedAt = null) {
-  if (!expirationDate) {
-    return { valid: false, status: 'invalid', daysRemaining: 0 };
-  }
+  if (!expirationDate) return { valid: false, status: 'invalid', daysRemaining: 0 };
 
   const now = new Date();
-  const isTest = (packageType === 'test');
+  const isTest = (packageType === 'test' || packageType === 'testpro');
 
-  if (isTest && activatedAt) {
-    const activationTime = new Date(activatedAt);
-    const elapsedMinutes = (now.getTime() - activationTime.getTime()) / (1000 * 60);
-    const minutesRemaining = Math.ceil(30 - elapsedMinutes);
+  if (isTest) {
+    // Raha test, dia mampiasa activatedAt na issuedAt
+    const effectiveActivation = activatedAt || null;
+    if (!effectiveActivation) {
+      const expDate = new Date(expirationDate);
+      if (expDate > now) {
+        const minutesRemaining = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60));
+        return { valid: true, status: 'active', daysRemaining: 0, minutesRemaining, isTest: true };
+      }
+      return { valid: false, status: 'expired', daysRemaining: 0, isTest: true, minutesRemaining: 0 };
+    }
+
+    const activationTime = new Date(effectiveActivation);
+    let elapsedMinutes = (now.getTime() - activationTime.getTime()) / (1000 * 60);
+    let maxMinutes = 30; // default test
+    if (packageType === 'testpro') maxMinutes = 24 * 60;
+
+    let minutesRemaining = Math.ceil(maxMinutes - elapsedMinutes);
 
     if (minutesRemaining > 0) {
-      return {
-        valid: true,
-        status: 'active',
-        daysRemaining: 0,
-        minutesRemaining,
-        isTest: true,
-      };
-    } else {
-      return {
-        valid: false,
-        status: 'expired',
-        daysRemaining: 0,
-        isTest: true,
-        minutesRemaining: 0,
-      };
+      return { valid: true, status: 'active', daysRemaining: 0, minutesRemaining, isTest: true };
     }
+    return { valid: false, status: 'expired', daysRemaining: 0, isTest: true, minutesRemaining: 0 };
   }
 
   const expDate = new Date(expirationDate);
   const graceEnd = getGracePeriodEnd(expirationDate);
 
-  if (packageType === 'centralized' && expirationDate) {
-    try {
-      if (expDate.getFullYear() >= 2099) {
-        return { valid: true, status: 'lifetime', daysRemaining: 9999, isLifetime: true };
-      }
-    } catch (_) {}
+  if (packageType === 'centralized') {
+    if (expDate.getFullYear() >= 2099) return { valid: true, status: 'lifetime', daysRemaining: 9999, isLifetime: true };
   }
 
-  if (now > graceEnd) {
-    return { valid: false, status: 'expired', daysRemaining: 0 };
-  }
-
+  if (now > graceEnd) return { valid: false, status: 'expired', daysRemaining: 0 };
   if (now > expDate) {
     const daysRemaining = Math.ceil((graceEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     return { valid: true, status: 'grace', daysRemaining };
@@ -69,12 +64,10 @@ function getGracePeriodEnd(expirationDate) {
   return grace;
 }
 
-// ⭐ FANITSARA: Mifanaraka amin'ny Generator - TSY misy isLifetime/isTest
 function checkSignature(licenseData) {
-  if (!licenseData) return false;
-  if (!licenseData.signature) return false;
+  if (!licenseData || !licenseData.signature) return false;
 
-  const payload = {
+  const payload = licenseData.signedPayload || {
     licenseId: licenseData.licenseId || '',
     activationId: licenseData.activationId || '',
     licenseKey: licenseData.licenseKey || '',
@@ -85,67 +78,63 @@ function checkSignature(licenseData) {
     maxProducts: licenseData.maxProducts ?? -1,
     maxClients: licenseData.maxClients ?? -1,
   };
+
   return verifyRSASignature(payload, licenseData.signature);
 }
 
 function checkLicenseStatus() {
   try {
     const filePath = getLicensePath();
-    if (!fs.existsSync(filePath)) {
-      return { success: true, exists: false, message: 'Aucune licence trouvée' };
-    }
+    if (!fs.existsSync(filePath)) return { success: true, exists: false, message: 'Aucune licence trouvée' };
 
     const data = fs.readFileSync(filePath, 'utf-8');
     const decrypted = decryptData(data);
-    if (!decrypted) {
-      return { success: false, error: 'Données corrompues' };
+
+    if (!decrypted) return { success: false, error: 'Données corrompues ou licence liée à une autre machine' };
+
+    if (decrypted.machineId && !verifyMachineBinding(decrypted.machineId)) {
+      return { success: true, exists: true, isValid: false, message: 'Licence non valide pour cette machine' };
     }
 
-    const license = decrypted;
-    if (!license.signature) {
-      return { success: true, exists: true, isValid: false, message: 'Signature RSA manquante' };
-    }
+    if (!decrypted.signature) return { success: true, exists: true, isValid: false, message: 'Signature RSA manquante' };
 
-    if (!checkSignature(license)) {
-      return { success: true, exists: true, isValid: false, message: 'Signature RSA invalide' };
-    }
+    if (!checkSignature(decrypted)) return { success: true, exists: true, isValid: false, message: 'Signature RSA invalide' };
 
-    const activatedAt = license.activatedAt || license.issuedAt || null;
-    const expiration = checkExpiration(license.expirationDate, license.packageType, activatedAt);
+    const activatedAt = decrypted.activatedAt || decrypted.issuedAt || null;
+    const expiration = checkExpiration(decrypted.expirationDate, decrypted.packageType, activatedAt);
 
     let isValid = expiration.valid;
     let message = 'Licence valide';
     let daysRemaining = expiration.daysRemaining;
     let minutesRemaining = expiration.minutesRemaining;
 
-    if (!isValid) {
-      message = 'Licence expirée';
-    } else if (expiration.isTest) {
-      message = `🧪 TEST: ${minutesRemaining} min restantes`;
-    } else if (expiration.status === 'grace') {
-      message = `⚠️ Grace period: ${daysRemaining} jours restants`;
-    } else if (expiration.status === 'lifetime') {
-      message = '✅ Licence illimitée (Lifetime)';
-    } else if (daysRemaining <= 7) {
-      message = `⚠️ Licence expire dans ${daysRemaining} jours`;
-    }
+    if (!isValid) message = 'Licence expirée';
+    else if (expiration.isTest) {
+      if (decrypted.packageType === 'testpro') message = `🧪 TEST-PRO: ${minutesRemaining} min restantes (24h)`;
+      else message = `🧪 TEST: ${minutesRemaining} min restantes`;
+    } else if (expiration.status === 'grace') message = `⚠️ Grace period: ${daysRemaining} jours restants`;
+    else if (expiration.status === 'lifetime') message = '✅ Licence illimitée (Lifetime)';
+    else if (daysRemaining <= 7) message = `⚠️ Licence expire dans ${daysRemaining} jours`;
 
+    // ✅ FIX: Ampiana activatedAt
     return {
       success: true,
       exists: true,
       path: filePath,
-      isValid: isValid,
+      isValid,
       status: expiration.status,
-      message: message,
-      daysRemaining: daysRemaining,
-      minutesRemaining: minutesRemaining,
+      message,
+      daysRemaining,
+      minutesRemaining,
       isTest: expiration.isTest || false,
       isLifetime: expiration.isLifetime || false,
-      packageType: license.packageType || null,
-      licenseKey: license.licenseKey || null,
-      activationId: license.activationId || null,
-      signature: license.signature || null,
-      expirationDate: license.expirationDate || null,
+      packageType: decrypted.packageType || null,
+      licenseKey: decrypted.licenseKey || null,
+      activationId: decrypted.activationId || null,
+      signature: decrypted.signature || null,
+      expirationDate: decrypted.expirationDate || null,
+      activatedAt: decrypted.activatedAt || null,
+      machineFingerprint: decrypted.machineFingerprint || null,
     };
   } catch (error) {
     console.error('❌ Erreur checkLicenseStatus:', error);
@@ -153,9 +142,4 @@ function checkLicenseStatus() {
   }
 }
 
-module.exports = {
-  checkExpiration,
-  getGracePeriodEnd,
-  checkSignature,
-  checkLicenseStatus,
-};
+module.exports = { checkExpiration, getGracePeriodEnd, checkSignature, checkLicenseStatus };

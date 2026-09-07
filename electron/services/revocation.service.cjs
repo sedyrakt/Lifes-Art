@@ -1,7 +1,8 @@
 // ============================================================
 // services/revocation.service.cjs - VERSION PRODUCTION FINALE
-// ⭐ REVOCATION LIST SERVICE
-// ⭐ FIX: process.resourcesPath mety undefined ivelan'ny Electron
+// ⭐ REVOCATION LIST SERVICE (SYNCHRONISATION OFFLINE)
+// ⭐ FIX: Esorina ny PRIVATE KEY (tsy tokony ho ao amin'ny client)
+// ⭐ FIX: NAMPIANA ny path marina ho an'ny constants.cjs
 // ============================================================
 
 const fs = require('fs');
@@ -9,8 +10,9 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 
-// ⭐ Importation ny canonical string avy ao amin'ny utils (mba hitoviany tanteraka)
 const { createCanonicalString } = require('./license/utils.cjs');
+// ⭐ FIX: Ny path dia tokony ho `./license/constants.cjs` fa tsy `./constants.cjs`
+const { isPackaged, PUBLIC_KEY_PATHS } = require('./license/constants.cjs');
 
 console.log('🚫 Revocation Service chargé');
 
@@ -20,21 +22,26 @@ const RESOURCES_PATH = (process.resourcesPath) ? process.resourcesPath : path.jo
 // ============================================================
 // ⭐ CHARGEMENT PUBLIC KEY (ho an'ny vérification signature)
 // ============================================================
-const PUBLIC_KEY_PATHS = [
+
+const PUBLIC_KEY_PATHS_EXTENDED = [
+  // ⭐ Production: Ao anaty dist-electron/keys
   path.join(__dirname, '../keys/public.pem'),
   path.join(__dirname, '../../keys/public.pem'),
+  path.join(__dirname, '../../../keys/public.pem'),
   path.join(process.cwd(), 'keys/public.pem'),
   path.join(process.cwd(), 'electron/keys/public.pem'),
+  path.join(process.cwd(), 'admin-tools/keys/public.pem'),
   path.join(RESOURCES_PATH, 'keys/public.pem'),
+  // ⭐ FIX: Ampiana ny chemin ao anaty dist-electron
+  path.join(__dirname, '../../dist-electron/keys/public.pem'),
+  path.join(__dirname, '../../../dist-electron/keys/public.pem'),
+  ...PUBLIC_KEY_PATHS, // ⭐ Ampidirina koa ny roa tany am-boalohany
 ];
 
 let PUBLIC_KEY = '';
-let PRIVATE_KEY = '';
 let PUBLIC_KEY_FOUND = false;
-let PRIVATE_KEY_FOUND = false;
 
-// ⭐ Charger la clé publique
-for (const pkPath of PUBLIC_KEY_PATHS) {
+for (const pkPath of PUBLIC_KEY_PATHS_EXTENDED) {
   try {
     if (fs.existsSync(pkPath)) {
       PUBLIC_KEY = fs.readFileSync(pkPath, 'utf8');
@@ -45,50 +52,9 @@ for (const pkPath of PUBLIC_KEY_PATHS) {
   } catch (e) {}
 }
 
-// ⭐ Charger la clé privée (ho an'ny signature)
-const PRIVATE_KEY_PATHS = [
-  path.join(__dirname, '../keys/private.pem'),
-  path.join(__dirname, '../../admin-tools/keys/private.pem'),
-  path.join(process.cwd(), 'admin-tools/keys/private.pem'),
-  path.join(process.cwd(), 'keys/private.pem'),
-];
-
-for (const pkPath of PRIVATE_KEY_PATHS) {
-  try {
-    if (fs.existsSync(pkPath)) {
-      PRIVATE_KEY = fs.readFileSync(pkPath, 'utf8');
-      PRIVATE_KEY_FOUND = true;
-      console.log(`✅ Private Key chargée pour revocation depuis: ${pkPath}`);
-      break;
-    }
-  } catch (e) {}
-}
-
 // ============================================================
-// ⭐ FONCTIONS DE SIGNATURE (MIARAKA AMIN'NY UTILS)
+// ⭐ FONCTIONS DE VÉRIFICATION (MIARAKA AMIN'NY UTILS)
 // ============================================================
-
-function signRevocationList(data) {
-  if (!PRIVATE_KEY_FOUND || !PRIVATE_KEY) {
-    console.warn('⚠️ Private key non disponible, signature impossible');
-    return null;
-  }
-  try {
-    const sign = crypto.createSign('RSA-SHA256');
-    // ⭐ Ampiasaina ny createCanonicalString dynamic
-    const canonicalString = createCanonicalString(data);
-    sign.update(canonicalString);
-    sign.end();
-    return sign.sign({
-      key: PRIVATE_KEY,
-      padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-      saltLength: 32,
-    }, 'base64');
-  } catch (error) {
-    console.error('❌ Erreur signature revocation list:', error.message);
-    return null;
-  }
-}
 
 function verifyRevocationListSignature(data, signature) {
   if (!PUBLIC_KEY_FOUND || !PUBLIC_KEY) {
@@ -116,8 +82,9 @@ function verifyRevocationListSignature(data, signature) {
 }
 
 // ============================================================
-// ⭐ REVOCATION SERVICE
+// ⭐ REVOCATION SERVICE (TSY misy signing - fa ny public key ihany)
 // ============================================================
+
 class RevocationService {
   constructor() {
     this.revokedLicenses = new Set();
@@ -144,7 +111,6 @@ class RevocationService {
         const raw = fs.readFileSync(this.revocationPath, 'utf8');
         const data = JSON.parse(raw);
         
-        // ⭐ Vérifier la signature
         const signature = data.signature || null;
         const payload = {
           licenses: data.licenses || [],
@@ -163,12 +129,12 @@ class RevocationService {
             this.revokedActivations = new Set();
           }
         } else {
-          // ⭐ Raha tsy misy signature (fichier taloha) dia mamorona signature vaovao
           console.warn('⚠️ Revocation list sans signature, tentative de réparation...');
+          // ⭐ FIX: Tsy misy signing fa raha tsy misy signature dia tsy atao ny iray
+          // Raha tsy misy signature dia ataoko tsy azo antoka, fa tsy esorina ny data.
+          // Mety tsara raha atao warning sy tsy hampiasa.
           this.revokedLicenses = new Set(data.licenses || []);
           this.revokedActivations = new Set(data.activations || []);
-          // ⭐ Manampy signature
-          this.saveRevocationList();
         }
       } else {
         console.log('ℹ️ Aucune liste de révocation trouvée');
@@ -186,11 +152,12 @@ class RevocationService {
         updatedAt: new Date().toISOString(),
       };
       
-      // ⭐ Manampy signature
-      const signature = signRevocationList(payload);
+      // ⭐ FIX: Tsy misy private key intsony, ka tsy misy signing
+      // Raha ilaina ny fanasoniavana, dia atao amin'ny serveur ianao.
+      // Amin'izay dia tsy misy signature, fa atao warning.
       const data = {
         ...payload,
-        signature: signature,
+        signature: null, // ⭐ Azo atao ny tsy misy signature
       };
       
       const dir = path.dirname(this.revocationPath);
@@ -250,7 +217,7 @@ class RevocationService {
       totalRevokedActivations: this.revokedActivations.size,
       lastUpdated: this.getLastUpdated(),
       path: this.revocationPath,
-      hasSignature: true,
+      hasSignature: false, // ⭐ tsy misy signature intsony
     };
   }
   

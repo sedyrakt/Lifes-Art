@@ -1,16 +1,43 @@
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useFournisseursData } from '../hooks/useFournisseursData';
+import FournisseursHeader from '../components/fournisseurs/FournisseursHeader';
 import FournisseursStats from '../components/fournisseurs/FournisseursStats';
 import FournisseursSearchBar from '../components/fournisseurs/FournisseursSearchBar';
-import { FournisseursTable, FournisseursPagination, FournisseursGrid, FournisseursModalForm, FournisseursViewModal } from '../components/fournisseurs';
+import { FournisseursTable, FournisseursPagination, FournisseursModalForm, FournisseursViewModal } from '../components/fournisseurs';
 import ConfirmModal from '../components/common/ConfirmModal';
 import SuccessModal from '../components/common/SuccessModal';
 import ErrorModal from '../components/common/ErrorModal';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const INITIAL_STATS = { total: 0, avecContact: 0, avecEmail: 0 };
+
+
+const FournisseursSkeleton = ({ isDark }: { isDark: boolean }) => {
+  const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
+  const border = isDark ? 'border-white/[0.08]' : 'border-slate-200';
+  return (
+    <div className="min-h-[500px] w-full p-5" style={{ background: isDark ? '#0F172A' : '#FFFFFF' }}>
+      <div className="space-y-4">
+        <div className={`flex items-center gap-4 border-b pb-4 ${border}`}>
+          {[...Array(7)].map((_, i) => <div key={i} className={`h-4 w-${i === 0 ? 8 : i === 1 ? 10 : i === 2 ? 24 : i === 3 ? 32 : i === 4 ? 20 : i === 5 ? 28 : 20} rounded ${base} animate-pulse`} />)}
+        </div>
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className={`flex items-center gap-4 py-3 ${border}`}>
+            <div className={`h-4 w-8 rounded ${base} animate-pulse`} />
+            <div className={`h-10 w-10 rounded-lg ${base} animate-pulse`} />
+            <div className={`h-4 w-32 rounded ${base} animate-pulse`} />
+            <div className={`h-4 w-20 rounded ${base} animate-pulse`} />
+            <div className={`h-4 w-24 rounded ${base} animate-pulse`} />
+            <div className={`h-4 w-20 rounded ${base} animate-pulse`} />
+            <div className={`h-4 w-28 rounded ${base} animate-pulse`} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const Fournisseurs: React.FC = () => {
   const { isDark } = useTheme();
@@ -72,7 +99,6 @@ const Fournisseurs: React.FC = () => {
 
   useEffect(() => { if (!loading) fetchReelStats(); }, [loading, fournisseurs, fetchReelStats]);
 
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -90,8 +116,12 @@ const Fournisseurs: React.FC = () => {
   const [errorTitle, setErrorTitle] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  const showSuccess = useCallback((t: string, m: string) => { setSuccessTitle(t); setSuccessMessage(m); setShowSuccessModal(true); }, []);
-  const showError = useCallback((t: string, m: string) => { setErrorTitle(t); setErrorMessage(m); setShowErrorModal(true); }, []);
+  const showSuccess = useCallback((t: string, m: string) => {
+    setSuccessTitle(t); setSuccessMessage(m); setShowSuccessModal(true);
+  }, []);
+  const showError = useCallback((t: string, m: string) => {
+    setErrorTitle(t); setErrorMessage(m); setShowErrorModal(true);
+  }, []);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (!checked) { setSelectedIds(new Set()); return; }
@@ -141,7 +171,13 @@ const Fournisseurs: React.FC = () => {
     const fd = new FormData(e.currentTarget);
     const nom = String(fd.get('nom') || '').trim();
     if (!nom) { showError('Champ requis', 'Le nom est obligatoire.'); return; }
-    const data: any = { nom, contact: String(fd.get('contact') || '').trim(), telephone: String(fd.get('telephone') || '').trim(), email: String(fd.get('email') || '').trim(), adresse: String(fd.get('adresse') || '').trim() };
+    const data: any = {
+      nom,
+      contact: String(fd.get('contact') || '').trim(),
+      telephone: String(fd.get('telephone') || '').trim(),
+      email: String(fd.get('email') || '').trim(),
+      adresse: String(fd.get('adresse') || '').trim()
+    };
     if (imagePath) data.image = imagePath;
     else if (editingFournisseur?.image && imagePreview) data.image = editingFournisseur.image;
     else data.image = null;
@@ -160,8 +196,13 @@ const Fournisseurs: React.FC = () => {
     } catch (err: any) { showError('Erreur', err.message); }
   }, [editingFournisseur, imagePath, imagePreview, createFournisseur, updateFournisseur, resetImageState, loadData, fetchReelStats, showSuccess, showError]);
 
-  const handleViewFournisseur = useCallback((fournisseur: any) => { if (fournisseur?.id) { setSelectedFournisseur(fournisseur); setShowViewModal(true); } }, []);
-  const handleDeleteClick = useCallback((fournisseur: any) => { if (fournisseur?.id) { setDeleteTarget(fournisseur); setShowDeleteModal(true); } }, []);
+  const handleViewFournisseur = useCallback((fournisseur: any) => {
+    if (fournisseur?.id) { setSelectedFournisseur(fournisseur); setShowViewModal(true); }
+  }, []);
+
+  const handleDeleteClick = useCallback((fournisseur: any) => {
+    if (fournisseur?.id) { setDeleteTarget(fournisseur); setShowDeleteModal(true); }
+  }, []);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!deleteTarget?.id) return;
@@ -186,54 +227,49 @@ const Fournisseurs: React.FC = () => {
   const tauxContact = reelStats.total > 0 ? Math.round((reelStats.avecContact / reelStats.total) * 100) : 0;
 
   return (
-    <div className="min-h-full w-full px-0 py-5 transition-colors duration-300 sm:px-0 lg:px-4" style={{ background: isDark ? '#0A1222' : '#F8FAFC' }}>
-      <div className="mx-auto w-full max-w-[1600px] space-y-5">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-[24px] font-semibold tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>Fournisseurs</h1>
-              <span className="hidden rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600 sm:inline-flex dark:bg-indigo-500/10 dark:text-indigo-400">{reelStats.total}</span>
-              {refreshing && <span className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-500 dark:text-indigo-400"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-500" />Actualisation...</span>}
+
+    <main
+      className="min-h-full w-full transition-colors duration-300"
+      style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}
+    >
+      <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
+        <FournisseursHeader onAddFournisseur={handleAddClick} refreshing={refreshing} onRefresh={loadData} isLoading={loading} totalItems={reelStats.total || totalItems} />
+        <FournisseursStats total={reelStats.total} avecContact={reelStats.avecContact} avecEmail={reelStats.avecEmail} tauxContact={tauxContact} />
+
+        <FournisseursSearchBar
+          searchTerm={filters.searchTerm}
+          onSearchChange={(value) => { setFilters({ searchTerm: value }); setCurrentPage(1); setSelectedIds(new Set()); }}
+          sortOption={filters.sortOption}
+          onSortChange={(value) => { setFilters({ sortOption: value }); setCurrentPage(1); }}
+        />
+
+        <section className="relative overflow-hidden rounded-2xl border bg-white transition-all duration-300 dark:bg-[#0F172A]" style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0', boxShadow: isDark ? '0 4px 24px -4px rgba(0,0,0,0.35)' : '0 4px 20px -4px rgba(79,70,229,0.08)' }}>
+          {refreshing && (
+            <div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent">
+              <div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" />
             </div>
-            <p className="mt-1 text-[13px] font-medium" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Gérez vos fournisseurs et leurs informations de contact.</p>
-          </div>
-          <button type="button" onClick={handleAddClick} disabled={loading} className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 text-[13px] font-semibold text-white shadow-sm shadow-indigo-600/15 transition-all duration-200 hover:bg-indigo-700 hover:shadow-md hover:shadow-indigo-600/20 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50">
-            <Plus size={17} />Nouveau fournisseur
-          </button>
-        </header>
+          )}
 
-        <div className="mt-5"><FournisseursStats total={reelStats.total} avecContact={reelStats.avecContact} avecEmail={reelStats.avecEmail} tauxContact={tauxContact} /></div>
-
-        <div className="mt-5">
-          <FournisseursSearchBar
-            searchTerm={filters.searchTerm}
-            onSearchChange={(value) => { setFilters({ searchTerm: value }); setCurrentPage(1); setSelectedIds(new Set()); }}
-            sortOption={filters.sortOption}
-            onSortChange={(value) => { setFilters({ sortOption: value }); setCurrentPage(1); }}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-          />
-        </div>
-
-        <section className="relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-[#0F172A]">
-          {refreshing && <div className="absolute left-0 right-0 top-0 z-30 h-0.5 overflow-hidden"><div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] bg-indigo-500" /></div>}
           {loading && fournisseurs.length === 0 ? (
-            <div className="flex min-h-[360px] items-center justify-center">
-              <div className="flex flex-col items-center gap-3"><RefreshCw size={30} className="animate-spin text-indigo-500" /><span className="text-[14px] font-medium" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Chargement des fournisseurs...</span></div>
-            </div>
+            <FournisseursSkeleton isDark={isDark} />
           ) : (
-            <>
-              {viewMode === 'table' ? (
-                <FournisseursTable fournisseurs={fournisseurs} onView={handleViewFournisseur} onEdit={handleEditFournisseur} onDelete={handleDeleteClick} onAdd={handleAddClick} isDark={isDark} selectedIds={selectedIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne} onBulkDelete={handleBulkDelete} />
-              ) : (
-                <FournisseursGrid fournisseurs={fournisseurs} onView={handleViewFournisseur} onEdit={handleEditFournisseur} onDelete={handleDeleteClick} isDark={isDark} />
-              )}
-            </>
+            <FournisseursTable
+              fournisseurs={fournisseurs}
+              onView={handleViewFournisseur}
+              onEdit={handleEditFournisseur}
+              onDelete={handleDeleteClick}
+              onAdd={handleAddClick}
+              isDark={isDark}
+              selectedIds={selectedIds}
+              onSelectAll={handleSelectAll}
+              onSelectOne={handleSelectOne}
+              onBulkDelete={handleBulkDelete}
+            />
           )}
         </section>
 
         {!loading && Number(totalItems || 0) > 0 && safeTotalPages > 1 && (
-          <div className="flex justify-center pb-1">
+          <div className="flex items-center justify-between rounded-2xl border bg-white px-3 py-2.5 transition-all duration-300 dark:bg-[#0F172A]" style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0', boxShadow: isDark ? '0 2px 12px -2px rgba(0,0,0,0.25)' : '0 2px 10px -2px rgba(79,70,229,0.06)' }}>
             <FournisseursPagination currentPage={Math.max(1, Math.min(Number(currentPage || 1), safeTotalPages))} totalPages={safeTotalPages} totalItems={Number(totalItems || 0)} onPageChange={handlePageChange} />
           </div>
         )}
@@ -245,7 +281,7 @@ const Fournisseurs: React.FC = () => {
       <ConfirmModal isOpen={showBulkDeleteModal} onClose={() => { setShowBulkDeleteModal(false); setBulkDeleteTargetIds([]); }} onConfirm={handleConfirmBulkDelete} title="Suppression en lot" message={`Voulez-vous supprimer ${bulkDeleteTargetIds.length} fournisseur(s) ?`} confirmText="Supprimer" cancelText="Annuler" confirmColor="red" isDark={isDark} />
       <SuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} title={successTitle} message={successMessage} buttonText="OK" autoCloseDelay={3000} />
       <ErrorModal isOpen={showErrorModal} onClose={() => setShowErrorModal(false)} title={errorTitle} message={errorMessage} buttonText="OK" autoCloseDelay={4000} />
-    </div>
+    </main>
   );
 };
 

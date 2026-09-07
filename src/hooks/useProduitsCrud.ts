@@ -1,9 +1,3 @@
-// ============================================================
-// src/hooks/useProduitsCrud.ts
-// ⭐ FANITSARA: Esorina ny loadData miverimberina (misy realtime)
-// ⭐ FANITSARA: Tsy misy toast
-// ⭐ FANITSARA: Timer type ho an'ny browser
-// ============================================================
 
 import { useState, useCallback } from 'react';
 import { Produit } from '../types/produit';
@@ -67,7 +61,7 @@ export const useProduitsCrud = (
       }
       const result = await invokeApi('products:delete', deleteTarget.id);
       if (!result?.success) throw new Error(result?.error || 'Erreur suppression');
-      // ⭐ Esorina ny loadData() - efa misy realtime event
+
       return result;
     } catch (error: any) {
       console.error('❌ Erreur suppression:', error);
@@ -109,7 +103,7 @@ export const useProduitsCrud = (
 
       setShowModal(false);
       resetImageState();
-      // ⭐ Esorina ny loadData() - efa misy realtime event
+
       return result;
     } catch (error: any) {
       console.error('❌ Erreur sauvegarde produit:', error);

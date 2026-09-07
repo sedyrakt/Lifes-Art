@@ -1,46 +1,151 @@
-// src/components/employes/EmployesModalForm.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { Info, UserRound } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, User, Plus, Check, Wallet, FileText, Calculator } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-import EmployesModalHeader from './EmployesModalForm/EmployesModalHeader';
-import EmployesImageUpload from './EmployesModalForm/EmployesImageUpload';
-import EmployesFormFields from './EmployesModalForm/EmployesFormFields';
-import EmployesFormActions from './EmployesModalForm/EmployesFormActions';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
-interface Employe { id: number; nom: string; prenom: string; email: string; telephone: string; poste: string; departement: string; date_embauche: string; salaire: number; image: string; status: 'Actif' | 'Inactif' | 'En congé'; created_at: string; }
-interface EmployesModalFormProps { isOpen: boolean; onClose: () => void; onSubmit: (e: React.FormEvent<HTMLFormElement>) => void; editingEmploye: Employe | null; isDark?: boolean; imagePreview: string | null; uploadingImage: boolean; onImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void; onRemoveImage: () => void; uploadProgress?: number; imageError?: string | null; }
+const COLORS = {
+  light: {
+    card: '#FFFFFF',
+    border: '#E2E8F0',
+    headerBg: '#FFFFFF',
+    inputBg: '#FFFFFF',
+    softBg: '#F8FAFC',
+    text: '#0F172A',
+    muted: '#64748B',
+    subMuted: '#94A3B8',
+    primary: '#4F46E5',
+    primaryHover: '#4338CA',
+    primaryBg: 'rgba(79,70,229,0.08)',
+    primaryBorder: 'rgba(79,70,229,0.20)',
+    danger: '#DC2626',
+    success: '#059669',
+    warning: '#F59E0B',
+  },
+  dark: {
+    card: '#0F172A',
+    border: 'rgba(255,255,255,0.12)',
+    headerBg: '#0F172A',
+    inputBg: '#0F172A',
+    softBg: '#1E293B',
+    text: '#F8FAFC',
+    muted: '#94A3B8',
+    subMuted: '#94A3B8',
+    primary: '#4F46E5',
+    primaryHover: '#4338CA',
+    primaryBg: 'rgba(79,70,229,0.12)',
+    primaryBorder: 'rgba(79,70,229,0.28)',
+    danger: '#F87171',
+    success: '#34D399',
+    warning: '#FBBF24',
+  },
+};
 
-const EmployesModalForm: React.FC<EmployesModalFormProps> = ({ isOpen, onClose, onSubmit, editingEmploye, isDark: isDarkProp, imagePreview, uploadingImage, onImageChange, onRemoveImage, uploadProgress = 0, imageError = null }) => {
-  const { isDark: contextIsDark } = useTheme();
-  const isDark = isDarkProp !== undefined ? isDarkProp : contextIsDark;
+interface Employe {
+  id?: number;
+  nom?: string;
+  prenom?: string;
+  email?: string;
+  telephone?: string;
+  poste?: string;
+  departement?: string;
+  date_embauche?: string;
+  salaire?: number;
+  status?: string;
+}
+
+interface EmployesModalFormProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void | Promise<void>;
+  editingEmploye?: Employe | null;
+  isDark?: boolean;
+}
+
+const STATUT_OPTIONS = [
+  { value: 'actif', label: 'Actif' },
+  { value: 'inactif', label: 'Inactif' },
+  { value: 'en_conge', label: 'En congé' },
+];
+
+const DEPARTEMENTS = [
+  { value: '', label: 'Sélectionner...' },
+  { value: 'Production', label: 'Production' },
+  { value: 'Ventes', label: 'Ventes' },
+  { value: 'Achats', label: 'Achats' },
+  { value: 'RH', label: 'Ressources Humaines' },
+  { value: 'Finance', label: 'Finance' },
+  { value: 'Informatique', label: 'Informatique' },
+  { value: 'Logistique', label: 'Logistique' },
+  { value: 'Autre', label: 'Autre' },
+];
+
+const FormField: React.FC<{ label: string; children: React.ReactNode; required?: boolean; fullWidth?: boolean; }> = ({ label, children, required = false, fullWidth = false }) => {
+  const { isDark } = useTheme();
+  const theme = isDark ? COLORS.dark : COLORS.light;
+  return (
+    <div className={`min-w-0 ${fullWidth ? 'w-full' : ''}`}>
+      <label className="mb-1.5 block text-[15px] font-medium" style={{ color: theme.muted }}>
+        {label}{required && <span className="ml-1 text-brand-500">*</span>}
+      </label>
+      {children}
+    </div>
+  );
+};
+
+const EmployesModalForm: React.FC<EmployesModalFormProps> = ({ isOpen, onClose, onSubmit, editingEmploye, isDark: propIsDark }) => {
+  const { isDark: themeIsDark } = useTheme();
+  const isDark = propIsDark !== undefined ? propIsDark : themeIsDark;
+  const theme = isDark ? COLORS.dark : COLORS.light;
   const formRef = useRef<HTMLFormElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
 
-  const borderClass = isDark ? 'border-slate-700' : 'border-gray-300';
+  const [selectedDepartement, setSelectedDepartement] = useState<string>('');
+  const [selectedStatut, setSelectedStatut] = useState<string>('actif');
 
-  const theme = isDark ? {
-    overlay: 'rgba(0, 0, 0, 0.60)',
-    card: '#0F172A', surface: '#0F172A', surfaceSoft: '#111C30', border: '#334155',
-    borderSoft: 'rgba(148,163,184,0.12)', text: '#F8FAFC', muted: '#94A3B8', subtle: '#64748B',
-    primary: '#818CF8', primaryHover: '#6366F1', primarySoft: 'rgba(99,102,241,0.12)'
-  } : {
-    overlay: 'rgba(15,23,42,0.60)',
-    card: '#FFFFFF', surface: '#FFFFFF', surfaceSoft: '#F8FAFC', border: '#E2E8F0',
-    borderSoft: '#F1F5F9', text: '#0F172A', muted: '#64748B', subtle: '#94A3B8',
-    primary: '#6366F1', primaryHover: '#4F46E5', primarySoft: 'rgba(99,102,241,0.07)'
+  const [salaireBrut, setSalaireBrut] = useState<number>(0);
+  const [cnaps, setCnaps] = useState<number>(0);
+  const [ostie, setOstie] = useState<number>(0);
+  const [irsa, setIrsa] = useState<number>(0);
+  const [netAPayer, setNetAPayer] = useState<number>(0);
+
+  const calculatePayroll = (brut: number) => {
+    const calcCnaps = Math.round(brut * 0.01);
+    const calcOstie = Math.round(brut * 0.05);
+    let calcIrsa = 0;
+    const taxable = brut - calcCnaps - calcOstie;
+    if (taxable > 350000 && taxable <= 700000) calcIrsa = Math.round((taxable - 350000) * 0.05);
+    else if (taxable > 700000 && taxable <= 1400000) calcIrsa = Math.round((taxable - 700000) * 0.10 + 17500);
+    else if (taxable > 1400000 && taxable <= 3000000) calcIrsa = Math.round((taxable - 1400000) * 0.15 + 87500);
+    else if (taxable > 3000000) calcIrsa = Math.round((taxable - 3000000) * 0.20 + 327500);
+
+    setCnaps(calcCnaps);
+    setOstie(calcOstie);
+    setIrsa(calcIrsa);
+    setNetAPayer(Math.max(0, brut - calcCnaps - calcOstie - calcIrsa));
+  };
+
+  const getStatutColor = () => {
+    if (selectedStatut === 'actif') return theme.success;
+    if (selectedStatut === 'inactif') return theme.danger;
+    if (selectedStatut === 'en_conge') return theme.warning;
+    return theme.muted;
   };
 
   useEffect(() => {
-    if (!isOpen) { setIsVisible(false); return; }
-    const timer = window.setTimeout(() => setIsVisible(true), 10);
-    return () => window.clearTimeout(timer);
-  }, [isOpen]);
+    if (!isOpen) return;
+    setSelectedDepartement(editingEmploye?.departement || '');
+    setSelectedStatut(editingEmploye?.status || 'actif');
+    const brut = Number(editingEmploye?.salaire) || 0;
+    setSalaireBrut(brut);
+    calculatePayroll(brut);
+  }, [isOpen, editingEmploye]);
 
   useEffect(() => {
     if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'enter') { e.preventDefault(); formRef.current?.requestSubmit(); }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); formRef.current?.requestSubmit(); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -48,111 +153,216 @@ const EmployesModalForm: React.FC<EmployesModalFormProps> = ({ isOpen, onClose, 
 
   if (!isOpen) return null;
 
-  const fullName = editingEmploye ? `${editingEmploye.prenom || ''} ${editingEmploye.nom || ''}`.trim() : 'Nouveau';
-  const status = editingEmploye?.status || 'Actif';
-  const statusColor = status === 'Actif' ? (isDark ? '#34D399' : '#059669') : status === 'En congé' ? (isDark ? '#FBBF24' : '#D97706') : (isDark ? '#94A3B8' : '#64748B');
-  const formattedSalary = Number(editingEmploye?.salaire || 0).toLocaleString('fr-FR');
+  const inputClass = `h-11 w-full rounded-lg border px-3 text-[15px] font-medium outline-none transition-all placeholder:text-gray-400 focus:ring-2 dark:placeholder:text-gray-500`;
+  const inputStyle = { background: theme.inputBg, borderColor: theme.border, color: theme.text };
+  const focusStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    e.currentTarget.style.borderColor = theme.primary;
+    e.currentTarget.style.boxShadow = `0 0 0 3px ${theme.primaryBg}`;
+  };
+  const blurStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    e.currentTarget.style.borderColor = theme.border;
+    e.currentTarget.style.boxShadow = 'none';
+  };
 
-  return (
+  const generateFichePDF = () => {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const companyName = "Life's Art";
+    const employeeFullName = `${formRef.current?.querySelector<HTMLInputElement>('input[name="prenom"]')?.value || ''} ${formRef.current?.querySelector<HTMLInputElement>('input[name="nom"]')?.value || ''}`.trim();
+    const poste = formRef.current?.querySelector<HTMLInputElement>('input[name="poste"]')?.value || 'Non spécifié';
+
+    doc.setFillColor(79, 70, 229); // ⭐ INDIGO
+    doc.rect(0, 0, doc.internal.pageSize.getWidth(), 12, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(companyName, 14, 8);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Fiche Employé', doc.internal.pageSize.getWidth() - 14, 8, { align: 'right' });
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(11);
+    doc.text(`Employé : ${employeeFullName}`, 14, 20);
+    doc.text(`Poste : ${poste}`, 14, 26);
+    doc.text(`Statut : ${selectedStatut === 'actif' ? 'Actif' : selectedStatut === 'inactif' ? 'Inactif' : 'En congé'}`, 14, 32);
+
+    autoTable(doc, {
+      startY: 40,
+      head: [['Rubrique', 'Montant (Ar)']],
+      body: [
+        ['Salaire Brut', `${salaireBrut.toLocaleString('fr-FR')}`],
+        ['CNaPS (1%)', `${cnaps.toLocaleString('fr-FR')}`],
+        ['OSTIE (5%)', `${ostie.toLocaleString('fr-FR')}`],
+        ['IRSA', `${irsa.toLocaleString('fr-FR')}`],
+        ['NET À PAYER', `${netAPayer.toLocaleString('fr-FR')}`],
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229], textColor: 255 },
+      bodyStyles: { fontSize: 10 },
+      columnStyles: { 0: { fontStyle: 'bold' }, 1: { halign: 'right' } },
+      margin: { left: 14, right: 14 },
+    });
+
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(`Document généré le ${new Date().toLocaleDateString('fr-FR')} - ${companyName}`, 14, doc.internal.pageSize.getHeight() - 10);
+    doc.save(`fiche_employe_${employeeFullName.replace(/\s+/g, '_')}.pdf`);
+  };
+
+  const modal = (
     <div
-      className={`fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
-      style={{ background: theme.overlay, backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 transition-opacity duration-200 bg-black/80 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="employe-modal-title"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
       <div
-        className={`relative flex w-full max-w-[70%] max-h-[86vh] flex-col overflow-hidden rounded-2xl border shadow-[0_24px_80px_rgba(0,0,0,0.28)] transition-all duration-200 ${isVisible ? 'translate-y-0 scale-100' : 'translate-y-2 scale-[0.985]'} ${borderClass}`}
-        style={{ background: theme.card }}
-        onMouseDown={(e) => e.stopPropagation()}
+        className="relative z-[100000] flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-xl"
+        style={{ background: theme.card, borderColor: theme.border }}
+        onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="absolute left-0 right-0 top-0 z-30 h-[3px]" style={{ background: theme.primary }} />
+        <div className="absolute left-0 right-0 top-0 h-[2px] bg-brand-500" />
 
-        <EmployesModalHeader editingEmploye={editingEmploye} onClose={onClose} isDark={isDark} />
+        <header className="flex h-14 shrink-0 items-center justify-between border-b px-6" style={{ background: theme.headerBg, borderColor: theme.border }}>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: theme.primaryBg, color: theme.primary }}>
+              <User size={16} strokeWidth={2} />
+            </div>
+            <h2 id="employe-modal-title" className="truncate text-[16px] font-semibold tracking-tight" style={{ color: theme.text }}>
+              {editingEmploye ? 'Modifier l\'employé' : 'Nouvel employé'}
+            </h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fermer" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.06]" style={{ color: theme.muted }}>
+            <X size={17} strokeWidth={2} />
+          </button>
+        </header>
 
-        <form ref={formRef} onSubmit={onSubmit} className="min-h-0 flex-1 overflow-y-auto">
-          <div className="p-4 sm:p-5">
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[205px_minmax(0,1fr)]">
-              <aside className="flex min-w-0 flex-col gap-3">
-                <div className="relative aspect-square w-full overflow-hidden rounded-xl border" style={{ maxHeight: '205px', background: theme.surfaceSoft, borderColor: theme.border }}>
-                  <EmployesImageUpload imagePreview={imagePreview} uploadingImage={uploadingImage} onImageChange={onImageChange} onRemoveImage={onRemoveImage} uploadProgress={uploadProgress} imageError={imageError} isDark={isDark} />
+        <form ref={formRef} onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <FormField label="Prénom" required>
+                <input type="text" name="prenom" defaultValue={editingEmploye?.prenom || ''} required autoFocus={!editingEmploye} placeholder="Prenom" className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
+              </FormField>
+
+              <FormField label="Nom" required>
+                <input type="text" name="nom" defaultValue={editingEmploye?.nom || ''} required placeholder="Nom" className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
+              </FormField>
+
+              <FormField label="Poste" required>
+                <input type="text" name="poste" defaultValue={editingEmploye?.poste || ''} required placeholder="Poste" className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
+              </FormField>
+
+              <FormField label="Email" required>
+                <input type="email" name="email" defaultValue={editingEmploye?.email || ''} required placeholder="Addresse Email" className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
+              </FormField>
+
+              <FormField label="Téléphone">
+                <input type="tel" name="telephone" defaultValue={editingEmploye?.telephone || ''} placeholder="Telephone" className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
+              </FormField>
+
+              <FormField label="Département">
+                <div className="relative">
+                  <select name="departement" value={selectedDepartement} onChange={(e) => setSelectedDepartement(e.target.value)} className={`${inputClass} appearance-none cursor-pointer pr-8`} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle}>
+                    {DEPARTEMENTS.map((dep) => <option key={dep.value} value={dep.value}>{dep.label}</option>)}
+                  </select>
                 </div>
+              </FormField>
 
-                <div className={`overflow-hidden rounded-xl border ${borderClass}`} style={{ background: theme.surface }}>
-                  <div className={`flex items-center gap-2 border-b px-3.5 py-2.5 ${borderClass}`} style={{ borderColor: theme.borderSoft }}>
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: theme.primarySoft, color: theme.primary }}>
-                      <Info className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="text-[14.5px] font-semibold" style={{ color: theme.text }}>Informations</span>
-                  </div>
-                  <div className="space-y-2.5 p-3.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[14px]" style={{ color: theme.muted }}>Employé</span>
-                      <span className="max-w-[115px] truncate text-right text-[14.5px] font-medium" style={{ color: theme.text }} title={fullName}>{fullName}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[14px]" style={{ color: theme.muted }}>Statut</span>
-                      <span className="inline-flex items-center gap-1.5 text-[14px] font-semibold" style={{ color: statusColor }}>
-                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: statusColor }} />
-                        {status}
-                      </span>
-                    </div>
-                    <div className="h-px" style={{ background: theme.borderSoft }} />
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[14px]" style={{ color: theme.muted }}>ID</span>
-                      <span className="font-mono text-[14px] font-semibold" style={{ color: theme.primary }}>
-                        {editingEmploye ? `#${String(editingEmploye.id).padStart(4, '0')}` : '—'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[14px]" style={{ color: theme.muted }}>Salaire</span>
-                      <span className="text-[14.5px] font-semibold" style={{ color: theme.text }}>{formattedSalary} Ar</span>
-                    </div>
-                  </div>
-                </div>
+              <FormField label="Date d'embauche" required>
+                <input type="date" name="date_embauche" defaultValue={editingEmploye?.date_embauche || new Date().toISOString().split('T')[0]} required className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
+              </FormField>
 
-                <div className={`flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 ${borderClass}`} style={{ background: theme.primarySoft, borderColor: isDark ? 'rgba(129,140,248,0.18)' : 'rgba(99,102,241,0.14)' }}>
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: theme.primarySoft, color: theme.primary }}>
-                    <UserRound className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-semibold uppercase tracking-[0.05em]" style={{ color: theme.muted }}>
-                      {editingEmploye ? 'Modification' : 'Création'}
-                    </p>
-                    <p className="truncate text-[13px] font-medium" style={{ color: theme.text }}>
-                      {editingEmploye ? 'Mise à jour du profil' : 'Nouvel employé'}
-                    </p>
-                  </div>
-                </div>
-              </aside>
+              <FormField label="Salaire (Ar)" required>
+                <input
+                  type="number"
+                  name="salaire"
+                  value={salaireBrut}
+                  onChange={(e) => { setSalaireBrut(Number(e.target.value)); calculatePayroll(Number(e.target.value)); }}
+                  min="0" step="1" required
+                  className={inputClass} style={inputStyle}
+                  onFocus={focusStyle} onBlur={blurStyle}
+                />
+              </FormField>
 
-              <section className="min-w-0">
-                <div className={`rounded-xl border p-4 ${borderClass}`} style={{ background: theme.surface }}>
-                  <EmployesFormFields editingEmploye={editingEmploye} isDark={isDark} />
+              <FormField label="Statut">
+                <div className="relative">
+                  <select name="status" value={selectedStatut} onChange={(e) => setSelectedStatut(e.target.value)} className={`${inputClass} appearance-none cursor-pointer pr-8`} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle}>
+                    {STATUT_OPTIONS.map((statut) => <option key={statut.value} value={statut.value}>{statut.label}</option>)}
+                  </select>
                 </div>
-              </section>
+              </FormField>
+            </div>
+
+            <div
+              className="mt-5 flex items-center justify-between rounded-lg border p-4"
+              style={{ background: theme.primaryBg, borderColor: theme.border }}
+            >
+              <div>
+                <p className="text-[13px] font-semibold uppercase tracking-wide" style={{ color: theme.muted }}>
+                  Net à payer
+                </p>
+                <p className="text-[18px] font-bold" style={{ color: theme.primary }}>
+                  {netAPayer.toLocaleString('fr-FR')} Ar
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[13px] font-semibold uppercase tracking-wide" style={{ color: theme.muted }}>
+                  Statut
+                </p>
+                <p className="text-[15px] font-bold" style={{ color: getStatutColor() }}>
+                  {selectedStatut === 'actif' ? 'Actif' : selectedStatut === 'inactif' ? 'Inactif' : 'En congé'}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-lg border p-3" style={{ borderColor: theme.border }}>
+              <div className="flex items-center gap-2 mb-2">
+                <Calculator size={16} style={{ color: theme.primary }} />
+                <span className="text-sm font-semibold" style={{ color: theme.muted }}>Détail salaire :</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="text-sm" style={{ color: theme.muted }}>
+                  Salaire brut : <span className="text-sm font-semibold" style={{ color: theme.text }}>{salaireBrut.toLocaleString('fr-FR')} Ar</span>
+                </div>
+                <div className="text-sm" style={{ color: theme.muted }}>
+                  CNaPS (1%) : <span className="text-sm font-semibold" style={{ color: theme.danger }}>{cnaps.toLocaleString('fr-FR')} Ar</span>
+                </div>
+                <div className="text-sm" style={{ color: theme.muted }}>
+                  OSTIE (5%) : <span className="text-sm font-semibold" style={{ color: theme.danger }}>{ostie.toLocaleString('fr-FR')} Ar</span>
+                </div>
+                <div className="text-sm" style={{ color: theme.muted }}>
+                  IRSA : <span className="text-sm font-semibold" style={{ color: theme.danger }}>{irsa.toLocaleString('fr-FR')} Ar</span>
+                </div>
+              </div>
             </div>
           </div>
+
+          <footer className="flex h-[64px] shrink-0 items-center justify-between gap-2 border-t px-6" style={{ background: theme.softBg, borderColor: theme.border }}>
+            <button
+              type="button"
+              onClick={generateFichePDF}
+              className="flex h-10 items-center gap-1.5 rounded-lg border px-4 text-[14px] font-medium hover:bg-gray-100 dark:hover:bg-white/[0.06]"
+              style={{ borderColor: theme.border, color: theme.primary }}
+            >
+              <FileText size={15} /> Fiche PDF
+            </button>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={onClose} className="h-10 rounded-lg px-5 text-[14px] font-medium transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.06]" style={{ color: theme.muted }}>
+                Annuler
+              </button>
+              <button type="submit" className="flex h-10 items-center gap-1.5 rounded-lg px-5 text-[14px] font-semibold text-white shadow-sm transition-all hover:shadow-md active:scale-[0.98]" style={{ background: theme.primary }} onMouseEnter={(event) => { event.currentTarget.style.background = theme.primaryHover; }} onMouseLeave={(event) => { event.currentTarget.style.background = theme.primary; }}>
+                {editingEmploye ? <Check size={15} /> : <Plus size={15} />}
+                {editingEmploye ? 'Enregistrer' : 'Ajouter'}
+              </button>
+            </div>
+          </footer>
         </form>
-
-        <EmployesFormActions editingEmploye={editingEmploye} onClose={onClose} isDark={isDark} onSave={() => formRef.current?.requestSubmit()} />
       </div>
-
-      <style>{`
-        @keyframes employeModalIn {
-          from { opacity: 0; transform: translateY(7px) scale(0.985); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .employe-modal-scroll::-webkit-scrollbar { width: 6px; }
-        .employe-modal-scroll::-webkit-scrollbar-track { background: transparent; }
-        .employe-modal-scroll::-webkit-scrollbar-thumb { background: rgba(100,116,139,0.25); border-radius: 999px; }
-        .employe-modal-scroll::-webkit-scrollbar-thumb:hover { background: rgba(100,116,139,0.4); }
-        input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.65; cursor: pointer; }
-        select option { background: ${isDark ? '#0F172A' : '#FFFFFF'}; color: ${isDark ? '#F8FAFC' : '#0F172A'}; }
-      `}</style>
     </div>
   );
+
+  return createPortal(modal, document.body);
 };
 
 export default EmployesModalForm;

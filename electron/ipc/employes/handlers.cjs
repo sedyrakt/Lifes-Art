@@ -1,9 +1,3 @@
-// ============================================================
-// electron/ipc/employes.handlers.cjs
-// ⭐ FIX: Ampiana handler getTotalSalairesPayes
-// ⭐ FIX: Mamerina `true` mba tsy hiteraka ilay "function returned false"
-// ============================================================
-
 'use strict';
 
 const { getDb } = require('../../database/connection.cjs');
@@ -33,8 +27,13 @@ function registerEmployesHandlers(ipcMain) {
     'employes:delete', 'employes:get-by-departement', 'employes:get-by-status',
     'employes:get-stats', 'employes:search', 'employes:bulk-delete',
     'employes:update-status', 'employes:bulk-update-status',
-    'employes:get-paiement-counts-batch',
-    'employes:get-total-salaires-payes', // ⭐ FIX: Nampiana
+    'employes:get-paiement-counts-batch', 'employes:get-total-salaires-payes',
+    'employes:get-presence', 'employes:update-presence',
+    'employes:get-salary-history', 'employes:update-salary',
+    'employes:get-presence-journaliere', 'employes:update-presence-journaliere', 'employes:delete-presence-journaliere',
+    'employes:get-presence-journaliere-mois', 'employes:bulk-update-presence-journaliere',
+    // ⭐ HISTORIQUE
+    'employes:get-presence-historique'
   ];
   for (const ch of channels) { try { ipcMain.removeHandler(ch); } catch (_) {} }
 
@@ -42,21 +41,22 @@ function registerEmployesHandlers(ipcMain) {
   if (!prepared) { error('❌ [employes.handlers] prepareStatements() a échoué'); return false; }
   const statements = getStatements();
 
+  // ✅ GET ALL EMPLOYES
   ipcMain.handle('employes:get-all', async (event, options = {}) => {
     try {
-      const db = getDb(); if (!db) return { success: false, error: 'DB non disponible' };
+      const db = getDb();
+      if (!db) return { success: false, error: 'DB non disponible' };
       const { query, params } = buildEmployesQuery(options);
       const data = db.prepare(query).all(params);
-      let total = 0, totalPages = 1;
+      let total = 0;
       const { query: countQuery, params: countParams } = buildEmployesCountQuery(options);
       const countResult = db.prepare(countQuery).get(countParams);
       total = Number(countResult?.total || 0);
-      const limit = options.limit || 50;
-      totalPages = Math.ceil(total / limit);
-      return { success: true, data, pagination: { total, totalPages, limit, page: options.page || 1 } };
+      return { success: true, data, total };
     } catch (err) { error('❌ [employes:get-all]', err.message); return { success: false, error: err.message }; }
   });
 
+  // ✅ GET BY ID
   ipcMain.handle('employes:get-by-id', async (event, id) => {
     try {
       const data = statements.stmtGetById.get(Number(id));
@@ -66,32 +66,33 @@ function registerEmployesHandlers(ipcMain) {
     } catch (err) { return { success: false, error: err.message }; }
   });
 
+  // ✅ CREATE
   ipcMain.handle('employes:create', async (event, data, userId = null) => {
     try {
       const validation = validateEmploye(data);
       if (!validation.valid) return { success: false, error: validation.errors.join(', ') };
-      const { nom, prenom, email, telephone, poste, departement, date_embauche, salaire, image, status } = validation.data;
+      const { nom, prenom, email, telephone, poste, departement, date_embauche, salaire, status } = validation.data;
       const existing = statements.stmtCheckEmail.get(email);
       if (existing) return { success: false, error: 'Cet email est déjà utilisé' };
-      const result = statements.stmtCreate.run(nom, prenom, email, telephone, poste, departement, date_embauche, salaire, image, status);
+      const result = statements.stmtCreate.run(nom, prenom, email, telephone, poste, departement, date_embauche, salaire, status);
       const id = Number(result.lastInsertRowid);
       const auditUser = userId || event.sender?.user?.id || null;
       if (auditUser) logAudit('create', id, `${prenom} ${nom}`, auditUser, `Poste: ${poste}`);
       emitEmployesChanged({ type: 'create', id });
       const newEmploye = statements.stmtGetById.get(id);
-      if (!newEmploye) return { success: false, error: 'Erreur interne' };
       return { success: true, data: newEmploye };
     } catch (err) { return { success: false, error: err.message }; }
   });
 
+  // ✅ UPDATE
   ipcMain.handle('employes:update', async (event, id, data, userId = null) => {
     try {
       const validation = validateEmploye(data);
       if (!validation.valid) return { success: false, error: validation.errors.join(', ') };
-      const { nom, prenom, email, telephone, poste, departement, date_embauche, salaire, image, status } = validation.data;
+      const { nom, prenom, email, telephone, poste, departement, date_embauche, salaire, status } = validation.data;
       const existing = statements.stmtCheckEmailExcept.get(email, id);
       if (existing) return { success: false, error: 'Cet email est déjà utilisé' };
-      statements.stmtUpdate.run(nom, prenom, email, telephone, poste, departement, date_embauche, salaire, image, status, id);
+      statements.stmtUpdate.run(nom, prenom, email, telephone, poste, departement, date_embauche, salaire, status, id);
       const auditUser = userId || event.sender?.user?.id || null;
       if (auditUser) logAudit('update', id, `${prenom} ${nom}`, auditUser, 'Mise à jour');
       emitEmployesChanged({ type: 'update', id });
@@ -100,6 +101,7 @@ function registerEmployesHandlers(ipcMain) {
     } catch (err) { return { success: false, error: err.message }; }
   });
 
+  // ✅ DELETE (soft)
   ipcMain.handle('employes:delete', async (event, id, userId = null) => {
     try {
       const existing = statements.stmtGetById.get(Number(id));
@@ -113,6 +115,7 @@ function registerEmployesHandlers(ipcMain) {
     } catch (err) { return { success: false, error: err.message }; }
   });
 
+  // ✅ BULK DELETE
   ipcMain.handle('employes:bulk-delete', async (event, ids, userId = null) => {
     try {
       const db = getDb();
@@ -134,6 +137,7 @@ function registerEmployesHandlers(ipcMain) {
     } catch (err) { return { success: false, error: err.message }; }
   });
 
+  // ✅ GET BY DEPARTEMENT
   ipcMain.handle('employes:get-by-departement', async (event, departement) => {
     try {
       const data = statements.stmtGetByDepartement.all(departement, 'actif');
@@ -141,6 +145,7 @@ function registerEmployesHandlers(ipcMain) {
     } catch (err) { return { success: false, error: err.message }; }
   });
 
+  // ✅ GET BY STATUS
   ipcMain.handle('employes:get-by-status', async (event, status) => {
     try {
       const normalized = normalizeStatus(status);
@@ -150,6 +155,7 @@ function registerEmployesHandlers(ipcMain) {
     } catch (err) { return { success: false, error: err.message }; }
   });
 
+  // ✅ GET STATS
   ipcMain.handle('employes:get-stats', async () => {
     try {
       if (!statements.stmtStats) return { success: false, error: 'Statements non initialisés' };
@@ -158,6 +164,7 @@ function registerEmployesHandlers(ipcMain) {
     } catch (err) { return { success: false, error: err.message }; }
   });
 
+  // ✅ SEARCH
   ipcMain.handle('employes:search', async (event, searchTerm) => {
     try {
       const s = `%${String(searchTerm).trim()}%`;
@@ -166,6 +173,7 @@ function registerEmployesHandlers(ipcMain) {
     } catch (err) { return { success: false, error: err.message }; }
   });
 
+  // ✅ UPDATE STATUS
   ipcMain.handle('employes:update-status', async (event, id, status, userId = null) => {
     try {
       const normalized = normalizeStatus(status);
@@ -180,6 +188,7 @@ function registerEmployesHandlers(ipcMain) {
     } catch (err) { return { success: false, error: err.message }; }
   });
 
+  // ✅ BULK UPDATE STATUS
   ipcMain.handle('employes:bulk-update-status', async (event, ids, newStatus, userId = null) => {
     try {
       const db = getDb();
@@ -199,6 +208,7 @@ function registerEmployesHandlers(ipcMain) {
     } catch (err) { return { success: false, error: err.message }; }
   });
 
+  // ✅ GET PAIEMENT COUNTS BATCH
   ipcMain.handle('employes:get-paiement-counts-batch', async (event, ids) => {
     try {
       const safeIds = ids.slice(0, 50);
@@ -210,27 +220,226 @@ function registerEmployesHandlers(ipcMain) {
     } catch (err) { return { success: false, error: err.message }; }
   });
 
-  // ⭐ FIX: Handler ho an'ny salaires PAYÉS
+  // ✅ GET TOTAL SALAIRES PAYES
   ipcMain.handle('employes:get-total-salaires-payes', async (event, annee) => {
     try {
       const db = getDb();
       if (!db) return { success: false, error: 'DB non disponible' };
-      
       let query = `SELECT COALESCE(SUM(montant), 0) as total FROM paiements_employes`;
       const params = [];
       if (annee) {
         query += ` WHERE strftime('%Y', date_paiement) = ?`;
         params.push(String(annee));
       }
-      
       const stmt = db.prepare(query);
       const result = stmt.get(...params);
       return { success: true, data: result?.total || 0 };
     } catch (err) { return { success: false, error: err.message }; }
   });
 
+  // ✅ GET PRESENCE (agrégée mensuelle)
+  ipcMain.handle('employes:get-presence', async (_event, employeId, mois, annee) => {
+    try {
+      const db = getDb();
+      const stmt = db.prepare('SELECT * FROM presence_employes WHERE employe_id = ? AND mois = ? AND annee = ?');
+      const presence = stmt.get(employeId, mois, annee);
+      return { success: true, data: presence || { jours_absences: 0, jours_conges: 0, jours_maladie: 0, justificatif_maladie: '', observation: '' } };
+    } catch (err) { error('❌ [employes:get-presence]', err.message); return { success: false, error: err.message }; }
+  });
+
+  // ✅ UPDATE PRESENCE (agrégée mensuelle)
+  ipcMain.handle('employes:update-presence', async (_event, data) => {
+    try {
+      const db = getDb();
+      const { employe_id, mois, annee, jours_absences, jours_conges, jours_maladie, justificatif_maladie, observation } = data;
+      const stmt = db.prepare(`
+        INSERT INTO presence_employes (employe_id, mois, annee, jours_absences, jours_conges, jours_maladie, justificatif_maladie, observation, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(employe_id, mois, annee) DO UPDATE SET
+          jours_absences = excluded.jours_absences,
+          jours_conges = excluded.jours_conges,
+          jours_maladie = excluded.jours_maladie,
+          justificatif_maladie = excluded.justificatif_maladie,
+          observation = excluded.observation,
+          updated_at = CURRENT_TIMESTAMP
+      `);
+      stmt.run(employe_id, mois, annee, jours_absences || 0, jours_conges || 0, jours_maladie || 0, justificatif_maladie || '', observation || '');
+      return { success: true };
+    } catch (err) { error('❌ [employes:update-presence]', err.message); return { success: false, error: err.message }; }
+  });
+
+  // ✅ GET SALARY HISTORY
+  ipcMain.handle('employes:get-salary-history', async (_event, employeId) => {
+    try {
+      const db = getDb();
+      const stmt = db.prepare('SELECT * FROM historique_salaires WHERE employe_id = ? ORDER BY date_changement DESC');
+      const history = stmt.all(employeId);
+      return { success: true, data: history };
+    } catch (err) { error('❌ [employes:get-salary-history]', err.message); return { success: false, error: err.message }; }
+  });
+
+  // ✅ UPDATE SALARY
+  ipcMain.handle('employes:update-salary', async (_event, employeId, newSalary, raison) => {
+    try {
+      const db = getDb();
+      const current = db.prepare('SELECT salaire FROM employes WHERE id = ?').get(employeId);
+      if (!current) return { success: false, error: 'Employé non trouvé' };
+      const oldSalary = Number(current.salaire || 0);
+      const newSal = Number(newSalary || 0);
+
+      db.prepare(`
+        CREATE TABLE IF NOT EXISTS historique_salaires (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          employe_id INTEGER NOT NULL,
+          ancien_salaire REAL NOT NULL,
+          nouveau_salaire REAL NOT NULL,
+          raison TEXT DEFAULT '',
+          date_changement DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (employe_id) REFERENCES employes(id) ON DELETE CASCADE
+        )
+      `).run();
+
+      db.prepare('UPDATE employes SET salaire = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newSal, employeId);
+      db.prepare('INSERT INTO historique_salaires (employe_id, ancien_salaire, nouveau_salaire, raison) VALUES (?, ?, ?, ?)')
+        .run(employeId, oldSalary, newSal, raison || 'Fisondrotana karama');
+
+      return { success: true };
+    } catch (err) {
+      error('❌ [employes:update-salary]', err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
+  // ============================================================
+  // ⭐ NEW: PRESENCE JOURNALIERE HANDLERS
+  // ============================================================
+
+  // ✅ GET PRESENCE JOURNALIERE (par employe et mois)
+  ipcMain.handle('employes:get-presence-journaliere', async (_event, employeId, mois, annee) => {
+    try {
+      const moisStr = `${annee}-${String(mois).padStart(2, '0')}`;
+      const data = statements.stmtGetPresenceJournaliereByEmployeMois.all(employeId, moisStr);
+      return { success: true, data };
+    } catch (err) {
+      error('❌ [employes:get-presence-journaliere]', err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
+  // ✅ UPDATE PRESENCE JOURNALIERE (upsert)
+  ipcMain.handle('employes:update-presence-journaliere', async (_event, data) => {
+    try {
+      const { employe_id, date, statut, heure_arrivee, heure_depart, observation } = data;
+      statements.stmtUpsertPresenceJournaliere.run(employe_id, date, statut, heure_arrivee || '', heure_depart || '', observation || '');
+      emitEmployesChanged({ type: 'presence_journaliere', employe_id, date, statut });
+      return { success: true };
+    } catch (err) {
+      error('❌ [employes:update-presence-journaliere]', err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
+  // ✅ DELETE PRESENCE JOURNALIERE
+  ipcMain.handle('employes:delete-presence-journaliere', async (_event, id) => {
+    try {
+      statements.stmtDeletePresenceJournaliere.run(id);
+      return { success: true };
+    } catch (err) {
+      error('❌ [employes:delete-presence-journaliere]', err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
+  // ============================================================
+  // ⭐ BATCH HANDLERS (10 000 EMPLOYÉS)
+  // ============================================================
+
+  // ✅ GET PRESENCE JOURNALIERE - BATCH (Mois entier)
+  ipcMain.handle('employes:get-presence-journaliere-mois', async (_event, mois, annee) => {
+    try {
+      const moisStr = `${annee}-${String(mois).padStart(2, '0')}`;
+      const data = statements.stmtGetPresenceJournaliereByMois.all(moisStr);
+      return { success: true, data };
+    } catch (err) {
+      error('❌ [employes:get-presence-journaliere-mois]', err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
+  // ✅ BULK UPDATE PRESENCE JOURNALIERE
+  ipcMain.handle('employes:bulk-update-presence-journaliere', async (_event, payload) => {
+    try {
+      const { employe_ids, date, statut } = payload;
+      if (!Array.isArray(employe_ids) || !date || !statut) {
+        return { success: false, error: 'Payload invalide' };
+      }
+      const db = getDb();
+      const transaction = db.transaction(() => {
+        for (const id of employe_ids) {
+          statements.stmtBulkUpsertPresenceJournaliere.run(id, date, statut);
+        }
+      });
+      transaction();
+      emitEmployesChanged({ type: 'bulk_presence_journaliere', date, statut, count: employe_ids.length });
+      return { success: true, count: employe_ids.length };
+    } catch (err) {
+      error('❌ [employes:bulk-update-presence-journaliere]', err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
+  // ============================================================
+  // ⭐ NEW: PRESENCE HISTORIQUE (PAR JOUR / MOIS / AN)
+  // ⭐ FIX (VAOVAO): AJOUT DU FILTRE employe_id
+  // ============================================================
+
+  ipcMain.handle('employes:get-presence-historique', async (_event, options = {}) => {
+    try {
+      const db = getDb();
+      let query = `
+        SELECT pj.date, pj.statut, pj.heure_arrivee, pj.heure_depart, pj.observation,
+               e.id as employe_id, e.nom, e.prenom, e.poste
+        FROM presence_journaliere pj
+        JOIN employes e ON pj.employe_id = e.id
+        WHERE 1=1
+      `;
+      const params = [];
+
+      // ⭐ FIX: FILTRE EMPLOYE
+      if (options.employe_id) {
+        query += ' AND pj.employe_id = ?';
+        params.push(Number(options.employe_id));
+      }
+
+      if (options.type === 'jour' && options.date) {
+        query += ' AND pj.date = ?';
+        params.push(options.date);
+      } else if (options.type === 'mois' && options.mois && options.annee) {
+        const startDate = `${options.annee}-${String(options.mois).padStart(2, '0')}-01`;
+        const endDate = `${options.annee}-${String(options.mois).padStart(2, '0')}-31`;
+        query += ' AND pj.date BETWEEN ? AND ?';
+        params.push(startDate, endDate);
+      } else if (options.type === 'annee' && options.annee) {
+        query += ' AND pj.date LIKE ?';
+        params.push(`${options.annee}-%`);
+      }
+
+      if (options.statut && options.statut !== 'Tous') {
+        query += ' AND pj.statut = ?';
+        params.push(options.statut);
+      }
+
+      query += ' ORDER BY pj.date DESC, e.nom ASC';
+      const data = db.prepare(query).all(...params);
+      return { success: true, data };
+    } catch (err) {
+      error('❌ [employes:get-presence-historique]', err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
   log('✅ [employes.handlers] Enregistrés');
-  return true; // ⭐ FIX: Mamerina true
+  return true;
 }
 
 module.exports = { registerEmployesHandlers, emitEmployesChanged };

@@ -1,19 +1,46 @@
+// ============================================================
 // electron/ipc/ventes/queries.cjs
+// LIFE'S ART ERP - VENTES
+// ⭐ PREMIUM COMPACT
+// ⭐ Pagination + recherche + paiement + tri sécurisé
+// ============================================================
 'use strict';
 
-const ALLOWED_SORTS = new Set([
-  'id',
-  'reference',
-  'date_devis',
-  'date_facture',
-  'total_ht',
-  'total_ttc',
-  'client_nom'
-]);
+const SORTS = {
+  devis: new Set([
+    'id',
+    'reference',
+    'date_devis',
+    'total_ht',
+    'total_ttc',
+    'client_nom',
+    'statut_paiement',
+    'montant_paye',
+    'montant_restant'
+  ]),
+  factures: new Set([
+    'id',
+    'reference',
+    'date_facture',
+    'total_ht',
+    'total_ttc',
+    'client_nom',
+    'statut_paiement',
+    'montant_paye',
+    'montant_restant'
+  ])
+};
 
-function normalizeSort(sort = {}) {
-  const field = ALLOWED_SORTS.has(sort?.field) ? sort.field : 'id';
-  const direction = sort?.direction === 'ASC' ? 'ASC' : 'DESC';
+function normalizeSort(table, sort = {}) {
+  const allowed = SORTS[table] || SORTS.devis;
+  const field = allowed.has(sort?.field)
+    ? sort.field
+    : 'id';
+
+  const direction = sort?.direction === 'ASC'
+    ? 'ASC'
+    : 'DESC';
+
   return { field, direction };
 }
 
@@ -30,40 +57,51 @@ function normalizePage(page) {
 }
 
 function buildVentesFilters(table, options = {}) {
-  const { search, statut, clientId } = options;
-  let where = ' WHERE 1=1 ';
+  const { search, statutPaiement, clientId } = options;
   const params = [];
+  let where = ' WHERE 1=1 ';
 
   if (search && String(search).trim()) {
-    const s = `%${String(search).trim()}%`;
-    where += ` AND (${table}.reference LIKE ? OR ${table}.client_nom LIKE ?)`;
-    params.push(s, s);
+    const value = `%${String(search).trim()}%`;
+
+    where += `
+      AND (
+        ${table}.reference LIKE ?
+        OR ${table}.client_nom LIKE ?
+      )
+    `;
+
+    params.push(value, value);
   }
 
-  if (statut) {
-    where += ` AND ${table}.statut = ?`;
-    params.push(statut);
+  if (statutPaiement) {
+    where += ` AND ${table}.statut_paiement = ?`;
+    params.push(String(statutPaiement));
   }
 
-  if (clientId) {
+  if (
+    clientId !== undefined &&
+    clientId !== null &&
+    Number(clientId) > 0
+  ) {
     where += ` AND ${table}.client_id = ?`;
-    params.push(clientId);
+    params.push(Number(clientId));
   }
 
   return { where, params };
 }
 
-function buildDevisQuery(options = {}) {
+function buildVentesQuery(table, options = {}) {
   const limit = normalizeLimit(options.limit, 20);
   const page = normalizePage(options.page);
   const offset = (page - 1) * limit;
-  const { where, params } = buildVentesFilters('devis', options);
-  const sort = normalizeSort(options.sort);
+  const { where, params } = buildVentesFilters(table, options);
+  const sort = normalizeSort(table, options.sort);
 
   return {
     query: `
       SELECT *
-      FROM devis
+      FROM ${table}
       ${where}
       ORDER BY ${sort.field} ${sort.direction}
       LIMIT ? OFFSET ?
@@ -75,26 +113,12 @@ function buildDevisQuery(options = {}) {
   };
 }
 
-function buildFacturesQuery(options = {}) {
-  const limit = normalizeLimit(options.limit, 20);
-  const page = normalizePage(options.page);
-  const offset = (page - 1) * limit;
-  const { where, params } = buildVentesFilters('factures', options);
-  const sort = normalizeSort(options.sort);
+function buildDevisQuery(options = {}) {
+  return buildVentesQuery('devis', options);
+}
 
-  return {
-    query: `
-      SELECT *
-      FROM factures
-      ${where}
-      ORDER BY ${sort.field} ${sort.direction}
-      LIMIT ? OFFSET ?
-    `,
-    params: [...params, limit, offset],
-    limit,
-    page,
-    offset
-  };
+function buildFacturesQuery(options = {}) {
+  return buildVentesQuery('factures', options);
 }
 
 module.exports = {

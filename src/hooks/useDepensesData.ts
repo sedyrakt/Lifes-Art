@@ -1,13 +1,8 @@
-// ============================================================
-// src/hooks/useDepensesData.ts - PAGE-BASED 20M READY
-// ⭐ FIX: ITEMS_PER_PAGE = 8
-// ⭐ FIX: Mamerina loadDepenses (fa tsy loadData)
-// ============================================================
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Depense, DepensesStats, DepensesFilters } from '../types/depenses';
 
-const ITEMS_PER_PAGE = 8; // ⭐ FIX: Natao ho 8
-
+const ITEMS_PER_PAGE = 8; 
 export const useDepensesData = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -200,7 +195,7 @@ export const useDepensesData = () => {
     filters,
     setFilters: setFiltersState,
     stats,
-    loadDepenses,          // ⭐ Antsoina hoe loadDepenses
+    loadDepenses,        
     createDepense,
     updateDepense,
     deleteDepense,

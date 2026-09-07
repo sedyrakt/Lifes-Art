@@ -4,7 +4,7 @@ const path = require('path');
 const os = require('os');
 
 // ============================================================
-// PACKAGES
+// PACKAGES (with validity info)
 // ============================================================
 
 const PACKAGES = {
@@ -12,11 +12,22 @@ const PACKAGES = {
     id: 'test',
     name: 'Test (30 min)',
     prefix: 'TS',
-    duration: 0,
-    price: 0,
+    validityMinutes: 30,          // 30 minitra
     maxUsers: 1,
     maxProducts: 5,
     maxClients: 3,
+    isTest: true,
+    isLifetime: false,
+    defaultQuantity: 100,
+  },
+  testpro: {
+    id: 'testpro',
+    name: 'Test Pro (24h)',
+    prefix: 'TP',
+    validityMinutes: 24 * 60,     // 24 ora
+    maxUsers: 1,
+    maxProducts: 100,
+    maxClients: 50,
     isTest: true,
     isLifetime: false,
     defaultQuantity: 100,
@@ -25,8 +36,7 @@ const PACKAGES = {
     id: 'basic',
     name: 'Basic',
     prefix: 'BS',
-    duration: 30,
-    price: 50000,
+    validityDays: 30,             // 30 andro
     maxUsers: 1,
     maxProducts: 100,
     maxClients: 50,
@@ -38,8 +48,7 @@ const PACKAGES = {
     id: 'standard',
     name: 'Standard',
     prefix: 'ST',
-    duration: 60,
-    price: 120000,
+    validityDays: 60,
     maxUsers: 3,
     maxProducts: 500,
     maxClients: 200,
@@ -51,8 +60,7 @@ const PACKAGES = {
     id: 'premium',
     name: 'Premium',
     prefix: 'PR',
-    duration: 365,
-    price: 350000,
+    validityDays: 365,
     maxUsers: 10,
     maxProducts: -1,
     maxClients: -1,
@@ -64,8 +72,7 @@ const PACKAGES = {
     id: 'national',
     name: 'National',
     prefix: 'NA',
-    duration: 730,
-    price: 600000,
+    validityDays: 730,
     maxUsers: 25,
     maxProducts: -1,
     maxClients: -1,
@@ -77,8 +84,7 @@ const PACKAGES = {
     id: 'centralized',
     name: 'Centralized',
     prefix: 'CE',
-    duration: -1,
-    price: 1500000,
+    validityDays: -1,             // -1 = lifetime (tsy misy expiration)
     maxUsers: -1,
     maxProducts: -1,
     maxClients: -1,
@@ -89,7 +95,7 @@ const PACKAGES = {
 };
 
 const VALID_PACKAGES = Object.keys(PACKAGES);
-const GRACE_PERIOD_DAYS = 5;
+const GRACE_PERIOD_DAYS = 0; // ✅ OVANA: TSY MISY GRACE PERIOD
 const MAX_TAMPER_ATTEMPTS = 5;
 const TAMPER_LOCKOUT_MINUTES = 60;
 const MAX_RESET_ATTEMPTS = 5;
@@ -117,21 +123,29 @@ const RESOURCES_PATH =
     : path.join(__dirname, '../../');
 
 const PUBLIC_KEY_PATHS = [
+  // 1. ExtraResources (production - azo antoka indrindra)
   ...(process.resourcesPath
     ? [path.join(process.resourcesPath, 'keys/public.pem')]
     : []),
+
+  // 2. Asar unpacked
   ...(process.resourcesPath
     ? [path.join(process.resourcesPath, 'app.asar.unpacked', 'keys/public.pem')]
     : []),
+
+  // 3. Development / source
   path.join(__dirname, '../../keys/public.pem'),
+  path.join(__dirname, '../keys/public.pem'),
   path.join(__dirname, '../../../keys/public.pem'),
+  path.join(process.cwd(), 'electron/keys/public.pem'),
   path.join(process.cwd(), 'keys/public.pem'),
+  // ⭐ FIX: Ampiana ny chemin ho an'ny dist-electron
+  path.join(__dirname, '../../dist-electron/keys/public.pem'),
+  path.join(__dirname, '../../../dist-electron/keys/public.pem'),
 ];
 
 // ============================================================
-// ⭐ OFFICIAL ACTIVATION CODE FORMAT
-// ⭐ LA-XXXX-XXXX-XXXX
-// ⭐ Example: LA-TSSE-VX2M-8C8Q
+// OFFICIAL ACTIVATION CODE FORMAT
 // ============================================================
 
 const ACTIVATION_CODE_FORMAT = /^LA-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
@@ -141,7 +155,7 @@ const ACTIVATION_CODE_LENGTH = 17;
 module.exports = {
   PACKAGES,
   VALID_PACKAGES,
-  GRACE_PERIOD_DAYS,
+  GRACE_PERIOD_DAYS, // ✅ 0
   MAX_TAMPER_ATTEMPTS,
   TAMPER_LOCKOUT_MINUTES,
   MAX_RESET_ATTEMPTS,

@@ -1,8 +1,4 @@
-// ============================================================
-// src/hooks/useDashboardData.ts - 20M READY (PROGRESSIVE LOADING)
-// ⭐ FIX: Mampiasa products.getStats() fa tsy stock.getStats()
-// ⭐ FIX: FOMBA 2 - Date de début = Daty création client
-// ============================================================
+
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
@@ -27,7 +23,7 @@ export const useDashboardData = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ⭐ FIX: Nampiana ny firstClientDate
+  // ⭐ FIX: Nampiana ny firstClientDate, totalDette, nbCommandesNonPayees
   const [stats, setStats] = useState<any>({
     totalProduits: 0,
     stockTotal: 0,
@@ -44,6 +40,8 @@ export const useDashboardData = () => {
     beneficeNet: 0,
     stockValue: 0,
     totalPaiements: 0,
+    totalDette: 0, // ⭐ VAOVAO
+    nbCommandesNonPayees: 0, // ⭐ VAOVAO
     firstClientDate: null, // ⭐ VAOVAO
   });
 
@@ -110,6 +108,20 @@ export const useDashboardData = () => {
           console.error('❌ Erreur payments.getStats:', err);
         }
 
+        // ⭐ FIX: Mampiditra ny totalDette sy nbCommandesNonPayees
+        let totalDette = 0;
+        let nbCommandesNonPayees = 0;
+
+        try {
+          const detteResult = await window.api.orders.getDetteStats();
+          if (detteResult?.success) {
+            totalDette = toNumber(detteResult.data?.total_dette);
+            nbCommandesNonPayees = toNumber(detteResult.data?.nb_commandes_non_payees);
+          }
+        } catch (err) {
+          console.error('❌ Erreur getDetteStats:', err);
+        }
+
         const chiffreAffaires = toNumber(d.chiffreAffaires);
         const depenses = toNumber(d.depenses);
         const beneficeNet = Math.max(0, chiffreAffaires - depenses - salairesPayes);
@@ -124,6 +136,8 @@ export const useDashboardData = () => {
           beneficeNet,
           stockValue,
           clientsActifs,
+          totalDette, // ⭐ FIX
+          nbCommandesNonPayees, // ⭐ FIX
           firstClientDate, // ⭐ VAOVAO
         });
       }

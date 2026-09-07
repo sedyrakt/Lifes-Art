@@ -66,7 +66,6 @@ function buildWhere(options = {}, alias = '') {
   return { where, params };
 }
 
-// ⚠️ MODIFICATION MAJEURE ICI : Ataovy `co.total_ttc` na `co.montant_total` raha samy hafa ny anaranao
 function buildClientsQuery(options = {}) {
   const { where, params } = buildWhere(options, 'c');
   const { sortBy, sortOrder, expression } = normalizeSort(options);
@@ -77,8 +76,8 @@ function buildClientsQuery(options = {}) {
 
   const query = `
     SELECT
-      c.id, c.nom, c.email, c.telephone, c.adresse, c.ville, c.code_postal, c.pays, c.type, c.image, c.created_at, c.updated_at,
-      COALESCE(SUM(co.total_ttc), 0) AS total_achats, -- ⭐ SOLOY ETO ny anaranao
+      c.id, c.nom, c.email, c.telephone, c.adresse, c.ville, c.code_postal, c.pays, c.type, c.created_at, c.updated_at,
+      COALESCE(SUM(co.total_ttc), 0) AS total_achats,
       COUNT(DISTINCT co.id) AS nombre_commandes
     FROM clients c
     LEFT JOIN commandes co ON co.client_id = c.id

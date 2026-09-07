@@ -1,16 +1,8 @@
-// ============================================================
-// database/config.cjs - CONSTANTS (CommonJS)
-// ⭐ LIFE'S ART ERP PRO
-// ⭐ Version "Production Safe" - Hardcoded, tsy miankina amin'ny .env
-// ============================================================
+
 
 const path = require('path');
 
-// ============================================================
-// ⭐ DEBUG MODE
-// ============================================================
 
-// ⭐ FANITSARA: Raha vita ny build dia tsy ho development intsony
 const DEBUG = false;
 
 // ============================================================
@@ -26,8 +18,8 @@ const isPackaged = true;
 // ⭐ FANITSARA: Hardcoded mba tsy ho very rehefa packaged
 const SALT_ROUNDS = 12;
 
-// ⭐ FANITSARA: Ampiasaina mivantana ny dossier backups
-const BACKUP_DIR = path.join(__dirname, 'backups');
+// ⭐ FIX: BACKUP_DIR mifanaraka amin'ny electron/ipc/backup.cjs
+const BACKUP_DIR = process.env.DB_BACKUP_PATH || path.join(__dirname, '..', 'backups');
 
 // ============================================================
 // ⭐ CONSTANTES SQLITE / DATABASE
@@ -68,15 +60,11 @@ const SQL_FORBIDDEN_KEYWORDS = [
   'VACUUM',
 ];
 
-// ============================================================
-// ⭐ FICHIERS EXCLUS
-// ============================================================
+
 
 const EXCLUDED_FILES = [];
 
-// ============================================================
-// ⭐ ALLOWED TABLES
-// ============================================================
+
 
 const ALLOWED_TABLES = new Set([
   'utilisateurs',
@@ -97,6 +85,13 @@ const ALLOWED_TABLES = new Set([
   'schema_migrations',
   'audit_logs',
   'settings',
+  'achats',
+  'details_achats',
+  'devis',
+  'details_devis',
+  'factures',
+  'details_factures',
+  'paiements_employes',
 ]);
 
 // ============================================================

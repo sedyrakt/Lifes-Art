@@ -1,12 +1,15 @@
 // ============================================================
 // electron/ipc/orders/index.cjs - Entry point
+// ⭐ FIX: ESRINA NY TSY IL AINA
 // ============================================================
 
+'use strict';
+
 const { registerOrdersHandlers } = require('./handlers.cjs');
-const { ORDER_STATUS, VALID_STATUSES } = require('./validation.cjs');
+const { VALID_PAIEMENT_STATUSES, normalizePaiement } = require('./validation.cjs');
 
 module.exports = {
   registerOrdersHandlers,
-  ORDER_STATUS,
-  VALID_STATUSES,
+  VALID_PAIEMENT_STATUSES,
+  normalizePaiement,
 };

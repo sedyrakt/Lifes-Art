@@ -2,6 +2,7 @@
 // electron/ipc/utils.cjs - HANDLERS HO AN'NY UTILITAIRES
 // ⭐ FANITSARA VAOVAO: Nampidirina ny console.log ho an'ny debug
 // ⭐ FIX: Mamerina `true` mba tsy hiteraka ilay "function returned false"
+// ⭐ NEW: Handler "utils:save-file-to-directory" (BULK BULLETIN)
 // ============================================================
 
 const { app, dialog } = require('electron');
@@ -64,7 +65,7 @@ function registerUtilsHandlers(ipcMain, getMainWindow) {
     } catch (err) { error('❌ utils:system-info error:', err); return { success: false, error: err.message }; }
   });
 
-  // SAVE FILE
+  // SAVE FILE (AVEC DIALOG)
   ipcMain.handle('utils:save-file', async (event, data, defaultPath) => {
     try {
       log('🛠️ utils:save-file BAIKO TONGANY! defaultPath:', defaultPath);
@@ -84,7 +85,23 @@ function registerUtilsHandlers(ipcMain, getMainWindow) {
     } catch (err) { error('❌ utils:save-file error:', err.message); return { success: false, error: err.message }; }
   });
 
-  log('   ✅ utils:export-data enregistré'); log('   ✅ utils:print enregistré'); log('   ✅ utils:system-info enregistré'); log('   ✅ utils:save-file enregistré');
+  // ⭐ NEW: SAVE FILE TO DIRECTORY (TSY MISY DIALOG)
+  ipcMain.handle('utils:save-file-to-directory', async (event, data, directory, filename) => {
+    try {
+      log('🛠️ utils:save-file-to-directory appelé. Directory:', directory, 'Filename:', filename);
+      if (!directory || !filename) return { success: false, error: 'Directory ou filename manquant' };
+
+      // Mamorona ny dossier raha tsy mbola misy
+      fs.mkdirSync(directory, { recursive: true });
+      const filePath = path.join(directory, filename);
+      const buffer = Buffer.from(data);
+      fs.writeFileSync(filePath, buffer);
+      log(`✅ Fichier sauvegardé dans le dossier: ${filePath}`);
+      return { success: true, filePath };
+    } catch (err) { error('❌ utils:save-file-to-directory error:', err.message); return { success: false, error: err.message }; }
+  });
+
+  log('   ✅ utils:export-data enregistré'); log('   ✅ utils:print enregistré'); log('   ✅ utils:system-info enregistré'); log('   ✅ utils:save-file enregistré'); log('   ✅ utils:save-file-to-directory enregistré');
   return true; // ⭐ FIX: Mamerina true
 }
 

@@ -1,8 +1,10 @@
 // ============================================================
-// electron/main.cjs - LIFE'S ART ERP
+// electron/main.cjs - TahiryPro ERP
 // ⭐ VERSION AMÉLIORÉE - FIX HANDLER REGISTRATION
 // ⭐ FIX: NAMPIANA NY LICENSE HANDLER
 // ⭐ FIX: Mampiasa dist-electron/ rehefa production
+// ⭐ FIX: ESORINA NY COMPTABILITE (TSY ILAINA)
+// ⭐ FIX: NAMPIANA NY 'utils:save-file-to-directory' HO AN'NY BULK
 // ============================================================
 'use strict';
 
@@ -53,7 +55,7 @@ function printDatabaseInfo(){
     const dbPath=getDbPath();
     console.log('');
     console.log('============================================================');
-    console.log("📦 LIFE'S ART - DATABASE PATH");
+    console.log("📦 TahiryPro - DATABASE PATH");
     console.log('============================================================');
     console.log('📁 userData :',app.getPath('userData'));
     console.log('📁 DB       :',dbPath);
@@ -289,7 +291,6 @@ async function loadFrontend(){
 
 // ============================================================
 // IPC HANDLER MODULE LOADER - VOAAMBOARINA
-// ⭐ FIX: Mampiasa "handler" fa tsy "handlers" ihany
 // ============================================================
 
 function registerHandlerModule(label,modulePath){
@@ -361,7 +362,8 @@ function registerHandlerModule(label,modulePath){
 
 // ============================================================
 // REGISTER ALL IPC - VOAAMBOARINA
-// ⭐ FIX: NAMPIANA NY LICENSE HANDLER
+// ⭐ FIX: ESORINA NY COMPTABILITE (TSY ILAINA)
+// ⭐ FIX: NAMPIANA NY HANDLER saveFileToDirectory
 // ============================================================
 
 function registerAllIPC(){
@@ -374,29 +376,28 @@ function registerAllIPC(){
   mainLog('🔌 ENREGISTREMENT IPC HANDLERS');
   mainLog('============================================================');
 
-const handlerModules = [
-  ['AUTH', './ipc/auth.cjs'],
-  ['USERS', './ipc/users.cjs'],
-  ['PRODUCTS', './ipc/products.cjs'],
-  ['CATEGORIES', './ipc/categories.cjs'],
-  ['FOURNISSEURS', './ipc/fournisseurs.cjs'],
-  ['CLIENTS', './ipc/clients.cjs'],
-  ['ORDERS', './ipc/orders.cjs'],
-  ['STOCK', './ipc/stock.cjs'],
-  ['ACHATS', './ipc/achats.cjs'],
-  ['EMPLOYES', './ipc/employes.cjs'],
-  ['DEPENSES', './ipc/expenses.cjs'],
-  ['PAIEMENTS', './ipc/payments.cjs'],
-  ['DASHBOARD', './ipc/dashboard.cjs'],
-  ['REPORTS', './ipc/reports.cjs'],
-  ['IMAGES', './ipc/images.cjs'],
-  ['SETTINGS', './ipc/settings.cjs'],
-  ['BACKUP', './ipc/backup.cjs'],
-  ['DIALOG', './ipc/dialog.cjs'],
-  ['LICENSE', './ipc/license.cjs'],
-  ['VENTES', './ipc/ventes.cjs'],
-  ['COMPTABILITE', './ipc/comptabilite.cjs']
-];
+  const handlerModules = [
+    ['AUTH', './ipc/auth.cjs'],
+    ['USERS', './ipc/users.cjs'],
+    ['PRODUCTS', './ipc/products.cjs'],
+    ['CATEGORIES', './ipc/categories.cjs'],
+    ['FOURNISSEURS', './ipc/fournisseurs.cjs'],
+    ['CLIENTS', './ipc/clients.cjs'],
+    ['ORDERS', './ipc/orders.cjs'],
+    ['STOCK', './ipc/stock.cjs'],
+    ['ACHATS', './ipc/achats.cjs'],
+    ['EMPLOYES', './ipc/employes.cjs'],
+    ['DEPENSES', './ipc/expenses.cjs'],
+    ['PAIEMENTS', './ipc/payments.cjs'],
+    ['DASHBOARD', './ipc/dashboard.cjs'],
+    ['REPORTS', './ipc/reports.cjs'],
+    ['IMAGES', './ipc/images.cjs'],
+    ['SETTINGS', './ipc/settings.cjs'],
+    ['BACKUP', './ipc/backup.cjs'],
+    ['DIALOG', './ipc/dialog.cjs'],
+    ['LICENSE', './ipc/license.cjs'],
+    ['VENTES', './ipc/ventes.cjs']
+  ];
 
   let successCount=0;
   const failedModules=[];
@@ -419,6 +420,7 @@ const handlerModules = [
     mainWarn(`\n⚠️ ${failedModules.length} module(s) tsy voasoratra: ${failedModules.join(', ')}`);
   }
 
+  // ⭐ REGISTRATION DB PATH / DEBUG
   try{
     if(!ipcMain.listenerCount('db:getPath')){
       ipcMain.handle('db:getPath',async()=>{
@@ -437,6 +439,7 @@ const handlerModules = [
     mainLog('✅ IPC DB debug enregistré');
   }catch(err){mainWarn('⚠️ IPC DB debug:',err.message);}
 
+  // ⭐ REGISTRATION APP INFO
   try{
     if(!ipcMain.listenerCount('app:getInfo')){
       ipcMain.handle('app:getInfo',async()=>({
@@ -453,6 +456,7 @@ const handlerModules = [
     mainLog('✅ IPC app:getInfo enregistré');
   }catch(err){mainWarn('⚠️ IPC app:getInfo:',err.message);}
 
+  // ⭐ REGISTRATION UTILS:SAVE-FILE (AVEC DIALOG)
   try{
     if(!ipcMain.listenerCount('utils:save-file')){
       ipcMain.handle('utils:save-file',async(event,data,defaultPath)=>{
@@ -491,6 +495,26 @@ const handlerModules = [
       mainLog('✅ IPC utils:save-file enregistré avec succès');
     }else mainLog('ℹ️ IPC utils:save-file déjà enregistré');
   }catch(err){mainWarn('⚠️ IPC utils:save-file:',err.message);}
+
+  // ⭐⭐ VAOVAO: REGISTRATION UTILS:SAVE-FILE-TO-DIRECTORY (TSY MISY DIALOG)
+  try{
+    if(!ipcMain.listenerCount('utils:save-file-to-directory')){
+      ipcMain.handle('utils:save-file-to-directory', async (event, data, directory, filename) => {
+        try{
+          if(!directory || !filename) return { success:false, error:'Directory ou filename manquant' };
+          fs.mkdirSync(directory, { recursive: true });
+          const filePath = path.join(directory, filename);
+          const buffer = Buffer.from(data);
+          await fs.promises.writeFile(filePath, buffer);
+          return { success:true, filePath };
+        }catch(err){
+          mainError('❌ Erreur utils:save-file-to-directory:', err.message);
+          return { success:false, error: err.message };
+        }
+      });
+      mainLog('✅ IPC utils:save-file-to-directory enregistré avec succès');
+    }else mainLog('ℹ️ IPC utils:save-file-to-directory déjà enregistré');
+  }catch(err){ mainWarn('⚠️ IPC utils:save-file-to-directory:', err.message); }
 
   handlersRegistered=true;
 
@@ -561,7 +585,7 @@ function setupSingleInstance(){
 
 app.whenReady().then(async()=>{
   mainLog('============================================================');
-  mainLog("🚀 LIFE'S ART ELECTRON START");
+  mainLog("🚀 TahiryPro ELECTRON START");
   mainLog('============================================================');
   mainLog('📦 Electron:',process.versions.electron);
   mainLog('🟢 Node:',process.versions.node);
@@ -605,7 +629,7 @@ app.whenReady().then(async()=>{
   });
 
   mainLog('============================================================');
-  mainLog("🟢 LIFE'S ART READY");
+  mainLog("🟢 TahiryPro READY");
   mainLog('============================================================');
 }).catch(err=>{
   mainError('============================================================');

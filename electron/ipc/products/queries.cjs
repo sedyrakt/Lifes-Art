@@ -1,3 +1,4 @@
+// electron/ipc/products/queries.cjs
 'use strict';
 
 const SORT_FIELDS = Object.freeze({
@@ -32,7 +33,7 @@ function addFilters(query, params, options) {
   const { search, categorieId, status, prixMin, prixMax, dateFrom, dateTo } = options;
 
   if (!status || status === '') {
-    query += ` AND p.status = 'actif'`;
+    query += ` AND p.status != 'archive'`;
   } else {
     query += ` AND p.status = ?`;
     params.push(status);
@@ -78,8 +79,10 @@ function buildProductsQuery(options = {}) {
   const offset = (page - 1) * limit;
   const sort = normalizeSort(options.sortBy, options.sortOrder);
 
-  // ⭐ FIX: Mamerina ny categorie_nom sy fournisseur_nom
-  let query = ` SELECT p.id, p.code, p.nom, p.description, p.categorie_id, p.fournisseur_id, p.prix_achat, p.prix_vente, p.quantite_stock, p.quantite_minimale, p.unite, p.image, p.status, p.statut_stock, p.created_at, p.updated_at, c.nom AS categorie_nom, f.nom AS fournisseur_nom, (SELECT COUNT(DISTINCT dc.commande_id) FROM details_commandes dc WHERE dc.produit_id = p.id) AS nb_commandes FROM produits p LEFT JOIN categories c ON c.id = p.categorie_id LEFT JOIN fournisseurs f ON f.id = p.fournisseur_id WHERE 1 = 1`;
+  // ⭐ Nampiana ny p.tva_rate
+  let query = ` SELECT p.id, p.code, p.nom, p.description, p.categorie_id, p.fournisseur_id, p.prix_achat, p.prix_vente, p.quantite_stock, p.quantite_minimale, p.unite, p.tva_rate, 
+  CASE WHEN p.quantite_stock <= 0 THEN 'inactif' ELSE p.status END AS status, 
+  p.statut_stock, p.created_at, p.updated_at, c.nom AS categorie_nom, f.nom AS fournisseur_nom, (SELECT COUNT(DISTINCT dc.commande_id) FROM details_commandes dc WHERE dc.produit_id = p.id) AS nb_commandes FROM produits p LEFT JOIN categories c ON c.id = p.categorie_id LEFT JOIN fournisseurs f ON f.id = p.fournisseur_id WHERE 1 = 1`;
 
   const params = [];
   query = addFilters(query, params, options);

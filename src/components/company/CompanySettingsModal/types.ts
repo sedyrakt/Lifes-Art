@@ -1,12 +1,9 @@
-// src/components/company/CompanySettingsModal/types.ts
-
+// types.ts
 export interface CompanyData {
   name: string;
   address: string;
   phone: string;
   email: string;
-  logo?: string;
-  image?: string;
   siret?: string;
   website?: string;
   taxId?: string;
@@ -20,7 +17,7 @@ export interface CompanySettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave?: (data: CompanyData) => void;
-  onGenerate?: (data: CompanyData) => void;
+  onGenerate?: (data: CompanyData) => Promise<{ canceled?: boolean; success?: boolean; error?: string; filePath?: string }>;
   initialData?: CompanyData;
   isDark?: boolean;
   mode?: 'save' | 'generate';
@@ -31,18 +28,6 @@ export interface CompanySettingsHeaderProps {
   isDark: boolean;
   theme: any;
   onClose: () => void;
-}
-
-export interface CompanySettingsImageProps {
-  imagePreview: string;
-  savingImage: boolean;
-  isDark: boolean;
-  theme: any;
-  onImageChange: (file: File) => Promise<void>;
-  onRemoveImage: () => void;
-  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
-  label?: string;
 }
 
 export interface CompanySettingsFormProps {
@@ -56,7 +41,6 @@ export interface CompanySettingsFormProps {
 export interface CompanySettingsActionsProps {
   isGenerateMode: boolean;
   loading: boolean;
-  savingImage: boolean;
   isDark: boolean;
   theme: any;
   onClose: () => void;

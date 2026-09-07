@@ -62,7 +62,8 @@ function registerFournisseursHandlers(ipcMain) {
       const fd = validation.data;
       if (statementsModule.stmtGetByName.get(fd.nom)) return { success: false, error: 'Ce fournisseur existe déjà' };
       if (fd.email && statementsModule.stmtGetByEmail.get(fd.email)) return { success: false, error: 'Email déjà utilisé' };
-      const result = statementsModule.stmtCreate.run(fd.nom, fd.contact, fd.telephone, fd.email, fd.adresse, fd.image);
+      // ⭐ NESORINA NY image
+      const result = statementsModule.stmtCreate.run(fd.nom, fd.contact, fd.telephone, fd.email, fd.adresse);
       const id = result.lastInsertRowid;
       const auditUser = userId || event.sender?.user?.id || null;
       if (auditUser) logAudit('create', id, fd.nom, auditUser);
@@ -82,7 +83,8 @@ function registerFournisseursHandlers(ipcMain) {
       const fd = validation.data;
       if (statementsModule.stmtGetByNameExcept.get(fd.nom, fid)) return { success: false, error: 'Nom déjà utilisé' };
       if (fd.email && statementsModule.stmtGetByEmailExcept.get(fd.email, fid)) return { success: false, error: 'Email déjà utilisé' };
-      statementsModule.stmtUpdate.run(fd.nom, fd.contact, fd.telephone, fd.email, fd.adresse, fd.image, fid);
+      // ⭐ NESORINA NY image
+      statementsModule.stmtUpdate.run(fd.nom, fd.contact, fd.telephone, fd.email, fd.adresse, fid);
       const auditUser = userId || event.sender?.user?.id || null;
       if (auditUser) logAudit('update', fid, fd.nom, auditUser);
       emitFournisseursChanged({ type: 'update', id: fid, nom: fd.nom });
@@ -152,7 +154,7 @@ function registerFournisseursHandlers(ipcMain) {
   }));
 
   log('✅ [fournisseurs.handlers] Enregistrés avec withDbCheck');
-  return true; // ⭐ FIX: Mamerina true
+  return true;
 }
 
 module.exports = { registerFournisseursHandlers };

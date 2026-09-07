@@ -1,449 +1,330 @@
+// electron/services/license/activation.cjs
+// ⭐ FIX #1: Canonical String MIARAKA AMIN'NY ADMIN (Signature RSA mitovy)
+// ⭐ FIX #2: Activation Log amin'ny SQLite (Tsy azo averina ny code efa nampiasaina na lany)
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const os = require('os');
 
+const { PACKAGES, ACTIVATION_CODE_FORMAT } = require('./constants.cjs');
 const { encryptData, decryptData, verifyRSASignature } = require('./crypto.cjs');
+const { getMachineId, verifyMachineBinding, getMachineFingerprint } = require('./machine.cjs');
 const { getLicensePath } = require('./utils.cjs');
-const { PACKAGES, ACTIVATION_CODE_FORMAT, ACTIVATION_CODE_LENGTH } = require('./constants.cjs');
+
+// ⭐ SQLite database connection (ho an'ny activation log)
+const { getDb } = require('../../database/connection.cjs');
 
 const DEBUG = process.env.DEBUG === 'true' || process.env.NODE_ENV === 'development';
 function log(...args) { if (DEBUG) console.log(...args); }
-function error(...args) { console.error(...args); }
 
-const FITAIA_DIR = path.join(os.homedir(), '.fitaia');
-const USED_ACTIVATIONS_PATH = path.join(FITAIA_DIR, 'used_activations.json');
-const EXPIRED_ACTIVATIONS_PATH = path.join(FITAIA_DIR, 'expired_activations.json');
+const CODES_DB_SECRET = 'njkwrfkxiszaqplmwert_7gH4%jK9#pL2$mN6@qR8&sT3*vW5!xY1+zA0=bC4-eF7';
+const CODES_DB_SALT = Buffer.from('FITAIA-CODES-SALT-V1', 'utf8');
 
-const PUBLIC_KEY_PATHS = [
-  ...(process.resourcesPath ? [path.join(process.resourcesPath, 'keys/public.pem')] : []),
-  ...(process.resourcesPath ? [path.join(process.resourcesPath, 'app.asar.unpacked', 'keys/public.pem')] : []),
-  path.join(__dirname, '../../keys/public.pem'),
-  path.join(__dirname, '../../../keys/public.pem'),
-  path.join(process.cwd(), 'keys/public.pem'),
-  path.join(process.cwd(), 'electron/keys/public.pem'),
-  path.join(process.cwd(), 'admin-tools/keys/public.pem'),
-];
+function getCodesAESKey() {
+  return crypto.pbkdf2Sync(CODES_DB_SECRET, CODES_DB_SALT, 210000, 32, 'sha512');
+}
 
-let PUBLIC_KEY = '';
-for (const pkPath of PUBLIC_KEY_PATHS) {
+function decryptCodesDB(encrypted) {
   try {
-    if (fs.existsSync(pkPath)) {
-      PUBLIC_KEY = fs.readFileSync(pkPath, 'utf8');
-      log('✅ [activation] Public Key chargée depuis:', pkPath);
-      break;
-    }
-  } catch (_) {}
-}
+    if (typeof encrypted !== 'string') return null;
+    const parts = encrypted.split(':');
+    if (parts.length !== 3) return null;
 
-if (!PUBLIC_KEY) {
-  console.error('❌ [activation] Public key non trouvée');
-}
+    const key = getCodesAESKey();
+    const iv = Buffer.from(parts[0], 'base64');
+    const authTag = Buffer.from(parts[1], 'base64');
+    const cipherText = parts[2];
 
-function ensureFitaiaDir() {
-  try {
-    if (!fs.existsSync(FITAIA_DIR)) {
-      fs.mkdirSync(FITAIA_DIR, { recursive: true });
-    }
-    return true;
-  } catch (err) {
-    error('❌ Impossible de créer .fitaia:', err.message);
-    return false;
-  }
-}
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(authTag);
 
-function createCanonicalString(data) {
-  if (!data || typeof data !== 'object') return '';
-  const keys = Object.keys(data).filter((key) => key !== 'signature').sort();
-  return keys.map((key) => `${key}=${String(data[key])}`).join('&');
-}
-
-// ⭐ FORMAT / VALIDATE
-function normalizeActivationCode(rawCode) {
-  if (rawCode === null || rawCode === undefined) return '';
-  return String(rawCode).toUpperCase().replace(/\s+/g, '').trim();
-}
-
-function formatActivationCode(rawCode) {
-  const cleaned = normalizeActivationCode(rawCode);
-  if (!cleaned) return '';
-
-  if (cleaned.length === ACTIVATION_CODE_LENGTH && ACTIVATION_CODE_FORMAT.test(cleaned)) {
-    return cleaned;
-  }
-
-  const noDashes = cleaned.replace(/-/g, '');
-  if (noDashes.startsWith('LA') && noDashes.length === 14) {
-    const body = noDashes.substring(2);
-    return ['LA', body.substring(0, 4), body.substring(4, 8), body.substring(8, 12)].join('-');
-  }
-
-  if (noDashes.length === 12) {
-    return ['LA', noDashes.substring(0, 4), noDashes.substring(4, 8), noDashes.substring(8, 12)].join('-');
-  }
-
-  return cleaned;
-}
-
-function validateActivationCodeFormat(code) {
-  if (!code) return false;
-  const formatted = formatActivationCode(code);
-  return ACTIVATION_CODE_FORMAT.test(formatted);
-}
-
-// ⭐ USED ACTIVATIONS
-function getUsedActivations() {
-  try {
-    if (!fs.existsSync(USED_ACTIVATIONS_PATH)) return {};
-    const raw = fs.readFileSync(USED_ACTIVATIONS_PATH, 'utf8');
-    if (!raw.trim()) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch (err) {
-    console.warn('⚠️ Erreur lecture used_activations.json:', err.message);
-    return {};
-  }
-}
-
-function saveUsedActivations(data) {
-  try {
-    ensureFitaiaDir();
-    fs.writeFileSync(USED_ACTIVATIONS_PATH, JSON.stringify(data || {}, null, 2), 'utf8');
-    return true;
-  } catch (err) {
-    error('❌ Erreur sauvegarde used_activations:', err.message);
-    return false;
-  }
-}
-
-function getExpiredActivations() {
-  try {
-    if (!fs.existsSync(EXPIRED_ACTIVATIONS_PATH)) return {};
-    const raw = fs.readFileSync(EXPIRED_ACTIVATIONS_PATH, 'utf8');
-    if (!raw.trim()) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch (err) {
-    console.warn('⚠️ Erreur lecture expired_activations.json:', err.message);
-    return {};
-  }
-}
-
-function saveExpiredActivations(data) {
-  try {
-    ensureFitaiaDir();
-    fs.writeFileSync(EXPIRED_ACTIVATIONS_PATH, JSON.stringify(data || {}, null, 2), 'utf8');
-    return true;
-  } catch (err) {
-    error('❌ Erreur sauvegarde expired_activations:', err.message);
-    return false;
-  }
-}
-
-function markAsExpired(activationId, data = {}) {
-  try {
-    if (!activationId) return false;
-    const expired = getExpiredActivations();
-    expired[activationId] = { activationId, expiredAt: new Date().toISOString(), ...data };
-    saveExpiredActivations(expired);
-    return true;
-  } catch (err) {
-    console.warn('⚠️ Erreur markAsExpired:', err.message);
-    return false;
-  }
-}
-
-// ⭐ FIND SIGNED PAYLOAD
-function findSignedPayload(code) {
-  try {
-    const formattedCode = formatActivationCode(code);
-    if (!formattedCode) return null;
-
-    const exportsDirs = [
-      path.join(__dirname, '../../admin-tools/exports'),
-      path.join(__dirname, '../../../admin-tools/exports'),
-      path.join(process.cwd(), 'admin-tools/exports'),
-    ];
-
-    const uniqueDirs = [...new Set(exportsDirs)];
-
-    for (const exportsDir of uniqueDirs) {
-      try {
-        if (!fs.existsSync(exportsDir)) continue;
-        const files = fs.readdirSync(exportsDir).filter((file) => file.endsWith('.json'));
-        for (const file of files) {
-          try {
-            const filePath = path.join(exportsDir, file);
-            const raw = fs.readFileSync(filePath, 'utf8');
-            const data = JSON.parse(raw);
-            if (!data || !Array.isArray(data.codes)) continue;
-
-            for (const item of data.codes) {
-              if (!item || !item.code) continue;
-              const itemCode = formatActivationCode(item.code);
-              if (itemCode === formattedCode) {
-                log('✅ [activation] Code trouvé:', formattedCode, 'dans', file);
-                return item;
-              }
-            }
-          } catch (err) {
-            console.warn('⚠️ Erreur lecture export:', file, err.message);
-          }
-        }
-      } catch (_) {}
-    }
-
-    return null;
-  } catch (err) {
-    console.error('❌ findSignedPayload:', err.message);
+    let decrypted = decipher.update(cipherText, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
+    return JSON.parse(decrypted);
+  } catch (e) {
+    console.warn('⚠️ decryptCodesDB failed:', e.message);
     return null;
   }
 }
 
-// ⭐ VERIFY RSA SIGNATURE
-function verifyPayloadSignature(payload, signature) {
+function getCodesDatabasePath() {
+  if (process.resourcesPath) {
+    const p1 = path.join(process.resourcesPath, 'keys', 'codes.db.enc');
+    if (fs.existsSync(p1)) return p1;
+    const p2 = path.join(process.resourcesPath, 'codes.db.enc');
+    if (fs.existsSync(p2)) return p2;
+    const p3 = path.join(process.resourcesPath, 'dist-electron', 'keys', 'codes.db.enc');
+    if (fs.existsSync(p3)) return p3;
+  }
+
+  const devPaths = [
+    path.join(__dirname, '../../keys/codes.db.enc'),
+    path.join(__dirname, '../keys/codes.db.enc'),
+    path.join(process.cwd(), 'electron/keys/codes.db.enc'),
+    path.join(process.cwd(), 'keys/codes.db.enc'),
+  ];
+
+  for (const p of devPaths) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+function loadCodesDatabase() {
   try {
-    if (!payload || !signature) return false;
-    return verifyRSASignature(payload, signature);
+    const dbPath = getCodesDatabasePath();
+    if (!dbPath) {
+      log('ℹ️ codes.db.enc tsy hita');
+      return null;
+    }
+    const encrypted = fs.readFileSync(dbPath, 'utf8');
+    const db = decryptCodesDB(encrypted);
+    if (db) {
+      log(`✅ codes.db.enc chargé (${db.total || Object.keys(db.codes || {}).length} codes)`);
+    }
+    return db;
   } catch (err) {
-    console.error('❌ RSA verification error:', err.message);
+    console.warn('⚠️ Impossible de charger codes.db:', err.message);
+    return null;
+  }
+}
+
+function resolveCode(code) {
+  const db = loadCodesDatabase();
+  if (db && db.codes && db.codes[code]) {
+    return db.codes[code];
+  }
+  return null;
+}
+
+function computeExpirationDate(payload, now = new Date()) {
+  if (payload.validityMinutes) {
+    return new Date(now.getTime() + payload.validityMinutes * 60 * 1000).toISOString();
+  } else if (payload.validityDays) {
+    if (payload.validityDays === -1) {
+      return '2099-12-31T23:59:59.999Z';
+    }
+    return new Date(now.getTime() + payload.validityDays * 24 * 60 * 60 * 1000).toISOString();
+  } else if (payload.expirationDate) {
+    return payload.expirationDate;
+  }
+  return null;
+}
+
+// ============================================================
+// ⭐ ACTIVATION LOG (SQLite) - Fisorohana code efa nampiasaina
+// ============================================================
+
+function ensureActivationLogTable() {
+  try {
+    const db = getDb();
+    if (!db || !db.open) {
+      console.warn('⚠️ Activation log: DB tsy misokatra, tsy azo atao ny log');
+      return false;
+    }
+    db.exec(`CREATE TABLE IF NOT EXISTS activation_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL,
+      machine_id TEXT NOT NULL,
+      activated_at TEXT NOT NULL,
+      package_type TEXT,
+      UNIQUE(code, machine_id)
+    )`);
+    log('✅ Activation log table ok');
+    return true;
+  } catch (err) {
+    console.warn('⚠️ Erreur création activation log:', err.message);
     return false;
   }
 }
 
-// ⭐ CHECK CODE USABLE - ⭐ FIX: Message d'erreur fohy sy mazava
-function isCodeUsable(code) {
+function isCodeAlreadyUsed(code, machineId) {
   try {
-    const formatted = formatActivationCode(code);
-    log('🔍 [activation] Code reçu:', code);
-    log('🔍 [activation] Code formaté:', formatted);
-
-    if (!validateActivationCodeFormat(formatted)) {
-      return { usable: false, reason: 'Code invalide. Vérifiez le format ou contactez l\'administrateur.' };
-    }
-
-    const signedData = findSignedPayload(formatted);
-    if (!signedData) return { usable: false, reason: 'Code invalide. Vérifiez votre code ou contactez l\'administrateur.' };
-
-    if (!signedData.payload || typeof signedData.payload !== 'object') {
-      return { usable: false, reason: 'Code invalide. Vérifiez votre code ou contactez l\'administrateur.' };
-    }
-
-    if (!signedData.signature) return { usable: false, reason: 'Code invalide. Vérifiez votre code ou contactez l\'administrateur.' };
-
-    const signatureValid = verifyPayloadSignature(signedData.payload, signedData.signature);
-    if (!signatureValid) return { usable: false, reason: 'Code invalide. Vérifiez votre code ou contactez l\'administrateur.' };
-
-    const activationId = signedData.payload.activationId;
-    if (!activationId) return { usable: false, reason: 'Code invalide. Contactez l\'administrateur.' };
-
-    const usedActivations = getUsedActivations();
-    if (usedActivations[activationId]) {
-      return { usable: false, reason: 'Code déjà utilisé. Contactez l\'administrateur.', activationId };
-    }
-
-    const expirationDate = signedData.payload.expirationDate;
-    if (!expirationDate) return { usable: false, reason: 'Code invalide. Contactez l\'administrateur.', activationId };
-
-    const expirationTime = new Date(expirationDate).getTime();
-    if (Number.isNaN(expirationTime)) return { usable: false, reason: 'Code invalide. Contactez l\'administrateur.', activationId };
-
-    if (expirationTime <= Date.now()) {
-      markAsExpired(activationId, {
-        licenseKey: signedData.payload.licenseKey || null,
-        packageType: signedData.payload.packageType || null,
-        expirationDate,
-      });
-      return { usable: false, reason: 'Code expiré. Contactez l\'administrateur.', activationId };
-    }
-
-    const packageType = signedData.payload.packageType;
-    if (!packageType) return { usable: false, reason: 'Code invalide. Contactez l\'administrateur.', activationId };
-    if (!PACKAGES[packageType]) return { usable: false, reason: 'Code invalide. Contactez l\'administrateur.', activationId };
-
-    return { usable: true, data: signedData };
+    const db = getDb();
+    if (!db || !db.open) return false;
+    const stmt = db.prepare('SELECT 1 FROM activation_log WHERE code = ? AND machine_id = ? LIMIT 1');
+    return !!stmt.get(code, machineId);
   } catch (err) {
-    error('❌ isCodeUsable:', err.message);
-    return { usable: false, reason: 'Erreur lors de l\'activation. Réessayez ou contactez l\'administrateur.' };
+    console.warn('⚠️ Erreur vérification activation log:', err.message);
+    return false;
   }
 }
 
-// ⭐ ACTIVATE WITH CODE
+function logActivation(code, machineId, packageType) {
+  try {
+    const db = getDb();
+    if (!db || !db.open) return;
+    db.prepare('INSERT OR IGNORE INTO activation_log (code, machine_id, activated_at, package_type) VALUES (?, ?, ?, ?)')
+      .run(code, machineId, new Date().toISOString(), packageType);
+    log(`✅ Activation log enregistré pour ${code}`);
+  } catch (err) {
+    console.warn('⚠️ Erreur enregistrement activation log:', err.message);
+  }
+}
+
+// ============================================================
+// ⭐ ACTIVATION FUNCTION (Misy fanamarinana code efa nampiasaina)
+// ============================================================
+
 function activateWithCode(code) {
   try {
-    const checkResult = isCodeUsable(code);
-    if (!checkResult.usable) return { success: false, message: checkResult.reason };
+    if (!code || typeof code !== 'string') {
+      return { success: false, message: 'Code d\'activation manquant' };
+    }
+    const cleanCode = code.trim().toUpperCase();
 
-    const signedData = checkResult.data;
-    const payload = signedData.payload;
-    const signature = signedData.signature;
-
-    if (!payload.packageType || !PACKAGES[payload.packageType]) {
-      return { success: false, message: 'Code invalide. Contactez l\'administrateur.' };
+    if (!ACTIVATION_CODE_FORMAT.test(cleanCode)) {
+      return { success: false, message: 'Format de code invalide (attendu: LA-XXXX-XXXX-XXXX)' };
     }
 
-    const licensePath = getLicensePath();
-    const licenseDir = path.dirname(licensePath);
-    if (!fs.existsSync(licenseDir)) fs.mkdirSync(licenseDir, { recursive: true });
+    const resolved = resolveCode(cleanCode);
+    if (!resolved || !resolved.payload || !resolved.signature) {
+      return {
+        success: false,
+        message: 'Code inconnu ou base de codes inaccessible',
+      };
+    }
 
-    const now = new Date().toISOString();
+    const { payload, signature } = resolved;
+
+    if (!verifyRSASignature(payload, signature)) {
+      return { success: false, message: 'Signature RSA invalide – code contrefait' };
+    }
+
+    if (!payload.packageType || !PACKAGES[payload.packageType]) {
+      return { success: false, message: 'Package type invalide' };
+    }
+
+    const machineId = getMachineId();
+
+    // ⭐ FANAMARIHANA RAHA EFA NAMPIASAINA TAMIN'IO MACHINE IO
+    if (isCodeAlreadyUsed(cleanCode, machineId)) {
+      return {
+        success: false,
+        message: 'Ce code a déjà été utilisé sur cette machine. Veuillez contacter l\'administrateur.',
+      };
+    }
+
+    const now = new Date();
+    const expirationDate = computeExpirationDate(payload, now);
+    if (!expirationDate) {
+      return { success: false, message: 'Date d\'expiration ou validité manquante' };
+    }
+
+    const exp = new Date(expirationDate);
+    if (exp < now && payload.packageType !== 'centralized') {
+      return { success: false, message: 'Ce code a déjà expiré' };
+    }
+
     const licenseData = {
-      ...payload,
+      licenseId: payload.licenseId,
+      activationId: payload.activationId || crypto.randomBytes(16).toString('hex'),
+      licenseKey: cleanCode,
+      packageType: payload.packageType,
+      expirationDate: expirationDate,
+      issuedAt: payload.issuedAt || new Date().toISOString(),
+      activatedAt: new Date().toISOString(),
+      maxUsers: payload.maxUsers ?? 1,
+      maxProducts: payload.maxProducts ?? -1,
+      maxClients: payload.maxClients ?? -1,
       signature: signature,
-      activatedAt: payload.activatedAt || now,
-      version: 2,
+      signedPayload: payload,
+      machineId: machineId,
+      machineFingerprint: getMachineFingerprint(),
     };
 
     const encrypted = encryptData(licenseData);
-    if (!encrypted) return { success: false, message: 'Erreur lors de l\'activation. Réessayez ou contactez l\'administrateur.' };
-
-    fs.writeFileSync(licensePath, encrypted, 'utf8');
-
-    const usedActivations = getUsedActivations();
-    usedActivations[payload.activationId] = {
-      activatedAt: licenseData.activatedAt,
-      licenseKey: payload.licenseKey || null,
-      packageType: payload.packageType || null,
-      expirationDate: payload.expirationDate || null,
-    };
-    if (!saveUsedActivations(usedActivations)) {
-      console.warn('⚠️ Licence activée mais impossible de sauvegarder used_activations.json');
+    if (!encrypted) {
+      return { success: false, message: 'Erreur lors du chiffrement de la licence' };
     }
 
-    log('✅ Licence activée avec succès:', {
-      licenseKey: payload.licenseKey,
-      packageType: payload.packageType,
-      activationId: payload.activationId,
-      expirationDate: payload.expirationDate,
-    });
+    const filePath = getLicensePath();
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    fs.writeFileSync(filePath, encrypted, 'utf8');
+
+    // ⭐ ENREGISTRER AO AMIN'NY ACTIVATION LOG ILAY CODE
+    ensureActivationLogTable();
+    logActivation(cleanCode, machineId, payload.packageType);
+
+    log('✅ Licence activée et liée à la machine:', machineId.substring(0, 16) + '...');
 
     return {
       success: true,
-      message: `Licence ${String(payload.packageType).toUpperCase()} activée avec succès`,
+      message: 'Licence activée avec succès',
       data: {
-        licenseKey: payload.licenseKey || null,
-        packageType: payload.packageType || null,
-        expirationDate: payload.expirationDate || null,
-        activationId: payload.activationId || null,
+        packageType: licenseData.packageType,
+        packageName: PACKAGES[licenseData.packageType]?.name || licenseData.packageType,
+        expirationDate: licenseData.expirationDate,
+        machineFingerprint: licenseData.machineFingerprint,
+        activationId: licenseData.activationId,
       },
     };
   } catch (err) {
-    error('❌ Erreur activation:', err.message);
-    return { success: false, message: 'Erreur lors de l\'activation. Réessayez ou contactez l\'administrateur.' };
+    console.error('❌ activateWithCode error:', err);
+    return { success: false, message: err.message || 'Erreur interne d\'activation' };
   }
 }
 
-// ⭐ VERIFY CODE
 function verifyCode(code) {
   try {
-    const formatted = formatActivationCode(code);
-    if (!validateActivationCodeFormat(formatted)) {
-      return { valid: false, message: 'Code invalide. Vérifiez le format ou contactez l\'administrateur.' };
+    const cleanCode = (code || '').trim().toUpperCase();
+
+    if (!ACTIVATION_CODE_FORMAT.test(cleanCode)) {
+      return { valid: false, message: 'Format invalide' };
     }
 
-    const signedData = findSignedPayload(formatted);
-    if (!signedData) return { valid: false, message: 'Code invalide. Vérifiez votre code ou contactez l\'administrateur.' };
-    if (!signedData.payload) return { valid: false, message: 'Code invalide. Vérifiez votre code ou contactez l\'administrateur.' };
-    if (!signedData.signature) return { valid: false, message: 'Code invalide. Vérifiez votre code ou contactez l\'administrateur.' };
-
-    if (!verifyPayloadSignature(signedData.payload, signedData.signature)) {
-      return { valid: false, message: 'Code invalide. Vérifiez votre code ou contactez l\'administrateur.' };
+    const resolved = resolveCode(cleanCode);
+    if (!resolved || !resolved.payload || !resolved.signature) {
+      return { valid: false, message: 'Code inconnu' };
     }
 
-    const packageType = signedData.payload.packageType;
-    if (!PACKAGES[packageType]) return { valid: false, message: 'Code invalide. Contactez l\'administrateur.' };
-
-    const activationId = signedData.payload.activationId;
-    const usedActivations = getUsedActivations();
-    if (activationId && usedActivations[activationId]) {
-      return { valid: false, message: 'Code déjà utilisé. Contactez l\'administrateur.', activationId };
+    if (!verifyRSASignature(resolved.payload, resolved.signature)) {
+      return { valid: false, message: 'Signature invalide' };
     }
 
-    const expirationDate = signedData.payload.expirationDate;
-    if (!expirationDate) return { valid: false, message: 'Code invalide. Contactez l\'administrateur.' };
-    if (new Date(expirationDate).getTime() <= Date.now()) {
-      return { valid: false, message: 'Code expiré. Contactez l\'administrateur.', activationId };
-    }
-
+    const pkg = PACKAGES[resolved.payload.packageType];
     return {
       valid: true,
-      code: formatted,
-      packageType,
-      activationId: activationId || null,
-      expirationDate,
-      licenseKey: signedData.payload.licenseKey || null,
+      packageType: resolved.payload.packageType,
+      packageName: pkg?.name || resolved.payload.packageType,
+      expirationDate: null,
+      validityMinutes: resolved.payload.validityMinutes || null,
+      validityDays: resolved.payload.validityDays || null,
+      maxUsers: resolved.payload.maxUsers,
     };
   } catch (err) {
-    return { valid: false, message: 'Erreur lors de la vérification. Réessayez ou contactez l\'administrateur.' };
+    return { valid: false, message: err.message };
   }
 }
 
-// ⭐ GENERATE ACTIVATION CODE
-function generateRandomSegment(length = 4) {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  const bytes = crypto.randomBytes(length);
-  for (let i = 0; i < length; i++) {
-    result += alphabet[bytes[i] % alphabet.length];
-  }
-  return result;
-}
-
-function generateActivationCode() {
-  return ['LA', generateRandomSegment(4), generateRandomSegment(4), generateRandomSegment(4)].join('-');
-}
-
-// ⭐ LOAD LICENSE DATABASE
-function loadLicensesDatabase() {
+function isLicenseBoundToThisMachine() {
   try {
-    const exportsDirs = [
-      path.join(__dirname, '../../admin-tools/exports'),
-      path.join(__dirname, '../../../admin-tools/exports'),
-      path.join(process.cwd(), 'admin-tools/exports'),
-    ];
-    const result = [];
-    for (const exportsDir of [...new Set(exportsDirs)]) {
-      try {
-        if (!fs.existsSync(exportsDir)) continue;
-        const files = fs.readdirSync(exportsDir).filter((file) => file.endsWith('.json'));
-        for (const file of files) {
-          try {
-            const data = JSON.parse(fs.readFileSync(path.join(exportsDir, file), 'utf8'));
-            result.push({ file, data });
-          } catch (_) {}
-        }
-      } catch (_) {}
-    }
-    return result;
-  } catch (err) {
-    error('❌ loadLicensesDatabase:', err.message);
-    return [];
+    const filePath = getLicensePath();
+    if (!fs.existsSync(filePath)) return false;
+    const encrypted = fs.readFileSync(filePath, 'utf8');
+    const data = decryptData(encrypted);
+    if (!data || !data.machineId) return false;
+    return verifyMachineBinding(data.machineId);
+  } catch {
+    return false;
   }
 }
 
-// ⭐ EXPORTS
+function loadLicensesDatabase() {
+  return {};
+}
+
 module.exports = {
   activateWithCode,
-  isCodeUsable,
   verifyCode,
-  formatActivationCode,
-  validateActivationCodeFormat,
-  normalizeActivationCode,
-  generateActivationCode,
-  generateActivationChecksum: generateActivationCode,
-  generateChecksum: generateActivationCode,
-  verifyRSASignature,
-  verifyPayloadSignature,
-  findSignedPayload,
-  createCanonicalString,
-  getUsedActivations,
-  saveUsedActivations,
-  getExpiredActivations,
-  saveExpiredActivations,
-  markAsExpired,
+  isLicenseBoundToThisMachine,
   loadLicensesDatabase,
-  ACTIVATION_CODE_REGEX: ACTIVATION_CODE_FORMAT,
-  ACTIVATION_CODE_LENGTH,
+  resolveCode,
+  loadCodesDatabase,
+  isCodeAlreadyUsed,
 };

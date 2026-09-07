@@ -1,54 +1,62 @@
-// ============================================================
 // src/components/paiements/PaiementsHeader.tsx
-// ⭐ PREMIUM PAIEMENTS HEADER
-// ⭐ FIX: Misy ny onAddPaiement mivantana
-// ⭐ FIX: Console.log mba hahitana raha mandeha ny clique
-// ============================================================
-
+// ⭐ BRAND BLEU + SLATE DARK MODE (#0F172A)
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface PaiementsHeaderProps {
   onAddPaiement: () => void;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  totalItems?: number;
 }
 
-const PaiementsHeader: React.FC<PaiementsHeaderProps> = ({ onAddPaiement }) => {
+const PaiementsHeader: React.FC<PaiementsHeaderProps> = ({ onAddPaiement, refreshing = false, onRefresh, totalItems }) => {
   const { isDark } = useTheme();
-  const theme = isDark ? 'dark' : 'light';
-
-  const handleAddClick = () => {
-    console.log('🟢 Clic sur "Nouveau paiement" détecté!');
-    console.log('🔍 onAddPaiement:', onAddPaiement);
-    if (onAddPaiement) {
-      onAddPaiement();
-    } else {
-      console.error('🔴 onAddPaiement tsy misy!');
-    }
-  };
 
   return (
-    <div className="flex items-center justify-between gap-4">
-      {/* TITLE */}
-      <div className="min-w-0">
-        <h1 className="text-[20px] font-bold tracking-tight text-slate-900 dark:text-white">
-          Gestion des paiements
-        </h1>
-        <p className="mt-0.5 text-[13px] text-slate-500 dark:text-slate-400">
-          Suivez les paiements et rémunérations des employés.
-        </p>
-      </div>
+    <header className="mb-4 w-full">
+      <div className="group relative flex flex-col gap-3 overflow-hidden rounded-xl border bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 md:flex-row md:items-center md:justify-between dark:bg-[#0F172A]" style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}>
+        
+        <div className="absolute left-0 top-0 h-full w-[2px] bg-brand-500" />
 
-      {/* BUTTON */}
-      <button
-        type="button"
-        onClick={handleAddClick}
-        className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-indigo-600 px-4 text-[13px] font-semibold text-white shadow-sm transition-all hover:bg-indigo-700 hover:shadow-md active:scale-[0.98] dark:bg-indigo-500 dark:hover:bg-indigo-600"
-      >
-        <Plus size={16} strokeWidth={2} />
-        Nouveau paiement
-      </button>
-    </div>
+        <div className="relative z-10 flex min-w-0 flex-col">
+          <div className="flex items-center gap-2">
+            <h1 className="text-[19px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 dark:text-slate-100">Paiements</h1>
+            {totalItems !== undefined && (
+              <span className="inline-flex min-w-[26px] items-center justify-center rounded-md bg-brand-500 px-2 py-0.5 text-[11px] font-bold text-white dark:bg-brand-500 dark:text-white">{totalItems}</span>
+            )}
+          </div>
+          <p className="mt-0.5 text-[13px] font-medium leading-tight text-slate-500 dark:text-slate-400">Suivez les paiements et rémunérations des employés.</p>
+        </div>
+
+        <div className="relative z-10 flex w-full shrink-0 items-center gap-2 md:w-auto">
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={refreshing}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border px-3 text-[13px] font-medium text-slate-500 transition-all duration-150 hover:border-brand-500/20 hover:bg-brand-50 hover:text-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-400 dark:hover:bg-[#1E293B] dark:hover:text-slate-200"
+              style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0', background: isDark ? '#0F172A' : '#FFFFFF' }}
+              aria-label="Actualiser les paiements"
+              title="Actualiser"
+            >
+              <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onAddPaiement}
+            className="inline-flex h-9 flex-1 sm:flex-none items-center justify-center gap-2 rounded-lg bg-brand-500 px-3.5 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-brand-600 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:ring-offset-1 active:scale-[0.98] dark:bg-brand-500 dark:hover:bg-brand-600 dark:focus:ring-offset-[#0F172A]"
+            aria-label="Nouveau paiement"
+          >
+            <Plus size={17} strokeWidth={2.2} />
+            <span>Nouveau paiement</span>
+          </button>
+        </div>
+      </div>
+    </header>
   );
 };
 

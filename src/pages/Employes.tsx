@@ -1,253 +1,390 @@
-// src/pages/Employes.tsx
+
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Plus, Search, List, Grid, ArrowUpDown, X, Users, RefreshCw } from 'lucide-react';
+import { Users, Wallet, UserCheck, Activity, Loader2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useEmployesData } from '../hooks/useEmployesData';
-import EmployesStats from '../components/employes/EmployesStats';
+import EmployesHeader from '../components/employes/EmployesHeader';
 import EmployesTable from '../components/employes/EmployesTable';
-import EmployesGrid from '../components/employes/EmployesGrid';
 import EmployesPagination from '../components/employes/EmployesPagination';
 import EmployesModalForm from '../components/employes/EmployesModalForm';
 import EmployesViewModal from '../components/employes/EmployesViewModal';
-import EmployesPaiementModal from '../components/employes/EmployesPaiementModal';
-import EmployesHistoriqueModal from '../components/employes/EmployesHistoriqueModal';
+import EmployesPresenceModal from '../components/employes/EmployesPresenceModal';
+import EmployesSalaryModal from '../components/employes/EmployesSalaryModal';
+import EmployesCalendrier from '../components/employes/EmployesCalendrier';
 import ConfirmModal from '../components/common/ConfirmModal';
 import SuccessModal from '../components/common/SuccessModal';
 import ErrorModal from '../components/common/ErrorModal';
+import EmployesSearchBar from '../components/employes/EmployesSearchBar';
 
 const moisLabels = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const moisLabelsCourt = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
 
+type ViewMode = 'liste' | 'calendrier';
+
 const Employes: React.FC = () => {
   const { isDark } = useTheme();
-  const { 
-    employes, loading, refreshing, totalItems, totalPages, currentPage, setCurrentPage, 
-    searchTerm, setSearchTerm, filterStatus, setFilterStatus, sortOption, setSortOption, 
-    imageUrls, imageErrors, imagePreview, setImagePreview, imagePath, uploadingImage, 
-    resetImageState, handleImageError, uploadImage, deleteImage, 
-    paiementCounts, historiquePaiements, loadPaiementsEmploye, createPaiement, deletePaiement, 
-    loadData, stats, getEmployeById, createEmploye, updateEmploye, deleteEmploye, 
-    getStatusColor, getStatusIcon, ITEMS_PER_PAGE, refreshPaiementCounts, bulkUpdateStatus, bulkDelete 
+  const {
+    employes, loading, refreshing, totalItems, totalPages, currentPage, setCurrentPage,
+    searchTerm, setSearchTerm, filterStatus, setFilterStatus, sortOption, setSortOption,
+    paiementCounts, historiquePaiements,
+    loadPaiementsEmploye, deletePaiement,
+    loadData, stats, getEmployeById, createEmploye, updateEmploye, deleteEmploye,
+    getStatusColor, getStatusIcon, ITEMS_PER_PAGE, refreshPaiementCounts, bulkUpdateStatus, bulkDelete,
+    loadPresence, savePresence, updateSalary,
   } = useEmployesData();
 
-  const retryAttempted = useRef(false);
-  useEffect(() => { 
-    if (!loading && employes.length === 0 && totalItems === 0 && !retryAttempted.current) { retryAttempted.current = true; loadData(); } 
-    if (employes.length > 0 || totalItems > 0) retryAttempted.current = false; 
-  }, [loading, employes.length, totalItems, loadData]);
+  const [viewMode, setViewMode] = useState<ViewMode>('liste');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
-  const [showModal, setShowModal] = useState(false); 
-  const [showViewModal, setShowViewModal] = useState(false); 
-  const [showPaiementModal, setShowPaiementModal] = useState(false); 
-  const [showHistoriqueModal, setShowHistoriqueModal] = useState(false);
-  const [selectedEmploye, setSelectedEmploye] = useState<any>(null); 
+  const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedEmploye, setSelectedEmploye] = useState<any>(null);
   const [editingEmploye, setEditingEmploye] = useState<any>(null);
-  const [paiementMois, setPaiementMois] = useState(new Date().getMonth() + 1); 
-  const [paiementAnnee, setPaiementAnnee] = useState(new Date().getFullYear()); 
-  const [paiementMontant, setPaiementMontant] = useState(0);
-  const [anneeCalendrier, setAnneeCalendrier] = useState(new Date().getFullYear()); 
-  const [selectedMoisDetail, setSelectedMoisDetail] = useState<number | null>(null); 
-  const [selectedMoisDetailAnnee, setSelectedMoisDetailAnnee] = useState<number | null>(null);
-  const [showSuccessModal, setShowSuccessModal] = useState(false); 
-  const [successTitle, setSuccessTitle] = useState(''); 
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successTitle, setSuccessTitle] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [showErrorModal, setShowErrorModal] = useState(false); 
-  const [errorTitle, setErrorTitle] = useState(''); 
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorTitle, setErrorTitle] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [showDeleteModal, setShowDeleteModal] = useState(false); 
-  const [deleteTarget, setDeleteTarget] = useState<{ id: number; img?: string; nom: string; } | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set()); 
-  const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false); 
-  const [bulkActionType, setBulkActionType] = useState<'delete' | 'status'>('delete'); 
-  const [bulkTargetIds, setBulkTargetIds] = useState<number[]>([]); 
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showBulkConfirmModal, setShowBulkConfirmModal] = useState(false);
+  const [bulkActionType, setBulkActionType] = useState<'delete' | 'status'>('delete');
+  const [bulkTargetIds, setBulkTargetIds] = useState<number[]>([]);
   const [bulkTargetStatus, setBulkTargetStatus] = useState('');
+  const [showPresenceModal, setShowPresenceModal] = useState(false);
+  const [showSalaryModal, setShowSalaryModal] = useState(false);
 
-  const showSuccess = useCallback((title: string, message: string) => { setSuccessTitle(title); setSuccessMessage(message); setShowSuccessModal(true); }, []);
-  const showError = useCallback((title: string, message: string) => { setErrorTitle(title); setErrorMessage(message); setShowErrorModal(true); }, []);
-  const handleSelectAll = useCallback((checked: boolean) => { setSelectedIds(checked ? new Set(employes.map(e => e.id)) : new Set()); }, [employes]);
-  const handleSelectOne = useCallback((id: number, checked: boolean) => { setSelectedIds(prev => { const next = new Set(prev); checked ? next.add(id) : next.delete(id); return next; }); }, []);
-  const handleBulkUpdateStatus = useCallback((ids: number[], newStatus: string) => { setBulkTargetIds(ids); setBulkTargetStatus(newStatus); setBulkActionType('status'); setShowBulkConfirmModal(true); }, []);
-  const handleBulkDelete = useCallback((ids: number[]) => { setBulkTargetIds(ids); setBulkActionType('delete'); setShowBulkConfirmModal(true); }, []);
-  const handleConfirmBulkAction = useCallback(async () => { 
-    if (bulkTargetIds.length === 0) return; 
-    try { 
-      if (bulkActionType === 'delete') { await bulkDelete(bulkTargetIds); setSelectedIds(new Set()); showSuccess('Suppression en lot', `${bulkTargetIds.length} employé(s) supprimé(s).`); } 
-      if (bulkActionType === 'status') { await bulkUpdateStatus(bulkTargetIds, bulkTargetStatus); setSelectedIds(new Set()); const statusLabel = bulkTargetStatus === 'actif' ? 'Actif' : bulkTargetStatus === 'inactif' ? 'Inactif' : 'En congé'; showSuccess('Mise à jour en lot', `${bulkTargetIds.length} employé(s) sont maintenant "${statusLabel}".`); } 
-    } catch (error: any) { showError('Erreur', error?.message || 'Impossible d’effectuer cette opération.'); } 
-    finally { setShowBulkConfirmModal(false); setBulkTargetIds([]); setBulkTargetStatus(''); } 
-  }, [bulkTargetIds, bulkActionType, bulkTargetStatus, bulkDelete, bulkUpdateStatus, showSuccess, showError]);
+  const [derniersPaiements, setDerniersPaiements] = useState<Record<number, any>>({});
+  const isMounted = useRef(false);
 
-  const handleOpenAddModal = useCallback(() => { setEditingEmploye(null); resetImageState(); setShowModal(true); }, [resetImageState]);
-  const handleCloseModal = useCallback(() => { setShowModal(false); setEditingEmploye(null); resetImageState(); }, [resetImageState]);
-  const handleViewEmploye = useCallback(async (id: number) => { 
-    try { const employe = await getEmployeById(id); if (!employe) { showError('Employé introuvable', 'Cet employé n’existe plus.'); return; } setSelectedEmploye(employe); setShowViewModal(true); } 
-    catch (error: any) { showError('Erreur', error?.message || 'Impossible de charger les informations.'); } 
-  }, [getEmployeById, showError]);
-  const handleEditEmploye = useCallback((employe: any) => { setEditingEmploye(employe); resetImageState(); if (employe.image) { const url = imageUrls[employe.id]; if (url) setImagePreview(url); } setShowModal(true); }, [resetImageState, imageUrls, setImagePreview]);
+  const showSuccess = useCallback((title: string, message: string) => {
+    setSuccessTitle(title); setSuccessMessage(message); setShowSuccessModal(true);
+  }, []);
+  const showError = useCallback((title: string, message: string) => {
+    setErrorTitle(title); setErrorMessage(message); setShowErrorModal(true);
+  }, []);
+
+  const fetchDerniersPaiements = useCallback(async (employesList: any[]) => {
+    if (!employesList.length) return;
+    const derniers: Record<number, any> = {};
+    await Promise.all(employesList.map(async (emp) => {
+      try {
+        const result = await window.api.payments.getByEmploye(emp.id);
+        if (result?.success && Array.isArray(result.data) && result.data.length > 0) {
+          const sortedData = [...result.data].sort((a, b) => {
+            const dateA = new Date(a.date_paiement).getTime();
+            const dateB = new Date(b.date_paiement).getTime();
+            if (dateA !== dateB) return dateB - dateA;
+            return Number(b.id) - Number(a.id);
+          });
+          derniers[emp.id] = sortedData[0];
+        }
+      } catch (_) {}
+    }));
+    if (isMounted.current) setDerniersPaiements(derniers);
+  }, []);
+
+  useEffect(() => {
+    if (employes.length > 0) fetchDerniersPaiements(employes);
+  }, [employes, fetchDerniersPaiements]);
+
+  const handleSelectAll = useCallback((checked: boolean) => {
+    if (!checked) { setSelectedIds(new Set()); return; }
+    const ids = employes.map((e: any) => Number(e.id)).filter((id: number) => Number.isInteger(id) && id > 0);
+    setSelectedIds(new Set(ids));
+  }, [employes]);
+
+  const handleSelectOne = useCallback((id: number, checked: boolean) => {
+    setSelectedIds(prev => { const n = new Set(prev); if (checked) n.add(id); else n.delete(id); return n; });
+  }, []);
+
+  const handleBulkUpdateStatus = useCallback((ids: number[], newStatus: string) => {
+    const v = ids.map(Number).filter(id => Number.isInteger(id) && id > 0);
+    if (!v.length) { showError('Sélection invalide', 'Aucun employé valide.'); return; }
+    setBulkTargetIds(v); setBulkTargetStatus(newStatus); setBulkActionType('status'); setShowBulkConfirmModal(true);
+  }, [showError]);
+
+  const handleBulkDelete = useCallback((ids: number[]) => {
+    if (!ids.length) return;
+    setBulkTargetIds(ids); setBulkActionType('delete'); setShowBulkConfirmModal(true);
+  }, []);
+
+  const handleConfirmBulkAction = useCallback(async () => {
+    if (!bulkTargetIds.length) return;
+    try {
+      if (bulkActionType === 'delete') {
+        await bulkDelete(bulkTargetIds);
+        setSelectedIds(new Set());
+        showSuccess('Suppression en lot', `${bulkTargetIds.length} employé(s) supprimé(s).`);
+      } else if (bulkActionType === 'status') {
+        await bulkUpdateStatus(bulkTargetIds, bulkTargetStatus);
+        setSelectedIds(new Set());
+        const label = bulkTargetStatus === 'actif' ? 'Actif' : bulkTargetStatus === 'inactif' ? 'Inactif' : 'En congé';
+        showSuccess('Mise à jour en lot', `${bulkTargetIds.length} employé(s) sont maintenant "${label}".`);
+      }
+      await loadData();
+      await fetchDerniersPaiements(employes);
+    } catch (error: any) {
+      showError('Erreur', error?.message || 'Impossible d\'effectuer cette opération.');
+    } finally {
+      setShowBulkConfirmModal(false); setBulkTargetIds([]); setBulkTargetStatus('');
+    }
+  }, [bulkTargetIds, bulkActionType, bulkTargetStatus, bulkDelete, bulkUpdateStatus, showError, showSuccess, loadData, fetchDerniersPaiements, employes]);
+
+  const handleOpenAddModal = useCallback(() => { setEditingEmploye(null); setShowModal(true); }, []);
+  const handleCloseModal = useCallback(() => { setShowModal(false); setEditingEmploye(null); }, []);
+
+  const handleViewEmploye = useCallback(async (id: number) => {
+    try {
+      const employe = await getEmployeById(id);
+      if (!employe) { showError('Employé introuvable', 'Cet employé n\'existe plus.'); return; }
+      setSelectedEmploye(employe);
+      await loadPaiementsEmploye(id);
+      setShowViewModal(true);
+    } catch (error: any) { showError('Erreur', error?.message || 'Impossible de charger les informations.'); }
+  }, [getEmployeById, showError, loadPaiementsEmploye]);
+
+  const handleHistorique = useCallback(async (employe: any) => {
+    setSelectedEmploye(employe);
+    await loadPaiementsEmploye(employe.id);
+    setShowViewModal(true);
+  }, [loadPaiementsEmploye]);
+
+  const handleEditEmploye = useCallback(async (employe: any) => {
+    setEditingEmploye(employe);
+    setShowModal(true);
+  }, []);
 
   const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); 
-    const form = e.currentTarget; 
-    const fd = new FormData(form);
-    const statusValue = (fd.get('status') as string) || 'Actif'; 
+    e.preventDefault();
+    const form = e.currentTarget; const fd = new FormData(form);
+    const statusValue = (fd.get('status') as string) || 'Actif';
     const dbStatus = statusValue === 'Actif' ? 'actif' : statusValue === 'Inactif' ? 'inactif' : statusValue === 'En congé' ? 'en_conge' : 'actif';
     const salaire = parseFloat((fd.get('salaire') as string) || '0') || 0;
     const data: any = { nom: fd.get('nom'), prenom: fd.get('prenom'), email: fd.get('email'), telephone: fd.get('telephone'), poste: fd.get('poste'), departement: fd.get('departement'), date_embauche: fd.get('date_embauche'), salaire, status: dbStatus };
     if (!data.nom || !data.prenom) { showError('Champs requis', 'Le nom et le prénom sont obligatoires.'); return; }
-    if (!data.email) { showError('Champ requis', 'L’adresse email est obligatoire.'); return; }
-    if (!data.date_embauche) { showError('Champ requis', 'La date d’embauche est obligatoire.'); return; }
+    if (!data.email) { showError('Champ requis', 'L\'adresse email est obligatoire.'); return; }
+    if (!data.date_embauche) { showError('Champ requis', 'La date d\'embauche est obligatoire.'); return; }
     if (data.salaire <= 0) { showError('Valeur invalide', 'Le salaire doit être supérieur à 0.'); return; }
-    if (imagePath) data.image = imagePath; 
-    else if (editingEmploye?.image && !imagePreview && !imagePath) data.image = editingEmploye.image;
     try {
-      if (editingEmploye) { if (editingEmploye.image && editingEmploye.image !== data.image) try { await deleteImage(editingEmploye.image); } catch {} await updateEmploye(editingEmploye.id, data); showSuccess('Employé modifié', `Les informations de ${data.prenom} ${data.nom} ont été mises à jour.`); } 
-      else { await createEmploye(data); showSuccess('Employé créé', `L’employé ${data.prenom} ${data.nom} a été enregistré.`); }
-      setShowModal(false); setEditingEmploye(null); resetImageState();
-    } catch (error: any) { showError('Erreur', error?.message || 'Impossible d’enregistrer l’employé.'); }
-  }, [editingEmploye, imagePath, imagePreview, deleteImage, updateEmploye, createEmploye, resetImageState, showSuccess, showError]);
+      if (editingEmploye) {
+        await updateEmploye(editingEmploye.id, data);
+        showSuccess('Employé modifié', `Les informations de ${data.prenom} ${data.nom} ont été mises à jour.`);
+      } else {
+        await createEmploye(data);
+        showSuccess('Employé créé', `L\'employé ${data.prenom} ${data.nom} a été enregistré.`);
+      }
+      setShowModal(false); setEditingEmploye(null);
+      await loadData(); await fetchDerniersPaiements(employes);
+    } catch (error: any) { showError('Erreur', error?.message || 'Impossible d\'enregistrer l\'employé.'); }
+  }, [editingEmploye, createEmploye, updateEmploye, showSuccess, showError, loadData, fetchDerniersPaiements, employes]);
 
-  const handleDeleteClick = useCallback((id: number, image?: string) => { const employe = employes.find(item => item.id === id); setDeleteTarget({ id, img: image, nom: employe ? `${employe.prenom} ${employe.nom}` : '' }); setShowDeleteModal(true); }, [employes]);
-  const handleConfirmDelete = useCallback(async () => { 
-    if (!deleteTarget) return; 
-    try { if (deleteTarget.img) try { await deleteImage(deleteTarget.img); } catch {} await deleteEmploye(deleteTarget.id); setSelectedIds(prev => { const next = new Set(prev); next.delete(deleteTarget.id); return next; }); showSuccess('Employé supprimé', `L’employé "${deleteTarget.nom}" a été supprimé.`); } 
-    catch (error: any) { showError('Erreur', error?.message || 'Impossible de supprimer cet employé.'); } 
-    finally { setShowDeleteModal(false); setDeleteTarget(null); } 
-  }, [deleteTarget, deleteImage, deleteEmploye, showSuccess, showError]);
+  const handleDeleteClick = useCallback((id: number) => {
+    const employe = employes.find(item => item.id === id);
+    setDeleteTarget({ id, nom: employe ? `${employe.prenom} ${employe.nom}` : '' });
+    setShowDeleteModal(true);
+  }, [employes]);
 
-  const handlePaiement = useCallback((employe: any) => { setSelectedEmploye(employe); setPaiementMontant(employe.salaire || 0); setPaiementMois(new Date().getMonth() + 1); setPaiementAnnee(new Date().getFullYear()); setShowPaiementModal(true); }, []);
-  const handlePayerPaiement = useCallback(async (mois: number, annee: number, montant: number, mode: string, obs: string) => {
-    if (!selectedEmploye) return; 
-    const estPaye = historiquePaiements.some(p => p.mois === mois && p.annee === annee);
-    if (estPaye) { showError('Déjà payé', `${moisLabels[mois - 1]} ${annee} est déjà réglé.`); return; }
-    if (!montant || montant <= 0) { showError('Montant invalide', 'Veuillez saisir un montant supérieur à 0.'); return; }
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteTarget) return;
     try {
-      const paiementData = { employe_id: selectedEmploye.id, mois, annee, montant, mode_paiement: mode, reference: `PAY-${selectedEmploye.id}-${annee}${String(mois).padStart(2, '0')}`, observation: obs };
-      await createPaiement(paiementData);
-      showSuccess(`Salaire ${moisLabels[mois - 1]} ${annee} payé`, 'Le paiement a été enregistré avec succès.');
-      setShowPaiementModal(false); await loadPaiementsEmploye(selectedEmploye.id); await refreshPaiementCounts();
-    } catch (error: any) { showError('Erreur paiement', error?.message || 'Impossible d’enregistrer le paiement.'); }
-  }, [selectedEmploye, historiquePaiements, createPaiement, loadPaiementsEmploye, refreshPaiementCounts, showSuccess, showError]);
+      await deleteEmploye(deleteTarget.id);
+      setSelectedIds(prev => { const next = new Set(prev); next.delete(deleteTarget.id); return next; });
+      showSuccess('Employé supprimé', `L\'employé "${deleteTarget.nom}" a été supprimé.`);
+      await loadData(); await fetchDerniersPaiements(employes);
+    } catch (error: any) { showError('Erreur', error?.message || 'Impossible de supprimer cet employé.'); }
+    finally { setShowDeleteModal(false); setDeleteTarget(null); }
+  }, [deleteTarget, deleteEmploye, showSuccess, showError, loadData, fetchDerniersPaiements, employes]);
 
-  const handleHistorique = useCallback(async (employe: any) => { setSelectedEmploye(employe); await loadPaiementsEmploye(employe.id); setAnneeCalendrier(new Date().getFullYear()); setSelectedMoisDetail(null); setSelectedMoisDetailAnnee(null); setShowHistoriqueModal(true); }, [loadPaiementsEmploye]);
-  const handleAnnulerPaiement = useCallback(async (paiementId: number) => { 
-    try { await deletePaiement(paiementId); showSuccess('Paiement annulé', 'Le paiement a été annulé.'); if (selectedEmploye) await loadPaiementsEmploye(selectedEmploye.id); await refreshPaiementCounts(); } 
-    catch (error: any) { showError('Erreur annulation', error?.message || 'Impossible d’annuler le paiement.'); } 
-  }, [selectedEmploye, deletePaiement, loadPaiementsEmploye, refreshPaiementCounts, showSuccess, showError]);
+  const handleAnnulerPaiement = useCallback(async (paiementId: number) => {
+    try {
+      await deletePaiement(paiementId);
+      showSuccess('Paiement annulé', 'Le paiement a été annulé.');
+      if (selectedEmploye) {
+        await loadPaiementsEmploye(selectedEmploye.id);
+        await refreshPaiementCounts();
+        await fetchDerniersPaiements(employes);
+      }
+    } catch (error: any) { showError('Erreur annulation', error?.message || 'Impossible d\'annuler le paiement.'); }
+  }, [selectedEmploye, deletePaiement, loadPaiementsEmploye, refreshPaiementCounts, showSuccess, showError, fetchDerniersPaiements, employes]);
 
-  const getMoisPourAnnee = useCallback((_dateEmbauche: string, annee: number, labels: string[] = moisLabelsCourt) => { 
-    const moisList: { mois: number; annee: number; label: string; }[] = []; 
-    for (let mois = 1; mois <= 12; mois++) moisList.push({ mois, annee, label: `${labels[mois - 1]} ${annee}` }); 
-    return moisList; 
+  const handleOpenSalary = useCallback((employe: any) => {
+    setSelectedEmploye(employe);
+    setShowSalaryModal(true);
   }, []);
 
-  const cardBackground = isDark ? '#111c30' : '#FFFFFF'; 
-  const borderColor = isDark ? 'rgba(255, 255, 255, 0.055)' : '#E2E8F0';
+  const handleSaveSalary = useCallback(async (employeId: number, newSalary: number, raison: string) => {
+    try {
+      await updateSalary(employeId, newSalary, raison);
+      showSuccess('Salaire mis à jour', `Le salaire de l'employé a été augmenté avec succès.`);
+      await loadData();
+      await fetchDerniersPaiements(employes);
+    } catch (error: any) {
+      showError('Erreur', error?.message || 'Impossible de mettre à jour le salaire.');
+    }
+  }, [updateSalary, loadData, fetchDerniersPaiements, employes, showSuccess, showError]);
+
+  const handleOpenPresence = useCallback((employe: any) => { setSelectedEmploye(employe); setShowPresenceModal(true); }, []);
+
+  const getMoisPourAnnee = useCallback((_dateEmbauche: string, annee: number, labels: string[] = moisLabelsCourt) => {
+    const moisList: { mois: number; annee: number; label: string }[] = [];
+    for (let mois = 1; mois <= 12; mois++) { moisList.push({ mois, annee, label: `${labels[mois - 1]} ${annee}` }); }
+    return moisList;
+  }, []);
+
+  const renderSkeleton = () => {
+    const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
+    const border = isDark ? 'border-white/[0.08]' : 'border-slate-200';
+    return (
+      <div className="min-h-[500px] w-full p-5">
+        <div className="space-y-4">
+          <div className={`flex items-center gap-4 border-b pb-4 ${border}`}>
+            {[...Array(7)].map((_, i) => <div key={i} className={`h-4 w-${i === 0 ? 8 : i === 1 ? 24 : i === 2 ? 32 : i === 3 ? 20 : i === 4 ? 28 : i === 5 ? 20 : 28} rounded ${base} animate-pulse`} />)}
+          </div>
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className={`flex items-center gap-4 py-3 ${border}`}>
+              <div className={`h-4 w-8 rounded ${base} animate-pulse`} />
+              <div className={`h-10 w-10 rounded-lg ${base} animate-pulse`} />
+              <div className={`h-4 w-32 rounded ${base} animate-pulse`} />
+              <div className={`h-4 w-20 rounded ${base} animate-pulse`} />
+              <div className="flex-1 space-y-2">
+                <div className={`h-4 w-1/3 rounded ${base} animate-pulse`} />
+                <div className={`h-3 w-1/2 rounded ${base} animate-pulse`} />
+              </div>
+              <div className={`h-4 w-24 rounded ${base} animate-pulse`} />
+              <div className={`h-4 w-20 rounded ${base} animate-pulse`} />
+              <div className={`h-4 w-28 rounded ${base} animate-pulse`} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="min-h-full w-full transition-colors duration-200" style={{ background: isDark ? '#0F172A' : '#F8FAFC' }}>
-      <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-0 lg:px-4 py-6">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-          <div className="min-w-0">
-            <h1 className="text-[24px] leading-tight font-semibold tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>Employés</h1>
-            <p className="mt-1 text-[14px] leading-5" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Gérez vos ressources humaines et vos paiements.</p>
-          </div>
-          <button onClick={handleOpenAddModal} className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg text-[14px] font-medium text-white transition-all hover:bg-indigo-600 active:scale-[0.98] shadow-sm" style={{ backgroundColor: '#6366F1' }}><Plus size={18} />Nouvel employé</button>
-        </header>
-        <div className="mb-5"><EmployesStats totalItems={totalItems} totalSalaire={stats.totalSalaire} actifs={stats.actifs} tauxActif={stats.tauxActif} evolutionTotal={0} evolutionSalaire={0} evolutionActifs={0} evolutionTaux={0} /></div>
-        
-        {/* ⭐ SEARCH & FILTERS */}
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative flex-1 w-full min-w-[200px]">
-            <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
-            <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Rechercher un employé..." className="w-full h-10 pl-10 pr-10 rounded-lg border text-[14px] outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10" style={{ backgroundColor: cardBackground, borderColor, color: isDark ? '#F8FAFC' : '#0F172A' }} />
-            {searchTerm && (<button onClick={() => setSearchTerm('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"><X size={15} /></button>)}
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="h-10 min-w-[120px] px-3 rounded-lg border text-[14px] outline-none cursor-pointer transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10" style={{ backgroundColor: cardBackground, borderColor, color: isDark ? '#E2E8F0' : '#334155' }}><option value="">Statut</option><option value="actif">Actif</option><option value="inactif">Inactif</option><option value="en_conge">En congé</option></select>
-            <div className="relative"><ArrowUpDown size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" /><select value={sortOption} onChange={e => setSortOption(e.target.value)} className="h-10 min-w-[155px] pl-9 pr-3 rounded-lg border text-[14px] outline-none cursor-pointer transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10" style={{ backgroundColor: cardBackground, borderColor, color: isDark ? '#E2E8F0' : '#334155' }}><option value="nom-asc">Nom (A-Z)</option><option value="nom-desc">Nom (Z-A)</option><option value="salaire-asc">Salaire ↑</option><option value="salaire-desc">Salaire ↓</option><option value="date-desc">Date (Récent)</option><option value="date-asc">Date (Ancien)</option></select></div>
-            <div className="flex items-center h-10 p-1 rounded-lg border" style={{ backgroundColor: cardBackground, borderColor }}>
-              <button onClick={() => setViewMode('table')} className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${viewMode === 'table' ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}><List size={18} /></button>
-              <button onClick={() => setViewMode('grid')} className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}><Grid size={18} /></button>
-            </div>
-          </div>
+    <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
+      <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
+        <EmployesHeader onAddEmploye={handleOpenAddModal} refreshing={refreshing} onRefresh={loadData} totalItems={totalItems} />
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard icon={<Users size={16} />} label="Total employés" value={stats.total ?? totalItems} colorClass="bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400" />
+          <StatCard icon={<Wallet size={16} />} label="Masse salariale" value={`${stats.totalSalaire?.toLocaleString('fr-FR') ?? '0'} Ar`} colorClass="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" />
+          <StatCard icon={<UserCheck size={16} />} label="Employés actifs" value={stats.actifs ?? 0} colorClass="bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400" />
+          <StatCard icon={<Activity size={16} />} label="Taux d'activité" value={`${stats.tauxActif ?? 0}%`} colorClass="bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400" />
         </div>
 
-        <section className="rounded-xl border overflow-hidden" style={{ backgroundColor: cardBackground, borderColor }}>
+        <EmployesSearchBar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          filterStatus={filterStatus}
+          onFilterStatusChange={setFilterStatus}
+          sortOption={sortOption}
+          onSortChange={setSortOption}
+          filterDepartement=""
+          onFilterDepartementChange={() => {}}
+          isLoading={loading}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
+
+  
+        <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_4px_20px_-4px_rgba(79,70,229,0.08)] transition-all duration-300 dark:border-white/[0.1] dark:bg-[#0F172A] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.35)]">
+          {refreshing && (<div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent"><div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" /></div>)}
+
           {loading && employes.length === 0 ? (
-            <div className="flex min-h-[360px] items-center justify-center">
-              <div className="flex flex-col items-center gap-3">
-                <RefreshCw size={30} className="animate-spin text-indigo-500" />
-                <span className="text-[14px] font-medium" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>
-                  Chargement des employés...
-                </span>
-              </div>
-            </div>
+            renderSkeleton()
+          ) : viewMode === 'calendrier' ? (
+            <EmployesCalendrier
+              employes={employes}
+              mois={selectedMonth}
+              annee={selectedYear}
+              onMoisChange={setSelectedMonth}
+              onAnneeChange={setSelectedYear}
+              onJourClick={(employeId, date) => {
+                const emp = employes.find(e => e.id === employeId);
+                if (emp) handleOpenPresence(emp);
+              }}
+            />
           ) : (
             <>
-              {viewMode === 'table' ? (
-                <EmployesTable 
-                  employes={employes} 
-                  imageUrls={imageUrls} 
-                  imageErrors={imageErrors} 
-                  paiementCounts={paiementCounts} 
-                  onView={handleViewEmploye} 
-                  onEdit={handleEditEmploye} 
-                  onDelete={handleDeleteClick} 
-                  onPaiement={handlePaiement} 
-                  onHistorique={handleHistorique} 
-                  onAdd={handleOpenAddModal} 
-                  getStatusColor={getStatusColor} 
-                  getStatusIcon={getStatusIcon} 
-                  handleImageError={handleImageError} 
-                  selectedIds={selectedIds} 
-                  onSelectAll={handleSelectAll} 
-                  onSelectOne={handleSelectOne} 
-                  onBulkUpdateStatus={handleBulkUpdateStatus} 
-                  onBulkDelete={handleBulkDelete} 
-                />
-              ) : (
-                <EmployesGrid 
-                  employes={employes} 
-                  imageUrls={imageUrls} 
-                  imageErrors={imageErrors} 
-                  onView={handleViewEmploye} 
-                  onEdit={handleEditEmploye} 
-                  onDelete={handleDeleteClick} 
-                  onPaiement={handlePaiement} 
-                  onHistorique={handleHistorique} 
-                  onAdd={handleOpenAddModal} 
-                  getStatusColor={getStatusColor} 
-                  getStatusIcon={getStatusIcon} 
-                  handleImageError={handleImageError} 
-                  isDark={isDark} 
-                />
-              )}
+              <EmployesTable
+                employes={employes}
+                paiementCounts={paiementCounts}
+                derniersPaiements={derniersPaiements}
+                onView={handleViewEmploye} onEdit={handleEditEmploye} onDelete={handleDeleteClick} onHistorique={handleHistorique} onAdd={handleOpenAddModal}
+                getStatusColor={getStatusColor} getStatusIcon={getStatusIcon}
+                selectedIds={selectedIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne} onBulkUpdateStatus={handleBulkUpdateStatus} onBulkDelete={handleBulkDelete}
+                onGererPresence={handleOpenPresence} onFisondrotana={handleOpenSalary}
+              />
 
               {!loading && !refreshing && employes.length === 0 && searchTerm !== '' && (
-                <div className="flex flex-col items-center justify-center py-16 px-6 text-center border-t" style={{ borderColor: borderColor }}>
-                  <div className="w-14 h-14 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 mb-4"><Users size={24} className="text-slate-400 dark:text-slate-500" /></div>
-                  <h3 className="text-[16px] font-semibold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>Aucun employé trouvé</h3>
-                  <p className="mt-1 text-[14px] max-w-sm" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Aucun employé ne correspond aux critères de recherche.</p>
+                <div className="flex flex-col items-center justify-center py-16 px-6 text-center border-t border-slate-200 dark:border-white/[0.1]">
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center bg-brand-50 dark:bg-brand-500/10 mb-4"><Users size={24} className="text-brand-500 dark:text-brand-400" /></div>
+                  <h3 className="text-[16px] font-semibold text-slate-900 dark:text-slate-100">Aucun employé trouvé</h3>
+                  <p className="mt-1 text-[13px] max-w-sm text-slate-500 dark:text-slate-400">Aucun employé ne correspond aux critères de recherche.</p>
                 </div>
               )}
             </>
           )}
         </section>
-        {totalPages > 0 && <div className="flex justify-center pt-1"><EmployesPagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} onPageChange={setCurrentPage} /></div>}
+
+        {viewMode === 'liste' && !loading && totalPages > 0 && (
+          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_2px_10px_-2px_rgba(79,70,229,0.06)] transition-all duration-300 dark:border-white/[0.1] dark:bg-[#0F172A] dark:shadow-[0_2px_12px_-2px_rgba(0,0,0,0.25)]">
+            <EmployesPagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} onPageChange={setCurrentPage} />
+          </div>
+        )}
       </div>
 
-      <EmployesModalForm isOpen={showModal} onClose={handleCloseModal} onSubmit={handleSubmit} editingEmploye={editingEmploye} isDark={isDark} imagePreview={imagePreview} uploadingImage={uploadingImage} onImageChange={e => { const file = e.target.files?.[0]; if (file) uploadImage(file); }} onRemoveImage={() => { if (imagePath) deleteImage(imagePath); resetImageState(); }} uploadProgress={uploadingImage ? 50 : 0} imageError={null} />
-      {showViewModal && selectedEmploye && <EmployesViewModal employe={selectedEmploye} imageUrl={imageUrls[selectedEmploye.id] || null} onClose={() => setShowViewModal(false)} onEdit={() => { setShowViewModal(false); handleEditEmploye(selectedEmploye); }} onHistorique={() => { setShowViewModal(false); handleHistorique(selectedEmploye); }} getStatusColor={getStatusColor} getStatusIcon={getStatusIcon} isDark={isDark} />}
-      {showPaiementModal && selectedEmploye && <EmployesPaiementModal isOpen={showPaiementModal} onClose={() => setShowPaiementModal(false)} employe={selectedEmploye} historiquePaiements={historiquePaiements} imageUrl={imageUrls[selectedEmploye.id] || null} paiementMois={paiementMois} paiementAnnee={paiementAnnee} paiementMontant={paiementMontant} paiementMode="Espèces" paiementObservation="" onMoisChange={setPaiementMois} onAnneeChange={setPaiementAnnee} onMontantChange={setPaiementMontant} onPayer={handlePayerPaiement} getMoisPourAnnee={getMoisPourAnnee} moisLabels={moisLabels} moisLabelsCourt={moisLabelsCourt} isDark={isDark} />}
-      {showHistoriqueModal && selectedEmploye && <EmployesHistoriqueModal isOpen={showHistoriqueModal} onClose={() => setShowHistoriqueModal(false)} employe={selectedEmploye} historiquePaiements={historiquePaiements} imageUrl={imageUrls[selectedEmploye.id] || null} anneeCalendrier={anneeCalendrier} selectedMoisDetail={selectedMoisDetail} selectedMoisDetailAnnee={selectedMoisDetailAnnee} onAnneeChange={setAnneeCalendrier} onMoisDetailSelect={(mois, annee) => { setSelectedMoisDetail(mois); setSelectedMoisDetailAnnee(annee); }} onPayer={() => { setShowHistoriqueModal(false); handlePaiement(selectedEmploye); }} onAnnulerPaiement={handleAnnulerPaiement} getMoisPourAnnee={getMoisPourAnnee} moisLabels={moisLabels} moisLabelsCourt={moisLabelsCourt} isDark={isDark} />}
+      <EmployesModalForm isOpen={showModal} onClose={handleCloseModal} onSubmit={handleSubmit} editingEmploye={editingEmploye} isDark={isDark} />
+
+      {showViewModal && selectedEmploye && (
+        <EmployesViewModal
+          employe={selectedEmploye}
+          onClose={() => setShowViewModal(false)}
+          onEdit={() => { setShowViewModal(false); handleEditEmploye(selectedEmploye); }}
+          onGererPresence={() => { setShowViewModal(false); handleOpenPresence(selectedEmploye); }}
+          onFisondrotana={() => { setShowViewModal(false); handleOpenSalary(selectedEmploye); }}
+          onDelete={() => { setShowViewModal(false); handleDeleteClick(selectedEmploye.id); }}
+          historiquePaiements={historiquePaiements}
+          onAnnulerPaiement={handleAnnulerPaiement}
+          getMoisPourAnnee={getMoisPourAnnee}
+          moisLabels={moisLabels}
+          moisLabelsCourt={moisLabelsCourt}
+          getStatusColor={getStatusColor} getStatusIcon={getStatusIcon} isDark={isDark}
+        />
+      )}
+
       <ConfirmModal isOpen={showDeleteModal} onClose={() => { setShowDeleteModal(false); setDeleteTarget(null); }} onConfirm={handleConfirmDelete} title="Supprimer l’employé" message={`Êtes-vous sûr de vouloir supprimer définitivement "${deleteTarget?.nom || ''}" ?`} confirmText="Supprimer" cancelText="Annuler" confirmColor="red" isDark={isDark} />
-      
       <ConfirmModal isOpen={showBulkConfirmModal} onClose={() => { setShowBulkConfirmModal(false); setBulkTargetIds([]); setBulkTargetStatus(''); }} onConfirm={handleConfirmBulkAction} title="Confirmation de l’opération" message={bulkActionType === 'delete' ? `Voulez-vous vraiment supprimer définitivement ${bulkTargetIds.length} employé(s) ?` : `Voulez-vous vraiment changer le statut de ${bulkTargetIds.length} employé(s) ?`} confirmText="Confirmer" cancelText="Annuler" confirmColor={bulkActionType === 'delete' ? 'red' : 'green'} isDark={isDark} />
-      
+      {showPresenceModal && selectedEmploye && (<EmployesPresenceModal isOpen={showPresenceModal} onClose={() => setShowPresenceModal(false)} employe={selectedEmploye} mois={new Date().getMonth() + 1} annee={new Date().getFullYear()} moisLabels={moisLabels} onSave={savePresence} loadPresence={loadPresence} />)}
+
+      {showSalaryModal && selectedEmploye && (
+        <EmployesSalaryModal isOpen={showSalaryModal} onClose={() => setShowSalaryModal(false)} employe={selectedEmploye} onSave={handleSaveSalary} />
+      )}
+
       <SuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} title={successTitle} message={successMessage} buttonText="OK" autoCloseDelay={3000} />
       <ErrorModal isOpen={showErrorModal} onClose={() => setShowErrorModal(false)} title={errorTitle} message={errorMessage} buttonText="OK" autoCloseDelay={4000} />
+    </main>
+  );
+};
+
+const StatCard = ({ icon, label, value, colorClass }: { icon: React.ReactNode; label: string; value: React.ReactNode; colorClass?: string }) => {
+  const { isDark } = useTheme();
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md dark:border-white/[0.1] dark:bg-[#0F172A]">
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${colorClass || 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400'}`}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-[13px] text-slate-500 dark:text-slate-400">{label}</p>
+        <p className="mt-0.5 truncate text-[17px] font-bold text-slate-900 dark:text-slate-100">{value}</p>
+      </div>
     </div>
   );
 };
+
 export default Employes;

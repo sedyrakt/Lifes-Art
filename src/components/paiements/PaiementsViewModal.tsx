@@ -1,298 +1,334 @@
-// ============================================================
-// src/components/paiements/PaiementsViewModal.tsx
-// ⭐ PREMIUM PAIEMENT VIEW MODAL
-// ⭐ MITOVY DESIGN AMIN'NY ACHAT VIEW MODAL
-// ⭐ DARK + LIGHT MODE (INDIGO THEME)
-// ⭐ ALL BORDER SYSTEM + GRID 3 COLONNES (FormCell)
-// ⭐ SIDEBAR (Carte Employé + Carte Résumé)
-// ⭐ RÉCAPITULATIF
-// ============================================================
-
-import React, { useEffect, useState } from 'react';
-import { Receipt, X, DollarSign, Calendar as CalendarIcon, History, Briefcase, Wallet, Hash, FileText, Info, CheckCircle2, CreditCard } from 'lucide-react';
-import { useTheme } from '../../contexts/ThemeContext';
-import { formatMoney } from '../../lib/formatMoney';
-
-const COLORS = {
-  light: {
-    card: '#FFFFFF', header: '#FFFFFF', footer: '#F8FAFC', border: '#E2E8F0', borderStrong: '#CBD5E1',
-    text: '#0F172A', muted: '#64748B', subMuted: '#94A3B8', primary: '#6366F1', primaryHover: '#4F46E5',
-    primarySoft: 'rgba(99,102,241,0.08)', primaryBorder: 'rgba(99,102,241,0.18)',
-    green: '#059669', greenBg: 'rgba(16,185,129,0.10)', greenBorder: 'rgba(16,185,129,0.25)',
-    warning: '#D97706', warningBg: 'rgba(245,158,11,0.10)', warningBorder: 'rgba(245,158,11,0.25)'
-  },
-  dark: {
-    card: '#0F172A', header: '#0F172A', footer: '#0F172A', border: '#334155', borderStrong: '#475569',
-    text: '#F8FAFC', muted: '#94A3B8', subMuted: '#64748B', primary: '#818CF8', primaryHover: '#6366F1',
-    primarySoft: 'rgba(99,102,241,0.12)', primaryBorder: 'rgba(99,102,241,0.25)',
-    green: '#34D399', greenBg: 'rgba(16,185,129,0.14)', greenBorder: 'rgba(52,211,153,0.28)',
-    warning: '#FBBF24', warningBg: 'rgba(245,158,11,0.12)', warningBorder: 'rgba(251,191,36,0.25)'
-  },
-};
+import React, { useMemo } from 'react';
+import { X, Pencil } from 'lucide-react';
+import { parseDateSafe } from './PaiementsUtils';
 
 interface Paiement {
-  id: number;
-  employe_id: number;
-  employe_nom: string;
-  employe_prenom: string;
-  employe_poste: string;
-  mois: number;
-  annee: number;
-  montant: number;
-  mode_paiement: string;
-  date_paiement: string;
+  id?: number | string;
+  employe_id?: number | string;
+  employe_nom?: string;
+  employe_prenom?: string;
+  employe_poste?: string;
+  client_nom?: string;
+  clientNom?: string;
+  client?: string;
+  nom_client?: string;
+  commande_reference?: string;
+  commandeReference?: string;
+  commande_numero?: string;
   reference?: string;
+  reference_paiement?: string;
+  numero?: string;
+  montant?: number | string;
+  montant_paye?: number | string;
+  montant_total?: number | string;
+  montant_commande?: number | string;
+  reste?: number | string;
+  reste_a_payer?: number | string;
+  mode_paiement?: string;
+  modePaiement?: string;
+  methode_paiement?: string;
+  statut?: string;
+  statut_paiement?: string;
+  status?: string;
+  date_paiement?: string;
+  datePaiement?: string;
+  created_at?: string;
+  createdAt?: string;
+  heure?: string;
+  mois?: number | string;
+  annee?: number | string;
+  salaire_brut?: number | string;
+  cnaps?: number | string;
+  ostie?: number | string;
+  irsa?: number | string;
+  avance?: number | string;
+  utilisateur_nom?: string;
+  utilisateurNom?: string;
+  caissier_nom?: string;
+  notes?: string;
+  commentaire?: string;
   observation?: string;
-  created_at: string;
 }
 
 interface PaiementsViewModalProps {
-  paiement: Paiement;
-  moisLabels: string[];
+  isOpen: boolean;
   onClose: () => void;
-  onViewHistorique: () => void;
+  paiement: Paiement | null;
+  employe?: any;
+  historiquePaiements?: any[];
+  moisLabels?: string[];
+  moisLabelsCourt?: string[];
+  getMoisPourAnnee?: (date: string, annee: number, labels?: string[]) => any[];
+  onViewHistorique?: () => void;
+  onAddPaiement?: () => void;
+  onAnnulerPaiement?: (id: number | string) => void;
+  onModifier?: () => void;
+  isDark?: boolean;
+  onPrint?: (paiement: Paiement) => void;
+  onDownloadPdf?: (paiement: Paiement) => void;
 }
 
-// ⭐ FormCell - Mitovy amin'ny AchatViewModal
-interface FormCellProps {
-  label: string;
-  children: React.ReactNode;
-  icon?: React.ReactNode;
-  borderRight?: boolean;
-  borderBottom?: boolean;
-  fullWidth?: boolean;
-}
+const toNumber = (value: unknown): number => {
+  if (value === null || value === undefined || value === '') return 0;
+  const number = typeof value === 'number' ? value : Number(String(value).replace(/\s/g, '').replace(',', '.'));
+  return Number.isFinite(number) ? number : 0;
+};
 
-const FormCell: React.FC<FormCellProps> = ({ label, children, icon, borderRight = true, borderBottom = true, fullWidth = false }) => {
-  const { isDark } = useTheme();
-  const theme = isDark ? COLORS.dark : COLORS.light;
-  const borderClass = isDark ? 'border-slate-700' : 'border-gray-300';
-  
+const formatAriary = (value: unknown): string => {
+  const amount = toNumber(value);
+  return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(amount)} Ar`;
+};
+
+const firstValue = (...values: Array<string | number | null | undefined>): string => {
+  const value = values.find((item) => item !== null && item !== undefined && String(item).trim() !== '');
+  return value === undefined ? '' : String(value);
+};
+
+const formatDate = (value?: string | null): string => {
+  if (!value) return '—';
+  const date = parseDateSafe(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }).format(date);
+};
+
+const normalizeStatus = (value?: string | null): string => {
+  return String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+};
+
+const normalizeMode = (value?: string | null): string => {
+  return String(value || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+};
+
+const getStatusConfig = (status?: string | null, montant?: number, total?: number, isEmployePayment?: boolean) => {
+  const normalized = normalizeStatus(status);
+
+  if (normalized === 'paye' || normalized === 'payee' || normalized === 'paid') {
+    return { label: 'Payé', className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400' };
+  }
+  if (normalized === 'partiel' || normalized === 'partiellement_paye') {
+    return { label: 'Partiel', className: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400' };
+  }
+  if (normalized === 'en_retard' || normalized === 'retard') {
+    return { label: 'En retard', className: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400' };
+  }
+  if (normalized === 'annule' || normalized === 'annulee' || normalized === 'cancelled') {
+    return { label: 'Annulé', className: 'border-slate-200 bg-slate-100 text-slate-600 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-slate-400' };
+  }
+  if (normalized === 'non_paye' || normalized === 'non_payé' || normalized === 'non paye' || normalized === 'unpaid') {
+    return { label: 'Non payé', className: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400' };
+  }
+
+  if (normalized === '' || normalized === 'en_attente' || normalized === 'en attente' || normalized === 'pending') {
+    if (!montant || montant <= 0) {
+      return { label: 'Non payé', className: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400' };
+    }
+    if (!isEmployePayment && total > 0 && montant < total) {
+      return { label: 'Partiel', className: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400' };
+    }
+    return { label: 'Payé', className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400' };
+  }
+
+  return { label: status || 'Payé', className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400' };
+};
+
+const getPaymentModeLabel = (mode?: string | null): string => {
+  const normalized = normalizeMode(mode);
+  if (normalized.includes('mvola') || normalized.includes('mobile') || normalized.includes('yas') || normalized.includes('telma')) {
+    return mode || 'Mobile Money';
+  }
+  if (normalized.includes('espece') || normalized.includes('cash') || normalized.includes('liquide')) {
+    return mode || 'Espèces';
+  }
+  if (normalized.includes('carte') || normalized.includes('card')) {
+    return mode || 'Carte bancaire';
+  }
+  if (normalized.includes('virement') || normalized.includes('bank') || normalized.includes('banque')) {
+    return mode || 'Virement bancaire';
+  }
+  if (normalized.includes('cheque') || normalized.includes('chèque')) {
+    return mode || 'Chèque';
+  }
+  return mode || '—';
+};
+
+const InfoItem: React.FC<{ label: string; value: React.ReactNode; accent?: boolean }> = ({ label, value, accent = false }) => {
   return (
-    <div className={`flex min-w-0 items-center px-3 py-2.5 ${borderRight ? `border-r ${borderClass}` : ''} ${borderBottom ? `border-b ${borderClass}` : ''} ${fullWidth ? 'col-span-3' : ''}`} style={{ background: theme.card }}>
-      <div className="min-w-0 flex-1">
-        <div className="mb-0.5 flex items-center gap-1.5">
-          {icon && <span className="flex shrink-0 items-center justify-center" style={{ color: theme.muted }}>{icon}</span>}
-          <span className="truncate text-[12px] font-semibold uppercase tracking-[0.045em]" style={{ color: theme.muted }}>{label || ' '}</span>
-        </div>
-        <div className="min-w-0 text-[14px] font-medium leading-4">{children}</div>
+    <div className="min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-white/[0.08] dark:bg-[#0F172A]">
+      <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+        <span>{label}</span>
       </div>
+      <div className={`truncate text-[14px] font-semibold ${accent ? 'text-[#0D80D2] dark:text-[#0D80D2]' : 'text-[#264653] dark:text-[#FDE2E4]'}`}>{value}</div>
     </div>
   );
 };
 
-const SectionTitle: React.FC<{ icon: React.ReactNode; title: string; theme: typeof COLORS.light | typeof COLORS.dark; }> = ({ icon, title, theme }) => {
-  const { isDark } = useTheme();
-  const borderClass = isDark ? 'border-slate-700' : 'border-gray-300';
+const PaiementsViewModal: React.FC<PaiementsViewModalProps> = ({
+  isOpen, onClose, paiement, employe, historiquePaiements, moisLabels, moisLabelsCourt,
+  getMoisPourAnnee, onViewHistorique, onAddPaiement, onAnnulerPaiement, onModifier, isDark,
+  onPrint, onDownloadPdf,
+}) => {
+  const data = useMemo(() => {
+    if (!paiement) return null;
+    const isEmployePayment = Boolean(paiement.employe_id !== undefined && paiement.employe_id !== null && paiement.employe_id !== '');
+    const date = firstValue(paiement.date_paiement, paiement.datePaiement, paiement.created_at, paiement.createdAt);
+    const montant = toNumber(paiement.montant_paye ?? paiement.montant ?? 0);
+    const total = isEmployePayment ? toNumber(paiement.salaire_brut) : toNumber(paiement.montant_total ?? paiement.montant_commande ?? 0);
+    const resteRaw = paiement.reste_a_payer ?? paiement.reste;
+    const reste = resteRaw !== null && resteRaw !== undefined && resteRaw !== '' ? toNumber(resteRaw) : Math.max(total - montant, 0);
+    const status = firstValue(paiement.statut_paiement, paiement.statut, paiement.status);
+    const mode = firstValue(paiement.mode_paiement, paiement.modePaiement, paiement.methode_paiement);
+    const reference = firstValue(paiement.reference_paiement, paiement.reference, paiement.numero);
+    const client = firstValue(paiement.client_nom, paiement.clientNom, paiement.nom_client, paiement.client);
+    const commande = firstValue(paiement.commande_reference, paiement.commandeReference, paiement.commande_numero);
+    const utilisateur = firstValue(paiement.utilisateur_nom, paiement.utilisateurNom, paiement.caissier_nom);
+    const employeNom = firstValue(paiement.employe_nom, '');
+    const employePrenom = firstValue(paiement.employe_prenom, '');
+    const employeFullName = employePrenom ? `${employePrenom} ${employeNom}`.trim() : employeNom;
+    const employePoste = firstValue(paiement.employe_poste, '');
+    const mois = toNumber(paiement.mois);
+    const annee = toNumber(paiement.annee);
+    const periodeLabel = mois && annee ? `${String(mois).padStart(2, '0')}/${annee}` : '—';
+    const salaireBrut = toNumber(paiement.salaire_brut);
+    const cnaps = toNumber(paiement.cnaps);
+    const ostie = toNumber(paiement.ostie);
+    const irsa = toNumber(paiement.irsa);
+    const avance = toNumber(paiement.avance);
+    const netAPayer = toNumber(paiement.montant) || (salaireBrut - cnaps - ostie - irsa - avance);
+
+    return {
+      isEmployePayment, date, montant, total, reste, status, mode, reference, client, commande, utilisateur,
+      notes: firstValue(paiement.notes, paiement.commentaire, paiement.observation),
+      formattedDate: formatDate(date),
+      employeFullName, employePoste, periodeLabel, salaireBrut, cnaps, ostie, irsa, avance, netAPayer,
+    };
+  }, [paiement]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [isOpen]);
+
+  if (!isOpen || !paiement || !data) return null;
+
+  const statusConfig = getStatusConfig(data.status, data.montant, data.total, data.isEmployePayment);
+  const paymentModeLabel = getPaymentModeLabel(data.mode);
+
   return (
-    <div className={`flex items-center gap-2 border-b px-3 py-2.5 ${borderClass}`} style={{ background: theme.surfaceSoft }}>
-      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={{ background: theme.primarySoft, color: theme.primary }}>{icon}</div>
-      <span className="text-[13px] font-semibold uppercase tracking-[0.045em]" style={{ color: theme.text }}>{title}</span>
-    </div>
-  );
-};
-
-const InfoRow: React.FC<{ label: string; value: React.ReactNode; icon?: React.ReactNode; }> = ({ label, value, icon }) => {
-  const { isDark } = useTheme();
-  const theme = isDark ? COLORS.dark : COLORS.light;
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex min-w-0 items-center gap-2">
-        {icon && <span className="shrink-0" style={{ color: theme.muted }}>{icon}</span>}
-        <span className="truncate text-[12px] font-medium" style={{ color: theme.muted }}>{label}</span>
-      </div>
-      <div className="min-w-0 text-right text-[13px] font-semibold" style={{ color: theme.text }}>{value}</div>
-    </div>
-  );
-};
-
-const PaiementsViewModal: React.FC<PaiementsViewModalProps> = ({ paiement, moisLabels, onClose, onViewHistorique }) => {
-  const { isDark } = useTheme();
-  const theme = isDark ? COLORS.dark : COLORS.light;
-  const [isVisible, setIsVisible] = useState(false);
-  const borderClass = isDark ? 'border-slate-700' : 'border-gray-300';
-
-  useEffect(() => { const timer = window.setTimeout(() => setIsVisible(true), 10); return () => window.clearTimeout(timer); }, []);
-  useEffect(() => { const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); onClose(); } }; window.addEventListener('keydown', handleKeyDown); return () => window.removeEventListener('keydown', handleKeyDown); }, [onClose]);
-
-  const formatDateTime = (value?: string) => { if (!value) return '—'; const date = new Date(value); if (Number.isNaN(date.getTime())) return '—'; return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); };
-  const periode = moisLabels[paiement.mois - 1] || `Mois ${paiement.mois}`;
-
-  // ⭐ Calculs pour récapitulatif
-  const salaireTotal = Number(paiement.montant) || 0;
-  const salaireAnnuel = salaireTotal * 12;
-
-  return (
-    <div className={`fixed inset-0 z-[99990] flex items-center justify-center p-3 sm:p-6 transition-all duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`} style={{ background: isDark ? 'rgba(0,0,0,0.75)' : 'rgba(15,23,42,0.55)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={`relative flex w-full max-w-4xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border ${borderClass} shadow-[0_24px_70px_rgba(0,0,0,0.28)] transition-all duration-200 ${isVisible ? 'translate-y-0 scale-100' : 'translate-y-2 scale-[0.98]'}`} style={{ background: theme.card }} onMouseDown={(e) => e.stopPropagation()}>
-        <div className="absolute left-0 right-0 top-0 z-20 h-[3px]" style={{ background: theme.primary }} />
-
-        {/* HEADER */}
-        <header className={`flex shrink-0 items-center justify-between border-b px-4 py-3 sm:px-5 ${borderClass}`} style={{ borderColor: theme.border, background: theme.surface }}>
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border" style={{ borderColor: theme.primaryBorder, background: theme.primarySoft, color: theme.primary }}>
-              <Receipt size={16} strokeWidth={2} />
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-3 backdrop-blur-[3px] sm:p-5" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="paiement-view-title" className="animate-fadeIn relative flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-white/[0.1] dark:bg-[#0F172A]">
+        
+        <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 dark:border-white/[0.08] dark:bg-[#0F172A] sm:px-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="min-w-0">
+                <h2 id="paiement-view-title" className="truncate text-[15px] font-bold text-[#264653] dark:text-[#FDE2E4]">
+                  {data.isEmployePayment ? 'Détail du paiement employé' : 'Détail du paiement'}
+                </h2>
+                <p className="mt-0.5 truncate text-[11px] text-slate-400">
+                  {data.reference ? `Réf. ${data.reference}` : data.isEmployePayment ? data.employeFullName : 'Transaction de paiement'}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <h2 className="truncate text-[15px] font-semibold tracking-tight" style={{ color: theme.text }}>Détails du paiement</h2>
-              <p className="mt-0.5 truncate text-[13px]" style={{ color: theme.muted }}>Informations détaillées de la rémunération</p>
-            </div>
+            <button type="button" onClick={onClose} aria-label="Fermer" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/[0.08] dark:hover:text-white">
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <button type="button" onClick={onClose} aria-label="Fermer" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-rose-500/10 hover:text-rose-500" style={{ color: theme.muted }}>
-            <X size={16} strokeWidth={2} />
-          </button>
-        </header>
+        </div>
 
-        {/* BODY */}
-        <main className="flex-1 overflow-y-auto custom-modal-scrollbar p-4 sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row">
-
-            {/* ⭐ SIDEBAR GAUCHE */}
-            <aside className="w-full shrink-0 lg:w-[200px]">
-              <div className="flex flex-col gap-3">
-
-                {/* ⭐ CARTE EMPLOYÉ */}
-                <div className={`relative aspect-square overflow-hidden rounded-xl border ${borderClass}`} style={{ background: theme.surfaceSoft }}>
-                  <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-violet-500 to-indigo-600 p-4 text-center">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/20 text-2xl font-bold text-white shadow-lg">
-                      {(paiement.employe_prenom?.charAt(0) || '?')}{paiement.employe_nom?.charAt(0) || ''}
+        <div className="min-h-0 flex-1 p-4 sm:p-5">
+          <div className="space-y-3">
+            
+            <div className="rounded-xl border border-[#0D80D2]/15 bg-[#0D80D2]/[0.04] p-4 dark:border-[#0D80D2]/20 dark:bg-[#0D80D2]/[0.06]">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    {data.isEmployePayment ? 'Net à payer' : 'Montant payé'}
+                  </div>
+                  <div className="text-[24px] font-bold leading-none tracking-tight text-[#0D80D2]">
+                    {formatAriary(data.montant)}
+                  </div>
+                  {data.total > 0 && (
+                    <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                      {data.isEmployePayment ? 'Salaire brut' : 'Total commande'} : <span className="font-semibold text-[#264653] dark:text-[#FDE2E4]">{formatAriary(data.total)}</span>
                     </div>
-                    <p className="mt-3 text-[14px] font-bold text-white">{paiement.employe_prenom} {paiement.employe_nom}</p>
-                    <p className="mt-1 text-[11px] text-white/70">{paiement.employe_poste || 'Employé'}</p>
-                  </div>
+                  )}
                 </div>
-
-                {/* ⭐ CARTE RÉSUMÉ */}
-                <div className={`overflow-hidden rounded-xl border ${borderClass}`} style={{ background: theme.card }}>
-                  <div className={`flex items-center gap-2 border-b px-3 py-2.5 ${borderClass}`}>
-                    <Info className="h-3.5 w-3.5" style={{ color: theme.primary }} />
-                    <span className="text-[12px] font-semibold uppercase tracking-[0.045em]" style={{ color: theme.muted }}>Résumé</span>
-                  </div>
-                  <div className="p-3 space-y-2">
-                    <InfoRow label="Référence" value={paiement.reference || '—'} icon={<Hash size={12} />} />
-                    <div className="h-px" style={{ background: theme.border }} />
-                    <InfoRow label="Période" value={`${periode} ${paiement.annee}`} icon={<CalendarIcon size={12} />} />
-                    <div className="h-px" style={{ background: theme.border }} />
-                    <div>
-                      <div className="mb-0.5 flex items-center gap-1.5 text-[12px] font-medium" style={{ color: theme.muted }}>
-                        <DollarSign className="h-3 w-3" /> Montant
-                      </div>
-                      <div className="text-[15px] font-semibold tracking-tight" style={{ color: theme.primary }}>{formatMoney(salaireTotal)}</div>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2 rounded-lg px-2.5 py-1.5" style={{ background: theme.greenBg, border: `1px solid ${theme.greenBorder}` }}>
-                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" style={{ color: theme.green }} />
-                      <span className="text-[12px] font-semibold" style={{ color: theme.green }}>Payé</span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </aside>
-
-            {/* ⭐ MAIN RIGHT */}
-            <div className="min-w-0 flex-1 space-y-4">
-
-              {/* ⭐ INFORMATIONS GÉNÉRALES (GRID 3 COLS) */}
-              <div className="overflow-hidden rounded-xl border" style={{ background: theme.card, borderColor: theme.border }}>
-                <div className={`flex items-center gap-2.5 border-b px-3 py-2.5 ${borderClass}`} style={{ background: theme.card }}>
-                  <div className="flex h-6 w-6 items-center justify-center rounded-md" style={{ background: theme.primarySoft, color: theme.primary }}>
-                    <Info className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-[13px] font-semibold uppercase tracking-[0.045em]" style={{ color: theme.muted }}>Informations générales</span>
-                </div>
-                <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 border-t border-l ${borderClass}`}>
-                  <FormCell label="Employé" icon={<Briefcase size={13} />} borderRight borderBottom>
-                    <span className="block truncate text-[14px] font-semibold" style={{ color: theme.text }}>{paiement.employe_prenom} {paiement.employe_nom}</span>
-                  </FormCell>
-                  <FormCell label="Poste" icon={<Briefcase size={13} />} borderRight borderBottom>
-                    <span className="block truncate text-[14px] font-medium" style={{ color: theme.text }}>{paiement.employe_poste || '—'}</span>
-                  </FormCell>
-                  <FormCell label="Période" icon={<CalendarIcon size={13} />} borderRight={false} borderBottom>
-                    <span className="block capitalize text-[14px] font-medium" style={{ color: theme.text }}>{periode} {paiement.annee}</span>
-                  </FormCell>
-                  <FormCell label="Montant" icon={<DollarSign size={13} />} borderRight borderBottom>
-                    <span className="block text-[15px] font-bold" style={{ color: theme.primary }}>{formatMoney(salaireTotal)}</span>
-                  </FormCell>
-                  <FormCell label="Mode de paiement" icon={<CreditCard size={13} />} borderRight borderBottom>
-                    <span className="inline-flex items-center rounded-md px-2.5 py-1 text-[13px] font-semibold" style={{ background: theme.primarySoft, color: theme.primary }}>{paiement.mode_paiement || '—'}</span>
-                  </FormCell>
-                  <FormCell label="Référence" icon={<Hash size={13} />} borderRight={false} borderBottom>
-                    <span className="block truncate font-mono text-[14px] font-medium" style={{ color: theme.text }}>{paiement.reference || '—'}</span>
-                  </FormCell>
-                  <FormCell label="Date de paiement" icon={<CalendarIcon size={13} />} borderRight borderBottom>
-                    <span className="block truncate text-[14px] font-medium" style={{ color: theme.text }}>{formatDateTime(paiement.date_paiement)}</span>
-                  </FormCell>
-                  <FormCell label="Créé le" icon={<CalendarIcon size={13} />} borderRight={false} borderBottom>
-                    <span className="block truncate text-[14px] font-medium" style={{ color: theme.muted }}>{formatDateTime(paiement.created_at)}</span>
-                  </FormCell>
+                <div className={`inline-flex w-fit items-center rounded-full border px-3 py-1 text-[11px] font-bold ${statusConfig.className}`}>
+                  {statusConfig.label}
                 </div>
               </div>
+            </div>
 
-              {/* ⭐ RÉCAPITULATIF FINANCIER */}
-              <div className="overflow-hidden rounded-xl border" style={{ background: theme.card, borderColor: theme.border }}>
-                <div className={`flex items-center gap-2.5 border-b px-3 py-2.5 ${borderClass}`} style={{ background: theme.card }}>
-                  <div className="flex h-6 w-6 items-center justify-center rounded-md" style={{ background: theme.primarySoft, color: theme.primary }}>
-                    <Wallet className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-[13px] font-semibold uppercase tracking-[0.045em]" style={{ color: theme.muted }}>Récapitulatif financier</span>
-                </div>
-                <div className="space-y-2 p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-medium" style={{ color: theme.muted }}>Paiement mensuel</span>
-                    <span className="text-[14px] font-semibold" style={{ color: theme.text }}>{formatMoney(salaireTotal)}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-medium" style={{ color: theme.muted }}>Salaire annuel (12 mois)</span>
-                    <span className="text-[14px] font-semibold" style={{ color: theme.text }}>{formatMoney(salaireAnnuel)}</span>
-                  </div>
-                  <div className="my-2 h-px" style={{ background: theme.border }} />
-                  <div className="flex items-center justify-between rounded-lg border px-3 py-2.5" style={{ background: theme.primarySoft, borderColor: theme.primaryBorder }}>
-                    <span className="text-[14px] font-bold uppercase tracking-wide" style={{ color: theme.primary }}>Total annuel</span>
-                    <span className="text-[20px] font-bold tracking-tight" style={{ color: theme.primary }}>{formatMoney(salaireAnnuel)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* ⭐ OBSERVATION */}
-              {paiement.observation && (
-                <div className="overflow-hidden rounded-xl border" style={{ background: theme.card, borderColor: theme.border }}>
-                  <div className={`flex items-center gap-2.5 border-b px-3 py-2.5 ${borderClass}`} style={{ background: theme.card }}>
-                    <div className="flex h-6 w-6 items-center justify-center rounded-md" style={{ background: theme.primarySoft, color: theme.primary }}>
-                      <FileText className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="text-[13px] font-semibold uppercase tracking-[0.045em]" style={{ color: theme.muted }}>Observation</span>
-                  </div>
-                  <div className="px-4 py-3">
-                    <p className="whitespace-pre-wrap text-[14px] leading-relaxed" style={{ color: theme.muted }}>{paiement.observation}</p>
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {data.isEmployePayment ? (
+                <>
+                  <InfoItem label="Employé" value={data.employeFullName || '—'} />
+                  <InfoItem label="Poste" value={data.employePoste || '—'} />
+                  <InfoItem label="Période" value={data.periodeLabel} />
+                </>
+              ) : (
+                <>
+                  <InfoItem label="Client" value={data.client || 'Client non renseigné'} />
+                  <InfoItem label="Commande" value={data.commande || 'Sans commande'} />
+                  <InfoItem label="Enregistré par" value={data.utilisateur || '—'} />
+                </>
               )}
 
+              <InfoItem label="Mode" value={paymentModeLabel} accent />
+              <InfoItem label="Date paiement" value={data.formattedDate} />
+              <InfoItem label="Référence" value={data.reference || 'Non renseignée'} />
             </div>
-          </div>
-        </main>
 
-        {/* FOOTER */}
-        <footer className={`flex shrink-0 items-center justify-end gap-2 border-t px-4 py-2.5 sm:px-5 ${borderClass}`} style={{ borderColor: theme.border, background: theme.footer }}>
-          <span className="hidden text-[11px] font-medium sm:block" style={{ color: theme.subMuted }}>Échap pour fermer</span>
-          <div className="ml-auto flex items-center gap-1.5">
-            <button type="button" onClick={onClose} className="h-8 rounded-lg border px-3 text-[13px] font-medium transition-all hover:bg-slate-100 active:scale-[0.98] dark:hover:bg-white/[0.05]" style={{ borderColor: theme.border, color: theme.text, background: 'transparent' }}>
+            {data.isEmployePayment && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <InfoItem label="Salaire brut" value={formatAriary(data.salaireBrut)} />
+                <InfoItem label="CNaPS (1%)" value={formatAriary(data.cnaps)} />
+                <InfoItem label="OSTIE (5%)" value={formatAriary(data.ostie)} />
+                <InfoItem label="IRSA" value={formatAriary(data.irsa)} />
+                <InfoItem label="Avance" value={formatAriary(data.avance)} />
+                <InfoItem label="Net à payer" value={formatAriary(data.netAPayer)} accent />
+              </div>
+            )}
+
+            {!data.isEmployePayment && (data.total > 0 || data.reste > 0) && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <InfoItem label="Total" value={formatAriary(data.total)} />
+                <InfoItem label="Payé" value={formatAriary(data.montant)} accent />
+                <InfoItem label="Reste" value={formatAriary(data.reste)} />
+              </div>
+            )}
+
+            {data.notes && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] leading-relaxed text-slate-600 dark:border-white/[0.08] dark:bg-[#0F172A] dark:text-slate-300">
+                {data.notes}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-3 dark:border-white/[0.08] dark:bg-[#0F172A] sm:px-5">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <button type="button" onClick={onClose} className="inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-[12px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-300 dark:hover:bg-white/[0.06]">
               Fermer
             </button>
-            <button type="button" onClick={onViewHistorique} className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-white shadow-sm transition-all hover:shadow-md active:scale-[0.98]" style={{ background: theme.primary }}>
-              <History className="h-3.5 w-3.5" strokeWidth={2} />
-              Voir historique
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {onModifier && (
+                <button type="button" onClick={onModifier} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#0D80D2] px-4 text-[12px] font-semibold text-white shadow-sm transition-all hover:bg-[#0B6AB0] active:scale-[0.99]">
+                  <Pencil className="h-3.5 w-3.5" /> Modifier
+                </button>
+              )}
+            </div>
           </div>
-        </footer>
-
-        <style>{`
-          @keyframes paiementModalIn { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
-          .custom-modal-scrollbar::-webkit-scrollbar { width: 6px; }
-          .custom-modal-scrollbar::-webkit-scrollbar-track { background: transparent; }
-          .custom-modal-scrollbar::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.28); border-radius: 999px; }
-          .custom-modal-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.45); }
-        `}</style>
+        </div>
       </div>
     </div>
   );

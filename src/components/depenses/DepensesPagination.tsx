@@ -1,36 +1,102 @@
-// ============================================================
-// src/components/depenses/DepensesPagination.tsx - OPTIMISÉ
-// ============================================================
+// src/components/depenses/DepensesPagination.tsx
+// ⭐ PROFESSIONNEL BLEU (#4F46E5) + GRIS FONCÉ (#0F172A) DARK MODE
+// ⭐ MITOVY AMIN'NY PRODUITS PAGINATION DESIGN
+
 import React, { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
-const COLORS = { light: { border: '#E2E8F0', text: '#0F172A', muted: '#64748B', primary: '#6366F1' }, dark: { border: '#334155', text: '#F8FAFC', muted: '#94A3B8', primary: '#6366F1' } };
+interface DepensesPaginationProps {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+}
 
-interface DepensesPaginationProps { currentPage: number; totalPages: number; totalItems: number; onPageChange: (page: number) => void; }
+const DepensesPagination: React.FC<DepensesPaginationProps> = ({
+  currentPage,
+  totalPages,
+  totalItems,
+  onPageChange,
+}) => {
+  const { isDark } = useTheme();
 
-const DepensesPagination: React.FC<DepensesPaginationProps> = ({ currentPage, totalPages, totalItems, onPageChange }) => {
-  const { isDark } = useTheme(); const theme = isDark ? COLORS.dark : COLORS.light;
-  const pageNumbers = useMemo(() => {
-    if (totalPages <= 1) return []; const numbers = []; const maxVisible = 7;
-    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2)); let end = Math.min(totalPages, start + maxVisible - 1);
-    if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
-    for (let i = start; i <= end; i++) numbers.push(i); return numbers;
+  const pages = useMemo<number[]>(() => {
+    if (totalPages <= 1) return [];
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    const blockSize = 7;
+    const blockIndex = Math.floor((currentPage - 1) / blockSize);
+    const startPage = blockIndex * blockSize + 1;
+    const endPage = Math.min(startPage + blockSize - 1, totalPages);
+
+    return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
   }, [currentPage, totalPages]);
-  if (totalPages <= 1) return null;
+
+  if (totalItems === 0 || totalPages === 0) return null;
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages && page !== currentPage) {
+      onPageChange(page);
+    }
+  };
+
+  const textColor = isDark ? 'text-gray-400' : 'text-gray-500';
+  const textColorHighlight = isDark ? 'text-gray-100' : 'text-gray-900';
+  const borderColor = isDark ? 'border-white/[0.12]' : 'border-gray-200';
+  const hoverBg = isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-50';
+
   return (
-      <div className="mt-1 flex flex-col sm:flex-row items-center justify-between gap-4 px-2 w-full">
- 
-        <div className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.muted }}>
-        Total : <span style={{ color: theme.text }} className="font-black">{totalItems}</span> dépenses au total
-   </div>
-   
-      <div className="flex items-center gap-1">
-        <button onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="p-2 rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:bg-indigo-500/10" style={{ borderColor: theme.border, color: theme.muted }}><ChevronLeft size={16} /></button>
-        {pageNumbers.map(num => (<button key={num} onClick={() => onPageChange(num)} className="px-3 py-1.5 rounded-lg transition-all duration-200 text-sm font-medium" style={{ background: currentPage === num ? theme.primary : 'transparent', color: currentPage === num ? '#FFFFFF' : theme.muted }}>{num}</button>))}
-        <button onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="p-2 rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:bg-indigo-500/10" style={{ borderColor: theme.border, color: theme.muted }}><ChevronRight size={16} /></button>
+    <div className="flex w-full items-center justify-between px-1 py-3">
+      
+      <div className={`text-[12px] font-bold uppercase tracking-widest ${textColor}`}>
+        Total : <span className={textColorHighlight}>{totalItems}</span> DÉPENSE{totalItems > 1 ? 'S' : ''}
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        
+        <button
+          onClick={() => goToPage(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`flex h-8 w-8 items-center justify-center rounded-xl border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${borderColor} bg-transparent ${hoverBg}`}
+          style={{ color: isDark ? '#B0B0B0' : '#64748B' }}
+          aria-label="Page précédente"
+        >
+          <ChevronLeft size={15} />
+        </button>
+
+        {pages.map((page) => {
+          const isActive = page === currentPage;
+          return (
+            <button
+              key={page}
+              onClick={() => goToPage(page)}
+              className={`flex h-8 min-w-[32px] items-center justify-center rounded-xl px-2 text-[13.5px] font-bold transition-all ${
+                isActive
+                  ? 'border-brand-500 bg-brand-500 text-white shadow-sm'
+                  : `border bg-transparent ${borderColor} ${hoverBg}`
+              }`}
+              style={{ color: isActive ? '#FFFFFF' : (isDark ? '#B0B0B0' : '#475569') }}
+            >
+              {page}
+            </button>
+          );
+        })}
+
+        <button
+          onClick={() => goToPage(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`flex h-8 w-8 items-center justify-center rounded-xl border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${borderColor} bg-transparent ${hoverBg}`}
+          style={{ color: isDark ? '#B0B0B0' : '#64748B' }}
+          aria-label="Page suivante"
+        >
+          <ChevronRight size={15} />
+        </button>
       </div>
     </div>
   );
 };
+
 export default DepensesPagination;

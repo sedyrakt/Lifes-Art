@@ -1,9 +1,3 @@
-// ============================================================
-// src/contexts/AuthContext.tsx - VERSION FINALE SANS 2FA
-// ⭐ FANITSARA VAOVAO: Nesoriko tanteraka ny 2FA (verify2FA, need2FA)
-// ⭐ FANITSARA VAOVAO: Nohamarinina ny fomba fahazoana ny API (window.api aloha)
-// ============================================================
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 interface User {
@@ -44,21 +38,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ⭐ FANITSARA ZAVA-DEBE: Maka mivantana ny window.api aloha
   const getApi = () => {
-    // 1. Mampiasa ny window.api (izay efa no-expose tao amin'ny preload)
     if ((window as any).api && (window as any).api.auth) {
       return (window as any).api;
     }
-    // 2. Raha tsy mandeha ny api, dia mampiasa ny electronAPI ho fallback
     if ((window as any).electronAPI && (window as any).electronAPI.ipcRenderer) {
       console.warn('⚠️ window.api tsy hita, mampiasa electronAPI ho fallback');
-      return null; // Tsy mamerina ny ipcRenderer intsony mba tsy hianjera
+      return null;
     }
     return null;
   };
 
-  // ⭐ LOAD USER
   const loadUser = useCallback(async () => {
     try {
       const token = sessionStorage.getItem('auth_token');
@@ -68,7 +58,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         return;
       }
-
       const storedUserStr = sessionStorage.getItem('auth_user');
       if (storedUserStr) {
         try {
@@ -80,7 +69,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           sessionStorage.removeItem('auth_user');
         }
       }
-
       const api = getApi();
       if (api && api.auth && api.auth.verifyToken) {
         const result = await api.auth.verifyToken(token);
@@ -108,9 +96,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => { loadUser(); }, [loadUser]);
 
-  // ============================================================
-  // ⭐ LOGIN - Mampiasa api.auth.login (TSY MISY 2FA INT'SONY)
-  // ============================================================
   const login = async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
     setError(null);
@@ -119,10 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!api || !api.auth || typeof api.auth.login !== 'function') {
         throw new Error('Electron API tsy hita na tsy manana auth.login');
       }
-
       const result = await api.auth.login(email, password, '127.0.0.1', navigator.userAgent);
-
-      // ⭐ FANITSARA: Esorina tanteraka ny 2FA (result.need2FA)
       if (result && result.success && result.token && result.user) {
         setSession(result.token, result.user);
         return true;
@@ -141,14 +123,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // ⭐ SET SESSION
   const setSession = (token: string, userData: User) => {
     sessionStorage.setItem('auth_token', token);
     sessionStorage.setItem('auth_user', JSON.stringify(userData));
     setUser(userData);
   };
 
-  // ⭐ LOGOUT
   const logout = () => {
     const token = sessionStorage.getItem('auth_token');
     const api = getApi();
@@ -160,7 +140,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  // ⭐ REGISTER
   const register = async (data: any): Promise<boolean> => {
     setLoading(true);
     setError(null);

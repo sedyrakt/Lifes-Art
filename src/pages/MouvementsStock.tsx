@@ -1,11 +1,15 @@
-// src/pages/MouvementsStock.tsx
+
 import React, { useCallback, useState, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import useMouvementsData from '../hooks/useMouvementsData';
-import { RefreshCw, Search, List, Grid, ArrowUpDown, Filter, Calendar, X } from 'lucide-react';
+import { Search, ArrowUpDown, Filter, Calendar, X } from 'lucide-react'; 
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { fr } from 'date-fns/locale';
+
+import MouvementsHeader from '../components/mouvements/MouvementsHeader';
 import MouvementsStats from '../components/mouvements/MouvementsStats';
 import MouvementsTable from '../components/mouvements/MouvementsTable';
-import MouvementsGrid from '../components/mouvements/MouvementsGrid';
 import MouvementsPagination from '../components/mouvements/MouvementsPagination';
 import SuccessModal from '../components/common/SuccessModal';
 import ErrorModal from '../components/common/ErrorModal';
@@ -32,11 +36,10 @@ const MouvementsStock: React.FC = () => {
     searchTerm, setSearchTerm, filterType, setFilterType, filterDate, setFilterDate,
     sortOption, setSortOption, statsData, loadMouvements, getTypeColor, getTypeLabel,
     getTypeIcon, ITEMS_PER_PAGE, selectedIds, setSelectedIds, handleSelectAll,
-    handleSelectOne, bulkDelete, imageUrls, loadImageForMouvement, hasMore,
+    handleSelectOne, bulkDelete, hasMore,
     handleNextPage, handlePrevPage,
   } = useMouvementsData();
 
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successTitle, setSuccessTitle] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -46,14 +49,34 @@ const MouvementsStock: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<number[]>([]);
 
-  const showSuccess = useCallback((title: string, message: string) => { setSuccessTitle(title); setSuccessMessage(message); setShowSuccessModal(true); }, []);
-  const showError = useCallback((title: string, message: string) => { setErrorTitle(title); setErrorMessage(message); setShowErrorModal(true); }, []);
+  const toDate = (dateStr: string): Date | null => {
+    if (!dateStr) return null;
+    const [year, month, day] = dateStr.split('-').map(Number);
+    if (year && month && day) return new Date(year, month - 1, day);
+    return null;
+  };
+
+  const toDateStr = (date: Date | null): string => {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const showSuccess = useCallback((title: string, message: string) => {
+    setSuccessTitle(title); setSuccessMessage(message); setShowSuccessModal(true);
+  }, []);
+  const showError = useCallback((title: string, message: string) => {
+    setErrorTitle(title); setErrorMessage(message); setShowErrorModal(true);
+  }, []);
 
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
-    try { await loadMouvements(true); } catch (error: any) { showError('Erreur', error?.message || 'Impossible de charger les mouvements.'); }
-    finally { setRefreshing(false); }
+    try { await loadMouvements(true); } catch (error: any) {
+      showError('Erreur', error?.message || 'Impossible de charger les mouvements.');
+    } finally { setRefreshing(false); }
   }, [refreshing, setRefreshing, loadMouvements, showError]);
 
   const handleBulkDelete = useCallback(() => {
@@ -69,15 +92,27 @@ const MouvementsStock: React.FC = () => {
       await bulkDelete(deleteTarget);
       setSelectedIds(new Set());
       showSuccess('Suppression en lot', `${deleteTarget.length} mouvement(s) supprimé(s).`);
-    } catch (error: any) { showError('Erreur de suppression', error?.message || 'Impossible de supprimer les mouvements.'); }
-    finally { setShowDeleteModal(false); setDeleteTarget([]); }
+    } catch (error: any) {
+      showError('Erreur de suppression', error?.message || 'Impossible de supprimer les mouvements.');
+    } finally {
+      setShowDeleteModal(false); setDeleteTarget([]);
+    }
   }, [deleteTarget, bulkDelete, setSelectedIds, showSuccess, showError]);
 
-  const resetFilters = useCallback(() => { setSearchTerm(''); setFilterType(''); setFilterDate(''); setSortOption('date-desc'); }, [setSearchTerm, setFilterType, setFilterDate, setSortOption]);
+  const handleEditMouvement = useCallback((mouvement: any) => {
+    console.log('Modifier mouvement:', mouvement);
+    showSuccess('Modification', `Modification du mouvement ${mouvement.reference || 'sans référence'}.`);
+  }, [showSuccess]);
 
-  const hasActiveFilters = Boolean(searchTerm) || Boolean(filterType) || Boolean(filterDate) || sortOption !== 'date-desc';
+  const handleExportMouvement = useCallback((mouvement: any) => {
+    console.log('Exporter mouvement:', mouvement);
+    showSuccess('Export', `Export du mouvement ${mouvement.reference || 'sans référence'} réussi.`);
+  }, [showSuccess]);
 
-  // ⭐ FANADIOVANA NY DUPLICATE ID mba tsy hisy ilay erreur "same key"
+  const resetFilters = useCallback(() => {
+    setSearchTerm(''); setFilterType(''); setFilterDate(''); setSortOption('date-desc');
+  }, [setSearchTerm, setFilterType, setFilterDate, setSortOption]);
+
   const uniqueMouvements = useMemo(() => {
     const seen = new Set();
     return mouvements.filter(m => {
@@ -87,110 +122,196 @@ const MouvementsStock: React.FC = () => {
     });
   }, [mouvements]);
 
-  return (
-    <div className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0A1222' : '#F8FAFC' }}>
-      <div className="mx-auto w-full max-w-[1600px] px-0 py-5 sm:px-0 lg:px-4">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400"><ArrowUpDown size={18} /></div>
-              <div>
-                <h1 className="text-[21px] font-semibold tracking-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>Mouvements de stock</h1>
-                <p className="mt-0.5 text-[13px]" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Suivez les entrées, sorties et ajustements.</p>
-              </div>
-            </div>
+  const renderSkeleton = () => {
+    const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
+    const border = isDark ? 'border-white/[0.08]' : 'border-slate-200';
+    return (
+      <div className="min-h-[500px] w-full p-5">
+        <div className="space-y-4">
+          <div className={`flex items-center gap-4 border-b pb-4 ${border}`}>
+            {[...Array(7)].map((_, i) => <div key={i} className={`h-4 w-${i === 0 ? 8 : i === 1 ? 24 : i === 2 ? 32 : i === 3 ? 20 : i === 4 ? 28 : i === 5 ? 20 : 28} rounded ${base} animate-pulse`} />)}
           </div>
-          <button type="button" onClick={handleRefresh} disabled={refreshing} className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 text-[13px] font-medium text-white shadow-sm shadow-indigo-600/20 transition-all duration-200 hover:bg-indigo-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
-            <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-            <span>{refreshing ? 'Actualisation...' : 'Actualiser'}</span>
-          </button>
-        </header>
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className={`flex items-center gap-4 py-3 ${border}`}>
+              <div className={`h-4 w-8 rounded ${base} animate-pulse`} />
+              <div className={`h-4 w-24 rounded ${base} animate-pulse`} />
+              <div className={`h-10 w-10 rounded-lg ${base} animate-pulse`} />
+              <div className="flex-1 space-y-2">
+                <div className={`h-4 w-1/3 rounded ${base} animate-pulse`} />
+                <div className={`h-3 w-1/2 rounded ${base} animate-pulse`} />
+              </div>
+              <div className={`h-4 w-24 rounded ${base} animate-pulse`} />
+              <div className={`h-4 w-20 rounded ${base} animate-pulse`} />
+              <div className={`h-4 w-28 rounded ${base} animate-pulse`} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
-        <div className="mt-5"><MouvementsStats total={statsData.total} entrees={statsData.entrees} sorties={statsData.sorties} ajustements={statsData.ajustements} quantiteEntree={statsData.quantiteEntree} quantiteSortie={statsData.quantiteSortie} refreshing={refreshing} onRefresh={handleRefresh} filtreActif={filterType} onSelectFiltre={setFilterType} /></div>
 
-        <div className="mt-5 flex flex-col gap-2.5 xl:flex-row xl:items-center">
+  const cardBg = isDark ? '#0F172A' : '#FFFFFF';
+  const borderColor = isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0';
+  const shadow = isDark ? '0 4px 24px -4px rgba(0,0,0,0.35)' : '0 4px 20px -4px rgba(79,70,229,0.08)';
+
+  return (
+  
+    <main
+      className="min-h-full w-full transition-colors duration-300"
+      style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}
+    >
+      <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
+        <MouvementsHeader onPrint={() => {}} onExport={() => {}} refreshing={refreshing} onRefresh={handleRefresh} totalItems={totalItems} />
+        <MouvementsStats total={statsData.total} entrees={statsData.entrees} sorties={statsData.sorties} ajustements={statsData.ajustements} quantiteEntree={statsData.quantiteEntree} quantiteSortie={statsData.quantiteSortie} refreshing={refreshing} onRefresh={handleRefresh} filtreActif={filterType} onSelectFiltre={setFilterType} />
+
+        <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center">
           <div className="relative min-w-0 flex-1">
-            <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-            <input type="text" placeholder="Rechercher un mouvement..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-10 text-[13px] text-slate-900 outline-none placeholder:text-slate-400 transition-all duration-150 hover:border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:border-slate-800 dark:bg-[#0F172A] dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-slate-700" />
-            {searchTerm && <button type="button" onClick={() => setSearchTerm('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"><X size={14} /></button>}
+            <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-500" />
+         
+            <input
+              type="text"
+              placeholder="Rechercher un mouvement..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-10 w-full rounded-xl border bg-white pl-10 pr-10 text-[13px] text-slate-900 outline-none placeholder:text-slate-400 transition-all duration-150 hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-white/[0.18]"
+              style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-600 dark:hover:bg-white/[0.06] dark:hover:text-slate-200"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 xl:shrink-0">
             <div className="relative">
-              <Filter size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-              <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="h-10 min-w-[145px] appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-[13px] font-medium text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:border-slate-800 dark:bg-[#0F172A] dark:text-slate-200 dark:hover:border-slate-700">
-                {TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              <Filter size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" />
+     
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="h-10 min-w-[145px] appearance-none rounded-xl border bg-white pl-9 pr-8 text-[13px] font-medium text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-200 dark:hover:border-white/[0.18]"
+                style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}
+              >
+                {TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </div>
 
-            <div className="relative">
-              <Calendar size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-              <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="h-10 w-[145px] rounded-lg border border-slate-200 bg-white pl-9 pr-2 text-[13px] text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:border-slate-800 dark:bg-[#0F172A] dark:text-slate-200 dark:hover:border-slate-700" />
+            <div className="relative flex items-center">
+              <Calendar size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" />
+         
+              <DatePicker
+                selected={toDate(filterDate)}
+                onChange={(date) => setFilterDate(toDateStr(date))}
+                dateFormat="dd/MM/yyyy"
+                placeholderText="mm/dd/yyyy"
+                locale={fr}
+                className="h-10 w-[145px] rounded-xl border bg-white pl-9 pr-8 text-[13px] text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-200 dark:hover:border-white/[0.18]"
+                popperClassName={isDark ? 'dark-datepicker-popper' : 'light-datepicker-popper'}
+                calendarClassName={isDark ? 'dark-datepicker' : 'light-datepicker'}
+                style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}
+              />
+              {filterDate && (
+                <button
+                  type="button"
+                  onClick={() => setFilterDate('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-600 dark:hover:bg-white/[0.06] dark:hover:text-slate-200"
+                  title="Effacer la date"
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
 
             <div className="relative">
-              <ArrowUpDown size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-              <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="h-10 min-w-[140px] appearance-none rounded-lg border border-slate-200 bg-white pl-9 pr-8 text-[13px] font-medium text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 dark:border-slate-800 dark:bg-[#0F172A] dark:text-slate-200 dark:hover:border-slate-700">
-                {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              <ArrowUpDown size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" />
+
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+                className="h-10 min-w-[140px] appearance-none rounded-xl border bg-white pl-9 pr-8 text-[13px] font-medium text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-200 dark:hover:border-white/[0.18]"
+                style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
-            </div>
-
-            {hasActiveFilters && <button type="button" onClick={resetFilters} className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-[#0F172A] dark:text-slate-300 dark:hover:bg-slate-800"><X size={14} /> Réinitialiser</button>}
-
-            <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-[#0F172A]">
-              <button type="button" onClick={() => setViewMode('table')} className={`flex h-8 w-8 items-center justify-center rounded-md transition-all ${viewMode === 'table' ? 'bg-indigo-50 text-indigo-600 shadow-sm dark:bg-indigo-500/10 dark:text-indigo-400' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200'}`}><List size={17} /></button>
-              <button type="button" onClick={() => setViewMode('grid')} className={`flex h-8 w-8 items-center justify-center rounded-md transition-all ${viewMode === 'grid' ? 'bg-indigo-50 text-indigo-600 shadow-sm dark:bg-indigo-500/10 dark:text-indigo-400' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-200'}`}><Grid size={17} /></button>
             </div>
           </div>
         </div>
 
-        <section className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-[#0F172A]">
-          {loading && mouvements.length === 0 ? (
-            <div className="flex min-h-[360px] items-center justify-center">
-              <div className="flex flex-col items-center gap-3"><RefreshCw size={25} className="animate-spin text-indigo-500" /><span className="text-[13px] text-slate-500 dark:text-slate-400">Chargement des mouvements...</span></div>
+
+        <section className="relative overflow-hidden rounded-2xl border transition-all duration-300" style={{ background: cardBg, borderColor, boxShadow: shadow }}>
+          {refreshing && (
+            <div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent">
+              <div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" />
             </div>
-          ) : viewMode === 'table' ? (
-            <MouvementsTable 
-              mouvements={uniqueMouvements} 
-              getTypeColor={getTypeColor} 
-              getTypeLabel={getTypeLabel} 
-              getTypeIcon={getTypeIcon} 
-              isDark={isDark} 
-              selectedIds={selectedIds} 
-              onSelectAll={handleSelectAll} 
-              onSelectOne={handleSelectOne} 
-              onBulkDelete={handleBulkDelete} 
-              imageUrls={imageUrls} 
-              loadImageForMouvement={loadImageForMouvement} 
-            />
+          )}
+
+          {loading && mouvements.length === 0 ? (
+            renderSkeleton()
           ) : (
-            <MouvementsGrid 
-              mouvements={uniqueMouvements} 
-              getTypeColor={getTypeColor} 
-              getTypeLabel={getTypeLabel} 
-              getTypeIcon={getTypeIcon} 
-              isDark={isDark} 
-              imageUrls={imageUrls} 
-              loadImageForMouvement={loadImageForMouvement} 
+            <MouvementsTable
+              mouvements={uniqueMouvements}
+              getTypeColor={getTypeColor}
+              getTypeLabel={getTypeLabel}
+              getTypeIcon={getTypeIcon}
+              isDark={isDark}
+              selectedIds={selectedIds}
+              onSelectAll={handleSelectAll}
+              onSelectOne={handleSelectOne}
+              onBulkDelete={handleBulkDelete}
+              onView={(m) => { /* Voir détails */ }}
+              onEdit={handleEditMouvement}
+              onExport={handleExportMouvement}
             />
           )}
         </section>
 
-        <div className="mt-4 flex justify-center">
-          <MouvementsPagination 
-            currentPage={currentPage} 
-            totalItems={totalItems} 
-            hasMore={hasMore} 
-            onNext={handleNextPage} 
-            onPrevious={handlePrevPage} 
-          />
-        </div>
+        {!loading && totalItems > 0 && (
+          <div className="flex items-center justify-between rounded-2xl border px-3 py-2.5 transition-all duration-300" style={{ background: cardBg, borderColor, boxShadow: isDark ? '0 2px 12px -2px rgba(0,0,0,0.25)' : '0 2px 10px -2px rgba(79,70,229,0.06)' }}>
+            <MouvementsPagination currentPage={currentPage} totalItems={totalItems} hasMore={hasMore} onNext={handleNextPage} onPrevious={handlePrevPage} />
+          </div>
+        )}
       </div>
 
       <SuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} title={successTitle} message={successMessage} buttonText="OK" autoCloseDelay={3000} />
       <ErrorModal isOpen={showErrorModal} onClose={() => setShowErrorModal(false)} title={errorTitle} message={errorMessage} buttonText="OK" autoCloseDelay={4000} />
       <ConfirmModal isOpen={showDeleteModal} onClose={() => { setShowDeleteModal(false); setDeleteTarget([]); }} onConfirm={handleConfirmBulkDelete} title="Suppression en lot" message={`Voulez-vous supprimer ${deleteTarget.length} mouvement(s) ?`} confirmText="Supprimer" cancelText="Annuler" confirmColor="red" isDark={isDark} />
-    </div>
+
+      <style>{`
+        .react-datepicker-wrapper { width: 100%; }
+        .react-datepicker-popper { z-index: 100000 !important; }
+        .react-datepicker { border-radius: 12px !important; overflow: hidden; font-family: inherit !important; box-shadow: 0 20px 50px rgba(0,0,0,0.18) !important; width: 280px !important; }
+        .react-datepicker__header { padding-top: 12px !important; }
+        .react-datepicker__current-month { font-size: 14px !important; font-weight: 600 !important; }
+        .react-datepicker__day-name { font-size: 12px !important; font-weight: 600 !important; }
+        .react-datepicker__day { border-radius: 8px !important; margin: 2px !important; padding: 6px 0 !important; transition: all 120ms ease; font-weight: 500 !important; }
+
+        .dark-datepicker-popper .react-datepicker, .dark-datepicker { background-color: #0F172A !important; border-color: rgba(255,255,255,0.12) !important; color: #F8FAFC !important; }
+        .dark-datepicker-popper .react-datepicker__header { background-color: #1E293B !important; border-color: rgba(255,255,255,0.12) !important; }
+        .dark-datepicker-popper .react-datepicker__current-month, .dark-datepicker-popper .react-datepicker__day-name { color: #F8FAFC !important; }
+        .dark-datepicker-popper .react-datepicker__day { color: #94A3B8 !important; }
+        .dark-datepicker-popper .react-datepicker__day:hover { background: #4F46E5 !important; color: #FFFFFF !important; }
+        .dark-datepicker-popper .react-datepicker__day--selected, .dark-datepicker-popper .react-datepicker__day--keyboard-selected { background: #4F46E5 !important; color: #FFFFFF !important; font-weight: 600 !important; }
+        .dark-datepicker-popper .react-datepicker__navigation-icon::before { border-color: #94A3B8 !important; }
+
+        .light-datepicker-popper .react-datepicker, .light-datepicker { background-color: #FFFFFF !important; border-color: #E2E8F0 !important; }
+        .light-datepicker-popper .react-datepicker__header { background-color: #EEF2FF !important; border-color: #E2E8F0 !important; }
+        .light-datepicker-popper .react-datepicker__current-month, .light-datepicker-popper .react-datepicker__day-name { color: #0F172A !important; }
+        .light-datepicker-popper .react-datepicker__day { color: #0F172A !important; }
+        .light-datepicker-popper .react-datepicker__day:hover { background: #4F46E5 !important; color: #FFFFFF !important; }
+        .light-datepicker-popper .react-datepicker__day--selected, .light-datepicker-popper .react-datepicker__day--keyboard-selected { background: #4F46E5 !important; color: #FFFFFF !important; font-weight: 600 !important; }
+        .light-datepicker-popper .react-datepicker__navigation-icon::before { border-color: #0F172A !important; }
+      `}</style>
+    </main>
   );
 };
 
