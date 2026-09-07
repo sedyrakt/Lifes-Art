@@ -1,3 +1,4 @@
+// src/pages/Produits.tsx
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { CheckCircle, XCircle, Plus } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';

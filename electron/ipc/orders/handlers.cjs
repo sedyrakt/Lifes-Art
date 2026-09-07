@@ -1,5 +1,6 @@
 // electron/ipc/orders/handlers.cjs — LIFE'S ART ORDERS IPC (FIXED)
 // ⭐ FIX: NAMPIANA NY TVA DYNAMIQUE (tva_rate) amin'ny create & update
+// ⭐ FIX: NAMPIANA NY client_telephone (LEFT JOIN clients)
 'use strict';
 
 const { getDb } = require('../../database/connection.cjs');
@@ -579,8 +580,16 @@ function registerOrdersHandlers(ipcMain) {
       const products = details.map(detail => ({
         id: detail.produit_id, name: detail.produit_nom || 'Produit', code: detail.produit_code || '',
         quantity: Number(detail.quantite || 0), price: Number(detail.prix_unitaire || 0), total: Number(detail.total || 0),
-        tva_rate: Number(detail.tva_rate || 0.2) // ⭐ FIX: Nampiana ny tva_rate
+        tva_rate: Number(detail.tva_rate || 0.2)
       }));
+      // ⭐ FIX: Ataovy azo antoka ny client_telephone
+      if (!commande.client_telephone && commande.client_id) {
+        try {
+          const db = getDb();
+          const client = db.prepare('SELECT telephone FROM clients WHERE id = ?').get(commande.client_id);
+          commande.client_telephone = client?.telephone || '';
+        } catch (_) {}
+      }
       return { success: true, data: { ...commande, products, details } };
     } catch (err) {
       error('❌ [orders:get-with-details]', err.message);
@@ -612,6 +621,7 @@ function registerOrdersHandlers(ipcMain) {
   log('✅ Orders handlers enregistrés avec succès');
   log('💳 Statuts paiement actifs: Payé | Partiel | Non payé');
   log('🧾 TVA Dynamique: 0% / 10% / 20% prête');
+  log('📱 Client téléphone activé');
 
   return true;
 }

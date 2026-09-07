@@ -1,3 +1,4 @@
+// electron/ipc/orders/statements.cjs
 'use strict';
 
 const { getDb } = require('../../database/connection.cjs');
@@ -26,10 +27,13 @@ function prepareStatements() {
       WHERE id = ?
     `);
 
+    // ⭐ FIX: LEFT JOIN clients ho an'ny téléphone
     const stmtGetById = db.prepare(`
       SELECT c.*, 'CMD-' || printf('%06d', c.id) AS numero,
+        cl.telephone AS client_telephone,
         COALESCE(GROUP_CONCAT(p.nom, ', '), '') AS produits_noms
       FROM commandes c
+      LEFT JOIN clients cl ON cl.id = c.client_id
       LEFT JOIN details_commandes d ON d.commande_id = c.id
       LEFT JOIN produits p ON p.id = d.produit_id
       WHERE c.id = ?
@@ -38,7 +42,6 @@ function prepareStatements() {
 
     const stmtDelete = db.prepare(`DELETE FROM commandes WHERE id = ?`);
 
-    // ⭐ NAMPIANA NY tva_rate
     const stmtGetDetails = db.prepare(`
       SELECT d.id, d.commande_id, d.produit_id,
         COALESCE(p.nom, 'Produit') AS produit_nom,
@@ -50,7 +53,6 @@ function prepareStatements() {
       ORDER BY d.id ASC
     `);
 
-    // ⭐ NAMPIANA NY tva_rate
     const stmtGetProducts = db.prepare(`
       SELECT d.produit_id,
         COALESCE(p.nom, 'Produit') AS produit_nom,
@@ -62,23 +64,32 @@ function prepareStatements() {
       ORDER BY d.id ASC
     `);
 
+    // ⭐ FIX: JOIN clients ho an'ny téléphone
     const stmtGetByClient = db.prepare(`
-      SELECT c.*, 'CMD-' || printf('%06d', c.id) AS numero
+      SELECT c.*, 'CMD-' || printf('%06d', c.id) AS numero,
+        cl.telephone AS client_telephone
       FROM commandes c
+      LEFT JOIN clients cl ON cl.id = c.client_id
       WHERE c.client_nom LIKE ?
       ORDER BY c.date_commande DESC
     `);
 
+    // ⭐ FIX: JOIN clients ho an'ny téléphone
     const stmtGetByStatus = db.prepare(`
-      SELECT c.*, 'CMD-' || printf('%06d', c.id) AS numero
+      SELECT c.*, 'CMD-' || printf('%06d', c.id) AS numero,
+        cl.telephone AS client_telephone
       FROM commandes c
+      LEFT JOIN clients cl ON cl.id = c.client_id
       WHERE c.statut_paiement = ?
       ORDER BY c.date_commande DESC
     `);
 
+    // ⭐ FIX: JOIN clients ho an'ny téléphone
     const stmtGetByDateRange = db.prepare(`
-      SELECT c.*, 'CMD-' || printf('%06d', c.id) AS numero
+      SELECT c.*, 'CMD-' || printf('%06d', c.id) AS numero,
+        cl.telephone AS client_telephone
       FROM commandes c
+      LEFT JOIN clients cl ON cl.id = c.client_id
       WHERE c.date_commande >= ? AND c.date_commande <= ?
       ORDER BY c.date_commande DESC
     `);
@@ -109,13 +120,11 @@ function prepareStatements() {
       ORDER BY jour DESC
     `);
 
-    // ⭐ NAMPIANA NY tva_rate (6 paramètres)
     const stmtInsertDetail = db.prepare(`
       INSERT INTO details_commandes (commande_id, produit_id, quantite, prix_unitaire, total, tva_rate)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    // ⭐ NAMPIANA NY tva_rate
     const stmtCheckStock = db.prepare(`
       SELECT id, nom, quantite_stock, tva_rate FROM produits WHERE id = ?
     `);
@@ -177,7 +186,7 @@ function prepareStatements() {
       stmtUpdatePaiement, stmtGetDetteStats
     };
 
-    log('✅ [orders.statements] Statements préparés (Avec TVA dynamique)');
+    log('✅ [orders.statements] Statements préparés (Avec téléphone client + TVA dynamique)');
     return true;
 
   } catch (err) {

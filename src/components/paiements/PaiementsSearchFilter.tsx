@@ -66,7 +66,7 @@ export function PaiementsSearchFilter({
           <ViewButton active={viewMode === 'liste'} icon={<FileClock size={14} />} label="Liste" onClick={() => setViewMode('liste')} />
           <ViewButton active={viewMode === 'calendrier'} icon={<CalendarDays size={14} />} label="Calendrier" onClick={() => setViewMode('calendrier')} />
           <ViewButton active={viewMode === 'echeances'} icon={<CircleDollarSign size={14} />} label="Échéances" onClick={() => setViewMode('echeances')} />
-          <ViewButton active={viewMode === 'bulletin'} icon={<FileText size={14} />} label="Bulk Bulletin" onClick={() => setViewMode('bulletin')} />
+          <ViewButton active={viewMode === 'bulletin'} icon={<FileText size={14} />} label="Bulletins" onClick={() => setViewMode('bulletin')} />
         </div>
         <button
           onClick={() => setShowFilters(!showFilters)}

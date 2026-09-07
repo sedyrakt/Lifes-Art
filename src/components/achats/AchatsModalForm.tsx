@@ -1,3 +1,4 @@
+// src/components/achats/AchatsModalForm.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, CheckCircle, ChevronDown, Search, Building2, Check } from 'lucide-react';
@@ -98,6 +99,18 @@ const AchatsModalForm: React.FC<AchatsModalFormProps> = ({
 
   const tauxTVAApplique = internalTvaOverride !== null ? `${(internalTvaOverride * 100).toFixed(0)}% (Fixe)` : 'Auto (Produits)';
 
+  // ⭐ HEADER: fotsy (white) amin'ny light mode
+  const headerBg = isDark ? theme.headerBg : '#FFFFFF'; // White
+  const headerTextColor = isDark ? theme.text : theme.text; // Slate-900
+  const headerSubTextColor = isDark ? theme.muted : theme.muted; // Slate-500
+  const headerIconBg = isDark ? theme.primaryBg : 'rgba(79,70,229,0.08)';
+  const headerIconColor = isDark ? theme.primary : theme.primary;
+  const headerCloseColor = isDark ? theme.muted : theme.muted;
+  const headerCloseHover = isDark ? 'dark:hover:bg-white/5' : 'hover:bg-slate-100';
+
+  // ⭐ TOP BORDER: solid indigo en light, gradient en dark
+  const topBorderBg = isDark ? `linear-gradient(90deg, ${theme.primary}, ${theme.primaryHover})` : '#4F46E5';
+
   if (!isOpen) return null;
 
   const filteredFournisseurs = fournisseurs.filter(f => !fournisseurSearch || f.nom?.toLowerCase().includes(fournisseurSearch.toLowerCase()));
@@ -111,10 +124,23 @@ const AchatsModalForm: React.FC<AchatsModalFormProps> = ({
   return createPortal(
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" style={{ background: isDark ? 'rgba(0,0,0,0.80)' : 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }} role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="relative w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-2xl" style={{ background: theme.card, borderColor: theme.border }} onMouseDown={(e) => e.stopPropagation()}>
-        <div className="absolute left-0 right-0 top-0 h-[3px]" style={{ background: `linear-gradient(90deg, ${theme.primary}, ${theme.primaryHover})` }} />
-        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: theme.border }}>
-          <div className="flex items-center gap-3"><div className="p-2.5 rounded-lg" style={{ background: theme.primaryBg }}><Building2 size={19} style={{ color: theme.primary }} /></div><div><h2 className="text-[17px] font-bold" style={{ color: theme.text }}>{editingAchat ? 'Modifier achat' : 'Nouvel achat'}</h2><p className="text-[13px]" style={{ color: theme.muted }}>Créer un achat fournisseur</p></div></div>
-          <button onClick={onClose} className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}><X size={19} /></button>
+        {/* ⭐ TOP BORDER: solid indigo en light mode */}
+        <div className="absolute left-0 right-0 top-0 h-[3px]" style={{ background: topBorderBg }} />
+        
+        {/* ⭐ HEADER BLANC EN LIGHT */}
+        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ background: headerBg, borderColor: theme.border }}>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg" style={{ background: headerIconBg }}>
+              <Building2 size={19} style={{ color: headerIconColor }} />
+            </div>
+            <div>
+              <h2 className="text-[17px] font-bold" style={{ color: headerTextColor }}>{editingAchat ? 'Modifier achat' : 'Nouvel achat'}</h2>
+              <p className="text-[13px]" style={{ color: headerSubTextColor }}>Créer un achat fournisseur</p>
+            </div>
+          </div>
+          <button onClick={onClose} className={`p-1 rounded-md ${headerCloseHover}`} style={{ color: headerCloseColor }}>
+            <X size={19} />
+          </button>
         </div>
 
         <form ref={formRef} onSubmit={onSubmit} className="flex flex-col">

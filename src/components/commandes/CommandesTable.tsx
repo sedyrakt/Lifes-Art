@@ -1,3 +1,4 @@
+// src/components/commandes/CommandesTable.tsx
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -82,7 +83,12 @@ const CommandRow = memo(({ commande, isDark, isSelected, products, hiddenProduct
       <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>
         <div className="min-w-0 leading-tight">
           <div className="max-w-[150px] truncate text-[14.5px] font-semibold text-slate-900 transition-colors group-hover:text-brand-600 dark:text-slate-100 dark:group-hover:text-brand-400">{commande.client_nom || 'Client inconnu'}</div>
-          {commande.client_telephone ? <div className="mt-0.5 max-w-[130px] truncate text-[12.5px] text-slate-500 dark:text-slate-400">{commande.client_telephone}</div> : <span className="mt-0.5 block text-[12.5px] text-slate-400">Aucun téléphone</span>}
+          {/* ⭐ FIX: Aseho ny téléphone raha misy */}
+          {commande.client_telephone ? (
+            <div className="mt-0.5 max-w-[130px] truncate text-[12.5px] text-slate-500 dark:text-slate-400">{commande.client_telephone}</div>
+          ) : (
+            <span className="mt-0.5 block text-[12.5px] text-slate-400">Aucun téléphone</span>
+          )}
         </div>
       </td>
       <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>

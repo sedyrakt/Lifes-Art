@@ -1,3 +1,4 @@
+// src/components/categories/CategoriesPagination.tsx
 import React, { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';

@@ -1,3 +1,4 @@
+// src/pages/LicenseGateScreen.tsx
 import React, { useEffect, useState } from 'react';
 import {
   ArrowRight,
@@ -26,7 +27,6 @@ const LOGO_DARK = './images/logodark.png';
 const LOGO_LIGHT = './images/logolight.png';
 const MINIATURE_DARK_PATH = './images/miniaturedark.jpeg';
 const MINIATURE_LIGHT_PATH = './images/miniaturelight.jpeg';
-
 
 const FormInput: React.FC<{
   label: string;
@@ -152,6 +152,9 @@ const LicenseGateScreen: React.FC = () => {
   const shadow = isDark ? '0 25px 50px -12px rgba(0,0,0,0.6)' : '0 25px 50px -12px rgba(79,70,229,0.25)';
   const primaryBg = isDark ? 'rgba(79,70,229,0.12)' : 'rgba(79,70,229,0.06)';
 
+  // ⭐ NOUVEAU : fond indigo pour le panneau droite en mode light
+  const rightBoxBg = isDark ? surface : surfaceAlt; // #EEF2FF
+
   useEffect(() => {
     const timer = setTimeout(() => setIsPageLoading(false), 400);
     return () => clearTimeout(timer);
@@ -271,8 +274,8 @@ const LicenseGateScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* RIGHT PANEL */}
-          <div className="flex w-full flex-col justify-between p-5 lg:w-1/2">
+          {/* RIGHT PANEL - ⭐ INDIGO EN MODE LIGHT */}
+          <div className="flex w-full flex-col justify-between p-5 lg:w-1/2" style={{ background: rightBoxBg }}>
             <div className="mb-4 flex items-center gap-2 lg:hidden">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'linear-gradient(135deg, #4F46E5, #4338CA)' }}>
                 <Cloud className="h-3.5 w-3.5 text-white" />
@@ -432,8 +435,8 @@ const LicenseGateScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* RIGHT PANEL */}
-        <div className="flex w-full flex-col justify-between p-5 lg:w-1/2">
+        {/* RIGHT PANEL - ⭐ INDIGO EN MODE LIGHT */}
+        <div className="flex w-full flex-col justify-between p-5 lg:w-1/2" style={{ background: rightBoxBg }}>
           <div className="mb-4 flex items-center gap-2 lg:hidden">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'linear-gradient(135deg, #4F46E5, #4338CA)' }}>
               <Cloud className="h-3.5 w-3.5 text-white" />

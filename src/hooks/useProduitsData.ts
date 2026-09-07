@@ -1,11 +1,6 @@
-// src/hooks/useProduitsData.ts
-// ⭐ PERFORMANCE: useMemo / useCallback / useRef / Debounce 300ms
-// ⭐ CRUD OPTIMIZED + CODE SPLITTING
-// ⭐ FIX: NESORINA NY UPLOAD IMAGE SY NY CHARGEMENT SARY
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 10;
 
 const SORT_MAP = {
   'Nom (A-Z)': { field: 'nom', direction: 'ASC' },
@@ -14,7 +9,6 @@ const SORT_MAP = {
   'Prix (Décroissant)': { field: 'prix_vente', direction: 'DESC' },
   'Stock (Croissant)': { field: 'quantite_stock', direction: 'ASC' },
   'Stock (Décroissant)': { field: 'quantite_stock', direction: 'DESC' },
-  // ✅ Ajout: Nouveaux d'abord
   'Nouveaux d\'abord': { field: 'id', direction: 'DESC' },
 } as const;
 
@@ -56,7 +50,6 @@ export const useProduitsData = () => {
     dateTo: '',
   });
 
-  // ✅ Changé: default sort = "Nouveaux d'abord"
   const [sortOption, setSortOption] = useState<SortOption>('Nouveaux d\'abord');
   const [categories, setCategories] = useState<any[]>([]);
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);
@@ -64,13 +57,9 @@ export const useProduitsData = () => {
 
   useEffect(() => {
     isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-      fetchLock.current = false;
-    };
+    return () => { isMounted.current = false; fetchLock.current = false; };
   }, []);
 
-  // ⭐ FIX: Debounce 300ms
   useEffect(() => {
     const timer = setTimeout(() => {
       if (isMounted.current) {
@@ -233,25 +222,35 @@ export const useProduitsData = () => {
     return result.data || {};
   }, []);
 
-  const loadData = useCallback(async () => { setCurrentPage(1); }, []);
+  const loadData = useCallback(async () => {
+    await loadDataRef.current(true);
+  }, []);
+
   const refresh = useCallback(async () => {
     await loadReferences(true);
     await loadDataRef.current(true);
   }, [loadReferences]);
 
+  // ⭐ FIX: Code tena unique (crypto.getRandomValues)
   const generateCode = useCallback(() => {
+    // Mampiasa crypto.getRandomValues raha misy
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const array = new Uint32Array(4);
+      crypto.getRandomValues(array);
+      const timestamp = Date.now().toString(36).toUpperCase();
+      const random = Array.from(array).map(n => n.toString(36).toUpperCase()).join('').slice(0, 8);
+      return `PRD-${timestamp}-${random}`;
+    }
+    // Fallback raha tsy misy crypto
     const t = Date.now().toString(36).toUpperCase();
-    const r = Math.random().toString(36).slice(2, 6).toUpperCase();
+    const r = Math.random().toString(36).slice(2, 10).toUpperCase();
     return `PRD-${t}-${r}`;
   }, []);
 
-  // CRUD
   const createProduit = useCallback(async (data: any) => {
     if (!window.api?.products?.create) throw new Error('API products.create indisponible');
     const result = await window.api.products.create(data);
     if (!result?.success) throw new Error(result?.error || 'Erreur création produit');
-    // ⭐ (Optionnel) Mamerina ny sort ho "Nouveaux d'abord" rehefa vita
-    // setSortOption('Nouveaux d\'abord');
     await loadDataRef.current(true);
     return result.data;
   }, []);

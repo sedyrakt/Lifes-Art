@@ -1,3 +1,4 @@
+// src/contexts/ThemeContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 // ============================================================
@@ -26,17 +27,10 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 // PROVIDER
 // ============================================================
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  // Initialiser le thème depuis localStorage ou préférence système
+  // ⭐ LIGHT PAR DÉFAUT : si aucune préférence enregistrée, on reste en clair
   const [isDark, setIsDark] = useState<boolean>(() => {
     const saved = localStorage.getItem('theme');
-    if (saved) {
-      return saved === 'dark';
-    }
-    // Vérifier la préférence système
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return true;
-    }
-    return false;
+    return saved === 'dark'; // seul 'dark' force le mode sombre
   });
 
   // Appliquer le thème au document
@@ -50,18 +44,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   }, [isDark]);
 
-  // Écouter les changements de préférence système
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e: MediaQueryListEvent) => {
-      // Ne changer que si l'utilisateur n'a pas de préférence enregistrée
-      if (!localStorage.getItem('theme')) {
-        setIsDark(e.matches);
-      }
-    };
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
+  // ⭐ SUPPRIMÉ : ne plus écouter la préférence système pour éviter le dark automatique
+  // (ou bien on peut garder mais uniquement si aucun choix utilisateur, mais ici on veut light par défaut)
 
   // Basculer entre light et dark
   const toggleTheme = (): void => {

@@ -193,9 +193,9 @@ const ClientsTable: React.FC<ClientsTableProps> = ({
                     </div>
                   </td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>
-                    <div className="flex min-w-0 flex-col gap-0.5">
+                    <div className="flex min-w-0 flex-col gap-1">
                       {client.email && <span title={client.email} className="block max-w-[160px] truncate text-[14.5px] text-slate-700 dark:text-slate-300">{client.email}</span>}
-                      {client.telephone && <span title={client.telephone} className="block max-w-[140px] truncate text-[14.5px] text-slate-700 dark:text-slate-300">{client.telephone}</span>}
+                      {client.telephone && <span title={client.telephone} className="block max-w-[140px] truncate text-[13.5px] text-slate-700 dark:text-slate-300">{client.telephone}</span>}
                       {!client.email && !client.telephone && <span className="text-[14.5px] italic text-slate-400 dark:text-slate-500">Aucun contact</span>}
                     </div>
                   </td>

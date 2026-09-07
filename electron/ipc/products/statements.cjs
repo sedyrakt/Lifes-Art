@@ -25,7 +25,7 @@ let stmtSearchLike = null;
 let stmtGetStats = null;
 let stmtCheckUsage = null;
 
-// ⭐ Nampiana ny p.tva_rate
+// Nampiana ny p.tva_rate
 const PRODUCT_COLUMNS = `
   p.id, p.code, p.nom, p.description, p.categorie_id, p.fournisseur_id,
   p.prix_achat, p.prix_vente, p.quantite_stock, p.quantite_minimale,
@@ -50,7 +50,7 @@ function prepareStatements() {
     `);
     stmtGetByCode = db.prepare(`SELECT ${PRODUCT_COLUMNS}, c.nom AS categorie_nom FROM produits p LEFT JOIN categories c ON c.id = p.categorie_id WHERE p.code = ? LIMIT 1`);
 
-    // ⭐ Nampiana ny tva_rate
+    // Nampiana ny tva_rate
     stmtCreate = db.prepare(`
       INSERT INTO produits (code, nom, description, categorie_id, fournisseur_id,
         prix_achat, prix_vente, quantite_stock, quantite_minimale,
@@ -58,7 +58,7 @@ function prepareStatements() {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'disponible', ?)
     `);
 
-    // ⭐ Nampiana ny tva_rate
+    // Nampiana ny tva_rate
     stmtUpdate = db.prepare(`
       UPDATE produits SET code = ?, nom = ?, description = ?, categorie_id = ?,
         fournisseur_id = ?, prix_achat = ?, prix_vente = ?, quantite_stock = ?,

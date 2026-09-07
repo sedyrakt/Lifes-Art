@@ -1,3 +1,4 @@
+// src/components/commandes/CommandesModalForm.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, CheckCircle, ChevronDown, Search, User, Check } from 'lucide-react';
@@ -27,11 +28,11 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
-  clients: Client[];
-  produits: Produit[];
+  clients?: Client[];  // ⭐ Optional
+  produits?: Produit[]; // ⭐ Optional
   selectedClientId: number | null;
   onClientChange: (id: number | null) => void;
-  selectedProduits: SelectedProduct[];
+  selectedProduits?: SelectedProduct[]; // ⭐ Optional
   onAddProduit: (id: number, quantite: number, tva_rate?: number) => void;
   onUpdateQuantite: (id: number, quantite: number) => void;
   onRemoveProduit: (id: number) => void;
@@ -66,23 +67,39 @@ const CommandesModalForm: React.FC<Props> = ({
   const [internalMontantPaye, setInternalMontantPaye] = useState(montantPaye);
   const [clientSearch, setClientSearch] = useState('');
   const [clientOpen, setClientOpen] = useState(false);
-  const safeSelectedProduits = useMemo(() => Array.isArray(selectedProduits) ? selectedProduits : [], [selectedProduits]);
+
+  // ⭐ FANITSIANA: Misy default value raha undefined
+  const safeClients = Array.isArray(clients) ? clients : [];
+  const safeProduits = Array.isArray(produits) ? produits : [];
+  const safeSelectedProduits = Array.isArray(selectedProduits) ? selectedProduits : [];
+
+  // ⭐ HEADER: Fotsy amin'ny light mode
+  const headerBg = isDark ? theme.headerBg : '#FFFFFF'; // White
+  const headerTextColor = isDark ? theme.text : theme.text; // Slate-900
+  const headerSubTextColor = isDark ? theme.muted : theme.muted; // Slate-500
+  const headerIconBg = isDark ? theme.primaryBg : 'rgba(79,70,229,0.08)'; // Indigo very light
+  const headerIconColor = isDark ? theme.primary : theme.primary; // Indigo-600
+  const headerCloseColor = isDark ? theme.muted : theme.muted; // Slate-500
+  const headerCloseHover = isDark ? 'dark:hover:bg-white/5' : 'hover:bg-slate-100';
+
+  // Top border: solid indigo en light, gradient en dark
+  const topBorderBg = isDark ? `linear-gradient(90deg, ${theme.primary}, #3b82f6)` : '#4F46E5';
 
   const totalHT = useMemo(() => safeSelectedProduits.reduce((sum, item) => {
-    const product = produits.find((p) => p.id === item.id);
+    const product = safeProduits.find((p) => p.id === item.id);
     return product ? sum + (Number(product.prix_vente) || 0) * (Number(item.quantite) || 0) : sum;
-  }, 0), [produits, safeSelectedProduits]);
+  }, 0), [safeProduits, safeSelectedProduits]);
 
   const totalTVA = useMemo(() => {
     return safeSelectedProduits.reduce((sum, item) => {
-      const product = produits.find((p) => p.id === item.id);
+      const product = safeProduits.find((p) => p.id === item.id);
       const rate = (product?.tva_rate !== undefined && product?.tva_rate !== null && product?.tva_rate !== '')
         ? Number(product.tva_rate)
         : 0.2;
       const lineTotal = (Number(product?.prix_vente) || 0) * (Number(item.quantite) || 0);
       return sum + (lineTotal * rate);
     }, 0);
-  }, [produits, safeSelectedProduits]);
+  }, [safeProduits, safeSelectedProduits]);
 
   const totalTTC = totalHT + totalTVA;
   const montantPayeSafe = Math.max(0, Math.min(Number(internalMontantPaye) || 0, totalTTC));
@@ -97,26 +114,27 @@ const CommandesModalForm: React.FC<Props> = ({
 
   const tauxTVA = useMemo(() => {
     const tauxSet = new Set(safeSelectedProduits.map(item => {
-      const produit = produits.find(p => p.id === item.id);
+      const produit = safeProduits.find(p => p.id === item.id);
       const rate = (produit?.tva_rate !== undefined && produit?.tva_rate !== null && produit?.tva_rate !== '')
         ? Number(produit.tva_rate)
         : 0.2;
       return rate;
     }));
     return Array.from(tauxSet).map(t => `${(t * 100).toFixed(0)}%`).join(' / ');
-  }, [produits, safeSelectedProduits]);
+  }, [safeProduits, safeSelectedProduits]);
 
+  // ⭐ FANITSIANA: Mampiasa safeClients
   const filteredClients = useMemo(() => {
-    if (!clientSearch) return clients.slice(0, 50);
+    if (!clientSearch) return safeClients.slice(0, 50);
     const q = clientSearch.toLowerCase();
-    return clients.filter(c =>
+    return safeClients.filter(c =>
       c.nom?.toLowerCase().includes(q) ||
       c.email?.toLowerCase().includes(q) ||
       c.telephone?.toLowerCase().includes(q)
     ).slice(0, 50);
-  }, [clients, clientSearch]);
+  }, [safeClients, clientSearch]);
 
-  const selectedClient = clients.find(c => c.id === selectedClientId);
+  const selectedClient = safeClients.find(c => c.id === selectedClientId);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -153,18 +171,20 @@ const CommandesModalForm: React.FC<Props> = ({
   const modal = (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" style={{ background: isDark ? 'rgba(0,0,0,0.80)' : 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }} role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="relative w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-2xl" style={{ background: theme.card, borderColor: theme.border }} onMouseDown={(e) => e.stopPropagation()}>
-        <div className="absolute left-0 right-0 top-0 h-[3px]" style={{ background: `linear-gradient(90deg, ${theme.primary}, #3b82f6)` }} />
-        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: theme.border }}>
+        {/* ⭐ TOP BORDER: solid indigo en light mode */}
+        <div className="absolute left-0 right-0 top-0 h-[3px]" style={{ background: topBorderBg }} />
+        {/* ⭐ HEADER BLANC EN LIGHT */}
+        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ background: headerBg, borderColor: theme.border }}>
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg" style={{ background: theme.primaryBg }}>
-              <User size={19} style={{ color: theme.primary }} />
+            <div className="p-2.5 rounded-lg" style={{ background: headerIconBg }}>
+              <User size={19} style={{ color: headerIconColor }} />
             </div>
             <div>
-              <h2 className="text-[17px] font-bold" style={{ color: theme.text }}>Nouvelle commande</h2>
-              <p className="text-[13px]" style={{ color: theme.muted }}>Créer une commande</p>
+              <h2 className="text-[17px] font-bold" style={{ color: headerTextColor }}>Nouvelle commande</h2>
+              <p className="text-[13px]" style={{ color: headerSubTextColor }}>Créer une commande</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>
+          <button onClick={onClose} className={`p-1 rounded-md ${headerCloseHover}`} style={{ color: headerCloseColor }}>
             <X size={19} />
           </button>
         </div>
@@ -234,7 +254,7 @@ const CommandesModalForm: React.FC<Props> = ({
 
                 <div className="overflow-hidden rounded-xl border h-full" style={{ borderColor: theme.border, background: theme.card }}>
                   <CommandesProductSelector
-                    produits={produits}
+                    produits={safeProduits}
                     selectedProduits={safeSelectedProduits}
                     onAddProduit={onAddProduit}
                     onUpdateQuantite={onUpdateQuantite}
@@ -299,7 +319,7 @@ const CommandesModalForm: React.FC<Props> = ({
                 </div>
 
                 <input type="hidden" name="details_tva_rates" value={JSON.stringify(safeSelectedProduits.map(item => ({
-                  id: item.id, quantite: item.quantite, tva_rate: produits.find(p => p.id === item.id)?.tva_rate ?? 0.2
+                  id: item.id, quantite: item.quantite, tva_rate: safeProduits.find(p => p.id === item.id)?.tva_rate ?? 0.2
                 })))} />
                 <input type="hidden" name="montant_paye" value={internalMontantPaye} />
               </div>

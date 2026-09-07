@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import {
   ArrowRight, Cloud, Eye, EyeOff, KeyRound, Loader2, Lock,
@@ -18,7 +17,6 @@ const LOGO_DARK = './images/logodark.png';
 const LOGO_LIGHT = './images/logolight.png';
 const MINIATURE_DARK_PATH = './images/miniaturedark.jpeg';
 const MINIATURE_LIGHT_PATH = './images/miniaturelight.jpeg';
-
 
 const FormInput: React.FC<{
   label: string; name: string; value: string; placeholder?: string; type?: string;
@@ -51,11 +49,9 @@ const FormInput: React.FC<{
         />
         {rightElement}
       </div>
-
     </div>
   );
 };
-
 
 const CustomCheckbox: React.FC<{ checked: boolean; onChange: (c: boolean) => void; label: string }> = ({ checked, onChange, label }) => {
   const { isDark } = useTheme();
@@ -69,7 +65,6 @@ const CustomCheckbox: React.FC<{ checked: boolean; onChange: (c: boolean) => voi
     </button>
   );
 };
-
 
 const SkeletonLogin = () => {
   const { isDark } = useTheme();
@@ -94,7 +89,6 @@ const SkeletonLogin = () => {
   );
 };
 
-
 const Login: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
   const { isAuthenticated, loading: authLoading, login, error: authError, clearError, setSession } = useAuth();
@@ -102,15 +96,12 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
 
   const logoSrc = isDark ? LOGO_DARK : LOGO_LIGHT;
-  
 
   const backgroundImage = "url('./images/abstract3.jpeg')";
-  
- 
+
   const bgOverlay = isDark
     ? 'linear-gradient(to right, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.55) 100%)'
     : 'linear-gradient(to right, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.45) 100%)';
-  
 
   const surface = isDark ? '#0F172A' : '#FFFFFF';
   const surfaceAlt = isDark ? '#1E293B' : '#EEF2FF';
@@ -119,6 +110,9 @@ const Login: React.FC = () => {
   const mutedColor = isDark ? '#94A3B8' : '#64748B';
   const shadow = isDark ? '0 25px 50px -12px rgba(0,0,0,0.6)' : '0 25px 50px -12px rgba(79,70,229,0.25)';
   const primaryBg = isDark ? 'rgba(79,70,229,0.12)' : 'rgba(79,70,229,0.06)';
+
+  // ⭐ NOUVEAU : fond indigo pour le panneau droite en mode light
+  const rightBoxBg = isDark ? surface : '#EEF2FF'; // indigo clair
 
   useEffect(() => { refreshLicense(); }, [refreshLicense]);
   useEffect(() => {
@@ -158,13 +152,12 @@ const Login: React.FC = () => {
     return Object.keys(e).length === 0;
   };
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
 
     if (!validate()) {
-      setErrorMsg("Veuillez remplir correctement les champs en rouge.");
+      setErrorMsg("Veuillez remplir correctement les champs!");
       setShowError(true);
       return;
     }
@@ -261,7 +254,6 @@ const Login: React.FC = () => {
   }
 
   return (
-
     <div className="relative flex min-h-screen w-full items-center justify-center p-3 bg-cover bg-center"
       style={{
         backgroundImage: backgroundImage,
@@ -269,7 +261,6 @@ const Login: React.FC = () => {
         backgroundPosition: 'center',
       }}
     >
-
       <div className="absolute inset-0" style={{ background: bgOverlay }}></div>
 
       {loading && (
@@ -288,9 +279,8 @@ const Login: React.FC = () => {
         {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
       </button>
 
-
       <div className="relative z-10 flex w-full max-w-[980px] overflow-hidden rounded-xl border" style={{ background: surface, borderColor, boxShadow: shadow }}>
-
+        {/* ⭐ PANNEAU GAUCHE : Tsisy ovana (surface) */}
         <div className="hidden w-1/2 shrink-0 flex-col border-r p-5 lg:flex" style={{ background: surface, borderColor }}>
           <div className="flex flex-1 flex-col justify-between">
             <div className="space-y-6">
@@ -303,8 +293,7 @@ const Login: React.FC = () => {
                 </div>
                 <div><h2 className="text-[19px] font-bold leading-tight" style={{ color: textColor }}>Gérez tout,<br />partout.</h2><p className="mt-1 text-[12px]" style={{ color: mutedColor }}>Solution complète pour votre entreprise</p></div>
               </div>
-              
-      
+
               <div className="relative overflow-hidden rounded-lg border mx-auto w-full max-w-[400px]" style={{ borderColor, background: surface, boxShadow: isDark ? '0 4px 15px rgba(0,0,0,0.4)' : '0 4px 15px rgba(79,70,229,0.1)' }}>
                 <img
                   src={isDark ? MINIATURE_DARK_PATH : MINIATURE_LIGHT_PATH}
@@ -328,7 +317,6 @@ const Login: React.FC = () => {
               </div>
             </div>
 
-
             <div className="grid grid-cols-2 gap-1 mt-6">
               {[{ icon: ShieldCheck, title: 'Sécurisé' }, { icon: BarChart3, title: 'Analytics' }, { icon: UsersIcon, title: 'Équipe' }, { icon: LayoutDashboard, title: 'Dashboard' }].map((item, i) => (
                 <div key={i} className="flex items-center gap-1.5 rounded-lg border px-2 py-1.5" style={{ borderColor }}>
@@ -340,7 +328,8 @@ const Login: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex w-full flex-col justify-between p-5 lg:w-1/2">
+        {/* ⭐ PANNEAU DROITE : Fond indigo en mode light */}
+        <div className="flex w-full flex-col justify-between p-5 lg:w-1/2" style={{ background: rightBoxBg }}>
           <div className="mb-4 flex items-center gap-2 lg:hidden">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'linear-gradient(135deg, #4F46E5, #4338CA)' }}>
               <Cloud className="h-3.5 w-3.5 text-white" />
@@ -348,7 +337,6 @@ const Login: React.FC = () => {
             <span className="text-[14px] font-bold" style={{ color: textColor }}>TahiryPro</span>
           </div>
 
-    
           <img src={logoSrc} alt="TahiryPro" className="mx-auto mb-4 h-20 w-20 object-contain" />
 
           <div className="mb-5 text-center">

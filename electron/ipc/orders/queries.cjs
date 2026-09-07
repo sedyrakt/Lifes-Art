@@ -1,3 +1,4 @@
+// electron/ipc/orders/queries.cjs
 'use strict';
 
 const { normalizePaiement } = require('./validation.cjs');
@@ -80,12 +81,15 @@ function buildOrdersQuery(options = {}) {
   const { where, params } = buildOrdersFilters(options);
   const sort = normalizeSort(options.sort);
 
+  // ⭐ FIX: Ampidirina ny clients téléphone
   const query = `
     SELECT c.id, c.client_id, c.client_nom, c.total_ht, c.total_ttc, c.total,
       c.statut_paiement, c.montant_paye, c.montant_restant, c.date_limite_paiement,
       c.date_commande, c.created_at,
+      cl.telephone AS client_telephone,
       GROUP_CONCAT(p.nom || ' (x' || dc.quantite || ')', ', ') AS produits_noms
     FROM commandes c
+    LEFT JOIN clients cl ON cl.id = c.client_id
     LEFT JOIN details_commandes dc ON dc.commande_id = c.id
     LEFT JOIN produits p ON p.id = dc.produit_id
     ${where}

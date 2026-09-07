@@ -1,4 +1,4 @@
-
+// src/pages/Register.tsx
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight, Building, Check, Cloud, Eye, EyeOff, CheckCircle2,
@@ -11,13 +11,11 @@ import { validateEmail, validateNotEmpty, validatePassword } from '../utils/vali
 import SuccessModal from '../components/common/SuccessModal';
 import ErrorModal from '../components/common/ErrorModal';
 
-
 const LOGO_PATH = './images/logo.png';
 const LOGO_DARK = './images/logodark.png';
 const LOGO_LIGHT = './images/logolight.png';
 const MINIATURE_DARK_PATH = './images/miniaturedark.jpeg';
 const MINIATURE_LIGHT_PATH = './images/miniaturelight.jpeg';
-
 
 interface RegisterFormData {
   firstName: string;
@@ -47,7 +45,6 @@ interface PasswordStrengthResult {
   color: string;
 }
 
-
 const THEME = {
   dark: {
     bg: '#0F172A',
@@ -67,7 +64,7 @@ const THEME = {
     secondary: '#4338CA',
     secondaryBg: 'rgba(79,70,229,0.12)',
     success: '#10B981',
-    error: '#f35a5a', // ⭐ FIX: red-300
+    error: '#f35a5a',
     inputBg: 'transparent',
     inputPlaceholder: '#64748B',
     shadow: '0 25px 50px -12px rgba(0,0,0,0.6)',
@@ -103,7 +100,6 @@ const THEME = {
   }
 } as const;
 
-
 const getPasswordStrength = (password: string): PasswordStrengthResult => {
   if (!password) return { score: 0, label: '', color: '' };
   let score = 0;
@@ -135,7 +131,6 @@ const PasswordStrengthBars: React.FC<{ password: string }> = ({ password }) => {
   );
 };
 
-
 const CustomCheckbox: React.FC<{
   checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean;
   label: string; hasError?: boolean;
@@ -151,7 +146,6 @@ const CustomCheckbox: React.FC<{
     </button>
   );
 };
-
 
 const FormInput: React.FC<{
   label: string; name: string; value: string; placeholder?: string; type?: string;
@@ -175,19 +169,20 @@ const FormInput: React.FC<{
   );
 };
 
-
 export const Register: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
   const colors = isDark ? THEME.dark : THEME.light;
   const navigate = useNavigate();
 
   const logoSrc = isDark ? LOGO_DARK : LOGO_LIGHT;
-
   const backgroundImage = "url('./images/abstract3.jpeg')";
   
   const bgOverlay = isDark
     ? 'linear-gradient(to right, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.55) 100%)'
     : 'linear-gradient(to right, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.45) 100%)';
+
+  // ⭐ Fond indigo ho an'ny panneau droite amin'ny mode light
+  const rightBoxBg = isDark ? colors.surface : colors.surfaceAlt; // #EEF2FF
 
   const [formData, setFormData] = useState<RegisterFormData>({
     firstName: '', lastName: '', email: '', phone: '',
@@ -229,9 +224,8 @@ export const Register: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // ⭐ FIX: Raha misy erreur dia atolotra ao amin'ny Modal fa tsy inline
     if (!validateForm()) {
-      setErrorMsg("Veuillez remplir correctement les champs en rouge.");
+      setErrorMsg("Veuillez remplir correctement les champs!");
       return;
     }
 
@@ -286,6 +280,7 @@ export const Register: React.FC = () => {
 
       <div className="relative z-10 flex w-full max-w-[980px] overflow-hidden rounded-xl border" style={{ background: colors.surface, borderColor: colors.border, boxShadow: colors.shadow }}>
         
+        {/* PANNEAU GAUCHE (tsy ovaina) */}
         <div className="hidden w-1/2 shrink-0 flex-col border-r p-5 lg:flex" style={{ background: colors.surface, borderColor: colors.border }}>
           <div className="flex flex-1 flex-col justify-between">
             <div className="space-y-6">
@@ -333,7 +328,8 @@ export const Register: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex w-full flex-col justify-between p-5 lg:w-1/2">
+        {/* PANNEAU DROITE : Fond indigo en mode light */}
+        <div className="flex w-full flex-col justify-between p-5 lg:w-1/2" style={{ background: rightBoxBg }}>
           <div className="mb-4 flex items-center gap-2 lg:hidden"><div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: colors.primary }}><Cloud className="h-3.5 w-3.5 text-white" /></div><span className="text-[14px] font-bold" style={{ color: colors.text }}>TahiryPro</span></div>
 
           <img src={logoSrc} alt="TahiryPro" className="mx-auto mb-4 h-20 w-20 object-contain" />

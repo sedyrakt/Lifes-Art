@@ -19,7 +19,7 @@ const formatAriary = (v: any) => `${Math.round(Number(v || 0)).toLocaleString('f
 
 const PaiementBulletinModal: React.FC<Props> = ({ isOpen, onClose, paiement, employe, isDark, companyInfo }) => {
   const [defaultCompany, setDefaultCompany] = useState({
-    nom: "Life's Art",
+    nom: "TahiryPro",
     nif: "40000 11 222",
     adresse: "Antananarivo - Madagascar"
   });

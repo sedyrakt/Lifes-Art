@@ -37,6 +37,16 @@ const MONTHS = [
 const WEEK_DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const ITEMS_PER_PAGE_DRAWER = 4;
 
+// ⭐ MAPPING FILTRE: value (sans accent) -> label
+const FILTRE_OPTIONS = [
+  { value: 'Tous', label: 'Tous' },
+  { value: 'present', label: 'Présent' },
+  { value: 'absent', label: 'Absent' },
+  { value: 'conge', label: 'Congé' },
+  { value: 'en_attente', label: 'En attente' },
+  { value: 'non_pointe', label: 'Non pointé' },
+] as const;
+
 function getLocalDateISO(date = new Date()): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -72,8 +82,8 @@ export default function EmployesCalendrier({
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [searchDrawer, setSearchDrawer] = useState('');
   const [currentPageDrawer, setCurrentPageDrawer] = useState(1);
-  // ⭐ VAOVAO: FANITSO "En attente" sy "Non pointé"
-  const [statusFilterDrawer, setStatusFilterDrawer] = useState<'Tous' | 'Présent' | 'Absent' | 'Congé' | 'En attente' | 'Non pointé'>('Tous');
+  // ⭐ FANITSIANA: StatusFilter ho value (sans accent)
+  const [statusFilterDrawer, setStatusFilterDrawer] = useState<string>('Tous');
   const [showHistorique, setShowHistorique] = useState(false);
   const [selectedEmployeForHistory, setSelectedEmployeForHistory] = useState<any | null>(null);
   const [modalState, setModalState] = useState<{
@@ -95,7 +105,6 @@ export default function EmployesCalendrier({
   });
   const todayKey = getLocalDateISO();
 
-  // ⭐ VAOVAO: State ho an'ny drawer fullscreen
   const [isDrawerExpanded, setIsDrawerExpanded] = useState(false);
 
   const monthInfo = useMemo(() => {
@@ -168,7 +177,7 @@ export default function EmployesCalendrier({
         const rawStatus = records[emp.id] || null;
         let status: string;
         if (rawStatus) {
-          status = rawStatus;
+          status = rawStatus; // efa sans accent
         } else {
           if (selectedDate < todayKey) {
             status = 'non_pointe';
@@ -189,7 +198,6 @@ export default function EmployesCalendrier({
     });
   }, [selectedDatePresences, searchDrawer, statusFilterDrawer]);
 
-  // ⭐ VAOVAO: Dynamic items per page (4 na 8 rehefa expanded)
   const currentItemsPerPage = isDrawerExpanded ? 8 : ITEMS_PER_PAGE_DRAWER;
 
   const totalDrawerPages = Math.max(1, Math.ceil(filteredDrawerPresences.length / currentItemsPerPage));
@@ -264,7 +272,9 @@ export default function EmployesCalendrier({
 
   return (
     <div className="flex min-h-full flex-col bg-white dark:bg-[#0F172A]">
+      {/* Header + stats + calendar ... (tsy miova) */}
       <div className="shrink-0 border-b border-slate-200 dark:border-slate-700">
+        {/* ... (headers, nav, stats) */}
         <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400"><CalendarDays size={18} /></div>
@@ -317,7 +327,7 @@ export default function EmployesCalendrier({
       {selectedDate && (
         <div className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm" onClick={() => { setSelectedDate(null); setIsSelectMode(false); setSelectedIds(new Set()); setSearchDrawer(''); setCurrentPageDrawer(1); setStatusFilterDrawer('Tous'); }} />
       )}
-      {/* ⭐ VAOVAO: Drawer miova width 30% na 100% */}
+
       {selectedDate && (
         <div
           className={`fixed inset-y-0 right-0 z-[9999] flex flex-col border-l ${isDark ? 'border-slate-700 bg-[#0F172A]' : 'border-slate-200 bg-white'} shadow-2xl`}
@@ -330,7 +340,6 @@ export default function EmployesCalendrier({
                 <p className="mt-0.5 text-[13px] text-slate-500 dark:text-slate-400">{isSelectMode ? `${selectedIds.size} employé(s) sélectionné(s)` : `${filteredDrawerPresences.length} employé(s) affiché(s)`}</p>
               </div>
               <div className="flex items-center gap-1">
-                {/* ⭐ VAOVAO: Bouton expand/shrink */}
                 <button
                   type="button"
                   onClick={() => setIsDrawerExpanded(prev => !prev)}
@@ -356,18 +365,34 @@ export default function EmployesCalendrier({
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input type="text" placeholder="Rechercher un employé..." value={searchDrawer} onChange={(e) => { setSearchDrawer(e.target.value); setCurrentPageDrawer(1); }} className="w-full h-9 pl-8 pr-3 rounded-lg border border-slate-200 bg-white text-[14px] dark:border-slate-700 dark:bg-[#0F172A] dark:text-slate-100" />
             </div>
+
+            {/* ⭐ FANITSIANA: Boutons filtre mampiasa value (sans accent) */}
             <div className="flex flex-wrap gap-1 mb-3">
-              {(['Tous', 'Présent', 'Absent', 'Congé', 'En attente', 'Non pointé'] as const).map((status) => (
-                <button key={status} onClick={() => { setStatusFilterDrawer(status); setCurrentPageDrawer(1); }} className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition ${statusFilterDrawer === status ? status === 'Présent' ? 'bg-success-500 text-white' : status === 'Absent' ? 'bg-danger-500 text-white' : status === 'Congé' ? 'bg-warning-500 text-white' : status === 'En attente' ? 'bg-amber-500 text-white' : status === 'Non pointé' ? 'bg-slate-600 text-white' : 'bg-brand-500 text-white' : 'bg-slate-100 text-slate-600 dark:bg-[#0F172A] dark:text-slate-400 dark:border dark:border-white/[0.12] dark:hover:bg-slate-800'}`}>{status}</button>
+              {FILTRE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setStatusFilterDrawer(opt.value); setCurrentPageDrawer(1); }}
+                  className={`px-3 py-1.5 rounded-md text-[13px] font-semibold transition ${
+                    statusFilterDrawer === opt.value
+                      ? opt.value === 'present' ? 'bg-success-500 text-white'
+                      : opt.value === 'absent' ? 'bg-danger-500 text-white'
+                      : opt.value === 'conge' ? 'bg-warning-500 text-white'
+                      : opt.value === 'en_attente' ? 'bg-amber-500 text-white'
+                      : opt.value === 'non_pointe' ? 'bg-slate-600 text-white'
+                      : 'bg-brand-500 text-white'
+                      : 'bg-slate-100 text-slate-600 dark:bg-[#0F172A] dark:text-slate-400 dark:border dark:border-white/[0.12] dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {opt.label}
+                </button>
               ))}
             </div>
             {paginatedDrawerPresences.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-center dark:border-slate-700 dark:bg-[#0F172A]">
+              <div className="rounded-lg border border-dashed border-slate-300 bg-white px-5 py-4 text-center dark:border-slate-700 dark:bg-[#0F172A]">
                 <Clock3 size={17} className="mx-auto text-slate-300 dark:text-slate-600" />
-                <p className="mt-2 text-[14px] font-medium text-slate-500 dark:text-slate-400">Aucune donnée de présence.</p>
+                <p className="mt-2 text-[15px] font-medium text-slate-500 dark:text-slate-400">Aucune donnée de présence.</p>
               </div>
             ) : (
-              // ⭐ Rehefa expanded dia grid 4 colonnes
               <div className={isDrawerExpanded ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3' : 'space-y-2'}>
                 {paginatedDrawerPresences.map(({ employe, status }) => (
                   <div key={employe.id} className={`rounded-xl border p-3 transition ${isSelectMode && selectedIds.has(employe.id) ? 'border-brand-400 bg-brand-50/50 dark:bg-brand-500/10' : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-[#0F172A]'}`}>

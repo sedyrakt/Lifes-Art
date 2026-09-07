@@ -1,11 +1,7 @@
-
 import React, { useCallback, useState, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import useMouvementsData from '../hooks/useMouvementsData';
-import { Search, ArrowUpDown, Filter, Calendar, X } from 'lucide-react'; 
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import { fr } from 'date-fns/locale';
+import { Search, ArrowUpDown, Filter, Calendar, X } from 'lucide-react';
 
 import MouvementsHeader from '../components/mouvements/MouvementsHeader';
 import MouvementsStats from '../components/mouvements/MouvementsStats';
@@ -48,21 +44,6 @@ const MouvementsStock: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<number[]>([]);
-
-  const toDate = (dateStr: string): Date | null => {
-    if (!dateStr) return null;
-    const [year, month, day] = dateStr.split('-').map(Number);
-    if (year && month && day) return new Date(year, month - 1, day);
-    return null;
-  };
-
-  const toDateStr = (date: Date | null): string => {
-    if (!date) return '';
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
 
   const showSuccess = useCallback((title: string, message: string) => {
     setSuccessTitle(title); setSuccessMessage(message); setShowSuccessModal(true);
@@ -150,13 +131,11 @@ const MouvementsStock: React.FC = () => {
     );
   };
 
-
   const cardBg = isDark ? '#0F172A' : '#FFFFFF';
   const borderColor = isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0';
   const shadow = isDark ? '0 4px 24px -4px rgba(0,0,0,0.35)' : '0 4px 20px -4px rgba(79,70,229,0.08)';
 
   return (
-  
     <main
       className="min-h-full w-full transition-colors duration-300"
       style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}
@@ -168,7 +147,6 @@ const MouvementsStock: React.FC = () => {
         <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center">
           <div className="relative min-w-0 flex-1">
             <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-500" />
-         
             <input
               type="text"
               placeholder="Rechercher un mouvement..."
@@ -191,7 +169,6 @@ const MouvementsStock: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 xl:shrink-0">
             <div className="relative">
               <Filter size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" />
-     
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
@@ -204,18 +181,15 @@ const MouvementsStock: React.FC = () => {
               </select>
             </div>
 
+            {/* ⭐ Remplacement du DatePicker par input type="date" */}
             <div className="relative flex items-center">
               <Calendar size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" />
-         
-              <DatePicker
-                selected={toDate(filterDate)}
-                onChange={(date) => setFilterDate(toDateStr(date))}
-                dateFormat="dd/MM/yyyy"
-                placeholderText="mm/dd/yyyy"
-                locale={fr}
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                placeholder="Date"
                 className="h-10 w-[145px] rounded-xl border bg-white pl-9 pr-8 text-[13px] text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-200 dark:hover:border-white/[0.18]"
-                popperClassName={isDark ? 'dark-datepicker-popper' : 'light-datepicker-popper'}
-                calendarClassName={isDark ? 'dark-datepicker' : 'light-datepicker'}
                 style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}
               />
               {filterDate && (
@@ -232,7 +206,6 @@ const MouvementsStock: React.FC = () => {
 
             <div className="relative">
               <ArrowUpDown size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" />
-
               <select
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value)}
@@ -246,7 +219,6 @@ const MouvementsStock: React.FC = () => {
             </div>
           </div>
         </div>
-
 
         <section className="relative overflow-hidden rounded-2xl border transition-all duration-300" style={{ background: cardBg, borderColor, boxShadow: shadow }}>
           {refreshing && (
@@ -285,32 +257,6 @@ const MouvementsStock: React.FC = () => {
       <SuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} title={successTitle} message={successMessage} buttonText="OK" autoCloseDelay={3000} />
       <ErrorModal isOpen={showErrorModal} onClose={() => setShowErrorModal(false)} title={errorTitle} message={errorMessage} buttonText="OK" autoCloseDelay={4000} />
       <ConfirmModal isOpen={showDeleteModal} onClose={() => { setShowDeleteModal(false); setDeleteTarget([]); }} onConfirm={handleConfirmBulkDelete} title="Suppression en lot" message={`Voulez-vous supprimer ${deleteTarget.length} mouvement(s) ?`} confirmText="Supprimer" cancelText="Annuler" confirmColor="red" isDark={isDark} />
-
-      <style>{`
-        .react-datepicker-wrapper { width: 100%; }
-        .react-datepicker-popper { z-index: 100000 !important; }
-        .react-datepicker { border-radius: 12px !important; overflow: hidden; font-family: inherit !important; box-shadow: 0 20px 50px rgba(0,0,0,0.18) !important; width: 280px !important; }
-        .react-datepicker__header { padding-top: 12px !important; }
-        .react-datepicker__current-month { font-size: 14px !important; font-weight: 600 !important; }
-        .react-datepicker__day-name { font-size: 12px !important; font-weight: 600 !important; }
-        .react-datepicker__day { border-radius: 8px !important; margin: 2px !important; padding: 6px 0 !important; transition: all 120ms ease; font-weight: 500 !important; }
-
-        .dark-datepicker-popper .react-datepicker, .dark-datepicker { background-color: #0F172A !important; border-color: rgba(255,255,255,0.12) !important; color: #F8FAFC !important; }
-        .dark-datepicker-popper .react-datepicker__header { background-color: #1E293B !important; border-color: rgba(255,255,255,0.12) !important; }
-        .dark-datepicker-popper .react-datepicker__current-month, .dark-datepicker-popper .react-datepicker__day-name { color: #F8FAFC !important; }
-        .dark-datepicker-popper .react-datepicker__day { color: #94A3B8 !important; }
-        .dark-datepicker-popper .react-datepicker__day:hover { background: #4F46E5 !important; color: #FFFFFF !important; }
-        .dark-datepicker-popper .react-datepicker__day--selected, .dark-datepicker-popper .react-datepicker__day--keyboard-selected { background: #4F46E5 !important; color: #FFFFFF !important; font-weight: 600 !important; }
-        .dark-datepicker-popper .react-datepicker__navigation-icon::before { border-color: #94A3B8 !important; }
-
-        .light-datepicker-popper .react-datepicker, .light-datepicker { background-color: #FFFFFF !important; border-color: #E2E8F0 !important; }
-        .light-datepicker-popper .react-datepicker__header { background-color: #EEF2FF !important; border-color: #E2E8F0 !important; }
-        .light-datepicker-popper .react-datepicker__current-month, .light-datepicker-popper .react-datepicker__day-name { color: #0F172A !important; }
-        .light-datepicker-popper .react-datepicker__day { color: #0F172A !important; }
-        .light-datepicker-popper .react-datepicker__day:hover { background: #4F46E5 !important; color: #FFFFFF !important; }
-        .light-datepicker-popper .react-datepicker__day--selected, .light-datepicker-popper .react-datepicker__day--keyboard-selected { background: #4F46E5 !important; color: #FFFFFF !important; font-weight: 600 !important; }
-        .light-datepicker-popper .react-datepicker__navigation-icon::before { border-color: #0F172A !important; }
-      `}</style>
     </main>
   );
 };

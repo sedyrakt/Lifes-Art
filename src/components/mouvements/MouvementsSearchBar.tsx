@@ -1,11 +1,6 @@
-
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, X, ArrowUpDown, Filter, Calendar, RotateCcw } from 'lucide-react'; 
+import { Search, X, ArrowUpDown, Filter, Calendar, RotateCcw } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import { fr } from 'date-fns/locale';
 
 const SORT_OPTIONS = [
   { value: 'Date (Récent)', label: 'Date récent' },
@@ -60,12 +55,15 @@ const MouvementsSearchBar: React.FC<MouvementsSearchBarProps> = ({
   const controlShadow = isDark ? 'shadow-[0_1px_2px_rgba(0,0,0,0.12)]' : 'shadow-[0_1px_2px_rgba(79,70,229,0.05)]';
 
   useEffect(() => { setLocalSearch(searchTerm); }, [searchTerm]);
+
   const handleSearchChange = useCallback((value: string) => {
     setLocalSearch(value);
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(() => { onSearchChange(value); }, 300);
   }, [onSearchChange]);
+
   useEffect(() => { return () => { if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); }; }, []);
+
   const hasActiveFilters = localSearch.trim() !== '' || filterType !== '' || filterDateFrom !== '' || filterDateTo !== '';
 
   const handleReset = () => {
@@ -76,21 +74,6 @@ const MouvementsSearchBar: React.FC<MouvementsSearchBarProps> = ({
     onSortChange('Date (Récent)');
     onFilterDateFromChange('');
     onFilterDateToChange('');
-  };
-
-  const toDate = (dateStr: string): Date | null => {
-    if (!dateStr) return null;
-    const [year, month, day] = dateStr.split('-').map(Number);
-    if (year && month && day) return new Date(year, month - 1, day);
-    return null;
-  };
-
-  const toDateStr = (date: Date | null): string => {
-    if (!date) return '';
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
   };
 
   if (isLoading) return (
@@ -140,18 +123,15 @@ const MouvementsSearchBar: React.FC<MouvementsSearchBarProps> = ({
             </select>
           </div>
 
+          {/* ⭐ Remplacement du DatePicker par input type="date" */}
           <div className="relative shrink-0">
-            <span className={`pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[12px] font-medium ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Du</span>
-            <Calendar size={13} strokeWidth={2} className={`pointer-events-none absolute left-7 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-            <DatePicker
-              selected={toDate(filterDateFrom)}
-              onChange={(date) => onFilterDateFromChange(toDateStr(date))}
-              dateFormat="dd/MM/yyyy"
-              placeholderText="Début"
-              locale={fr}
-              className={`h-10 w-[120px] cursor-pointer appearance-none rounded-lg border ${controlBorder} ${controlBackground} pl-9 pr-6 text-[13px] font-medium ${controlText} outline-none ${controlShadow} transition-all ${controlHoverBorder} focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10`}
-              popperClassName={isDark ? 'dark-datepicker-popper' : 'light-datepicker-popper'}
-              calendarClassName={isDark ? 'dark-datepicker' : 'light-datepicker'}
+            <Calendar size={13} strokeWidth={2} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+            <input
+              type="date"
+              value={filterDateFrom}
+              onChange={(e) => onFilterDateFromChange(e.target.value)}
+              placeholder="Début"
+              className={`h-10 w-[130px] cursor-pointer appearance-none rounded-lg border ${controlBorder} ${controlBackground} pl-8 pr-2 text-[13px] font-medium ${controlText} outline-none ${controlShadow} transition-all ${controlHoverBorder} focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10`}
             />
             {filterDateFrom && (
               <button type="button" onClick={() => onFilterDateFromChange('')} className="absolute right-1 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-md bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:bg-white/[0.06] dark:text-slate-400 dark:hover:bg-white/[0.10] dark:hover:text-slate-200" title="Effacer la date début">
@@ -161,17 +141,13 @@ const MouvementsSearchBar: React.FC<MouvementsSearchBarProps> = ({
           </div>
 
           <div className="relative shrink-0">
-            <span className={`pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[12px] font-medium ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>Au</span>
-            <Calendar size={13} strokeWidth={2} className={`pointer-events-none absolute left-7 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
-            <DatePicker
-              selected={toDate(filterDateTo)}
-              onChange={(date) => onFilterDateToChange(toDateStr(date))}
-              dateFormat="dd/MM/yyyy"
-              placeholderText="Fin"
-              locale={fr}
-              className={`h-10 w-[120px] cursor-pointer appearance-none rounded-lg border ${controlBorder} ${controlBackground} pl-9 pr-6 text-[13px] font-medium ${controlText} outline-none ${controlShadow} transition-all ${controlHoverBorder} focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10`}
-              popperClassName={isDark ? 'dark-datepicker-popper' : 'light-datepicker-popper'}
-              calendarClassName={isDark ? 'dark-datepicker' : 'light-datepicker'}
+            <Calendar size={13} strokeWidth={2} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
+            <input
+              type="date"
+              value={filterDateTo}
+              onChange={(e) => onFilterDateToChange(e.target.value)}
+              placeholder="Fin"
+              className={`h-10 w-[130px] cursor-pointer appearance-none rounded-lg border ${controlBorder} ${controlBackground} pl-8 pr-2 text-[13px] font-medium ${controlText} outline-none ${controlShadow} transition-all ${controlHoverBorder} focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10`}
             />
             {filterDateTo && (
               <button type="button" onClick={() => onFilterDateToChange('')} className="absolute right-1 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-md bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:bg-white/[0.06] dark:text-slate-400 dark:hover:bg-white/[0.10] dark:hover:text-slate-200" title="Effacer la date fin">
@@ -207,32 +183,6 @@ const MouvementsSearchBar: React.FC<MouvementsSearchBarProps> = ({
           </button>
         </div>
       )}
-
-      <style>{`
-        .react-datepicker-wrapper { width: 100%; }
-        .react-datepicker-popper { z-index: 100000 !important; }
-        .react-datepicker { border-radius: 12px !important; overflow: hidden; font-family: inherit !important; box-shadow: 0 20px 50px rgba(0,0,0,0.18) !important; width: 280px !important; }
-        .react-datepicker__header { padding-top: 12px !important; }
-        .react-datepicker__current-month { font-size: 14px !important; font-weight: 600 !important; }
-        .react-datepicker__day-name { font-size: 12px !important; font-weight: 600 !important; }
-        .react-datepicker__day { border-radius: 8px !important; margin: 2px !important; padding: 6px 0 !important; transition: all 120ms ease; font-weight: 500 !important; }
-
-        .dark-datepicker-popper .react-datepicker, .dark-datepicker { background-color: #1E293B !important; border-color: rgba(255,255,255,0.12) !important; color: #F8FAFC !important; }
-        .dark-datepicker-popper .react-datepicker__header { background-color: #2A2A2A !important; border-color: rgba(255,255,255,0.12) !important; }
-        .dark-datepicker-popper .react-datepicker__current-month, .dark-datepicker-popper .react-datepicker__day-name { color: #F8FAFC !important; }
-        .dark-datepicker-popper .react-datepicker__day { color: #94A3B8 !important; }
-        .dark-datepicker-popper .react-datepicker__day:hover { background: #4F46E5 !important; color: #FFFFFF !important; }
-        .dark-datepicker-popper .react-datepicker__day--selected, .dark-datepicker-popper .react-datepicker__day--keyboard-selected { background: #4F46E5 !important; color: #FFFFFF !important; font-weight: 600 !important; }
-        .dark-datepicker-popper .react-datepicker__navigation-icon::before { border-color: #94A3B8 !important; }
-
-        .light-datepicker-popper .react-datepicker, .light-datepicker { background-color: #FFFFFF !important; border-color: #E2E8F0 !important; }
-        .light-datepicker-popper .react-datepicker__header { background-color: #EEF2FF !important; border-color: #E2E8F0 !important; }
-        .light-datepicker-popper .react-datepicker__current-month, .light-datepicker-popper .react-datepicker__day-name { color: #0F172A !important; }
-        .light-datepicker-popper .react-datepicker__day { color: #0F172A !important; }
-        .light-datepicker-popper .react-datepicker__day:hover { background: #4F46E5 !important; color: #FFFFFF !important; }
-        .light-datepicker-popper .react-datepicker__day--selected, .light-datepicker-popper .react-datepicker__day--keyboard-selected { background: #4F46E5 !important; color: #FFFFFF !important; font-weight: 600 !important; }
-        .light-datepicker-popper .react-datepicker__navigation-icon::before { border-color: #0F172A !important; }
-      `}</style>
     </div>
   );
 };

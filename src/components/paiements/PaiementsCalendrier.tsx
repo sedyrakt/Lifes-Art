@@ -274,12 +274,13 @@ export default function PaiementsCalendrier({ paiements = [], allPaiements = [],
                       className={`w-full h-9 pl-8 pr-3 rounded-lg border ${isDark ? 'border-white/[0.12] bg-[#0F172A] text-slate-100' : 'border-slate-200 bg-white text-slate-900'}`}
                     />
                   </div>
+                  {/* ⭐ MODIFIÉ: Padding + FontSize ho an'ny boutons filtre */}
                   <div className="flex flex-wrap gap-1 mb-3">
                     {(['Tous', 'Payé', 'Partiel', 'Non payé'] as const).map(status => (
                       <button
                         key={status}
                         onClick={() => { setStatusFilterDrawer(status); setCurrentPageDrawer(1); }}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition ${
+                        className={`px-3 py-1.5 rounded-md text-[13px] font-semibold transition ${
                           statusFilterDrawer === status
                             ? status === 'Payé' ? 'bg-success-500 text-white' : status === 'Partiel' ? 'bg-warning-500 text-white' : status === 'Non payé' ? 'bg-danger-500 text-white' : 'bg-brand-500 text-white'
                             : 'bg-slate-100 text-slate-600 dark:bg-white/[0.06] dark:text-slate-400'
@@ -289,10 +290,11 @@ export default function PaiementsCalendrier({ paiements = [], allPaiements = [],
                       </button>
                     ))}
                   </div>
+                  {/* ⭐ MODIFIÉ: Padding + FontSize ho an'ny empty state */}
                   {paginatedDrawerEmployees.length === 0 ? (
-                    <div className={`rounded-lg border border-dashed p-4 text-center ${isDark ? 'border-white/[0.12] bg-white/[0.02]' : 'border-slate-300 bg-white'}`}>
+                    <div className={`rounded-lg border border-dashed p-5 text-center ${isDark ? 'border-white/[0.12] bg-white/[0.02]' : 'border-slate-300 bg-white'}`}>
                       <Clock3 size={17} className="mx-auto text-slate-300 dark:text-slate-600" />
-                      <p className="mt-2 text-[14px] font-medium text-slate-500 dark:text-slate-400">Aucun employé trouvé.</p>
+                      <p className="mt-2 text-[15px] font-medium text-slate-500 dark:text-slate-400">Aucun employé trouvé.</p>
                     </div>
                   ) : (
                     // ⭐ Rehefa expanded dia grid 4 colonnes

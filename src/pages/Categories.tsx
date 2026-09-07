@@ -1,7 +1,6 @@
-
-
+// src/pages/Categories.tsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, List, ArrowUpDown, X, Plus } from 'lucide-react';
+import { Search, X, Plus } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useCategoriesData } from '../hooks/useCategoriesData';
 import CategoriesHeader from '../components/categories/CategoriesHeader';
@@ -10,16 +9,10 @@ import CategoriesTable from '../components/categories/CategoriesTable';
 import CategoriesPagination from '../components/categories/CategoriesPagination';
 import CategoriesModalForm from '../components/categories/CategoriesModalForm';
 import CategoriesViewModal from '../components/categories/CategoriesViewModal';
+import CategoriesSearchBar from '../components/categories/CategoriesSearchBar';
 import ConfirmModal from '../components/common/ConfirmModal';
 import SuccessModal from '../components/common/SuccessModal';
 import ErrorModal from '../components/common/ErrorModal';
-
-const SORT_OPTIONS = [
-  { value: 'Nom (A-Z)', label: 'Nom (A-Z)' },
-  { value: 'Nom (Z-A)', label: 'Nom (Z-A)' },
-  { value: 'Plus récent', label: 'Plus récent' },
-  { value: 'Plus ancien', label: 'Plus ancien' }
-];
 
 const CategorySkeleton = ({ isDark }: { isDark: boolean }) => {
   const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
@@ -28,7 +21,9 @@ const CategorySkeleton = ({ isDark }: { isDark: boolean }) => {
     <div className="min-h-[500px] w-full p-5" style={{ background: isDark ? '#0F172A' : '#FFFFFF' }}>
       <div className="space-y-4">
         <div className={`flex items-center gap-4 border-b pb-4 ${border}`}>
-          {[...Array(7)].map((_, i) => <div key={i} className={`h-4 w-${i === 0 ? 8 : i === 1 ? 24 : i === 2 ? 32 : i === 3 ? 20 : i === 4 ? 28 : i === 5 ? 20 : 28} rounded ${base} animate-pulse`} />)}
+          {[...Array(7)].map((_, i) => (
+            <div key={i} className={`h-4 w-${i === 0 ? 8 : i === 1 ? 24 : i === 2 ? 32 : i === 3 ? 20 : i === 4 ? 28 : i === 5 ? 20 : 28} rounded ${base} animate-pulse`} />
+          ))}
         </div>
         {[...Array(6)].map((_, i) => (
           <div key={i} className={`flex items-center gap-4 py-3 ${border}`}>
@@ -67,16 +62,23 @@ const Categories: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState('');
 
   const showSuccess = useCallback((title: string, message: string) => {
-    setSuccessTitle(title); setSuccessMessage(message); setShowSuccessModal(true);
+    setSuccessTitle(title);
+    setSuccessMessage(message);
+    setShowSuccessModal(true);
   }, []);
   const showError = useCallback((title: string, message: string) => {
-    setErrorTitle(title); setErrorMessage(message); setShowErrorModal(true);
+    setErrorTitle(title);
+    setErrorMessage(message);
+    setShowErrorModal(true);
   }, []);
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const handleSelectAll = useCallback((checked: boolean) => {
-    if (!checked) { setSelectedIds(new Set()); return; }
+    if (!checked) {
+      setSelectedIds(new Set());
+      return;
+    }
     setSelectedIds(prev => {
       const next = new Set(prev);
       categories.forEach(category => {
@@ -90,7 +92,8 @@ const Categories: React.FC = () => {
   const handleSelectOne = useCallback((id: number, checked: boolean) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (checked) next.add(id); else next.delete(id);
+      if (checked) next.add(id);
+      else next.delete(id);
       return next;
     });
   }, []);
@@ -100,7 +103,10 @@ const Categories: React.FC = () => {
 
   const handleBulkDelete = useCallback((ids: number[]) => {
     const validIds = ids.map(Number).filter(id => Number.isFinite(id) && id > 0);
-    if (!validIds.length) { showError('Sélection vide', 'Veuillez sélectionner au moins une catégorie.'); return; }
+    if (!validIds.length) {
+      showError('Sélection vide', 'Veuillez sélectionner au moins une catégorie.');
+      return;
+    }
     setBulkDeleteTargetIds(validIds);
     setShowBulkDeleteModal(true);
   }, [showError]);
@@ -145,8 +151,11 @@ const Categories: React.FC = () => {
           totalProduits: Number(result.data?.totalProduits || 0)
         });
       }
-    } catch (error) { console.error('❌ Erreur catégories stats:', error); }
-    finally { setStatsLoading(false); }
+    } catch (error) {
+      console.error('❌ Erreur catégories stats:', error);
+    } finally {
+      setStatsLoading(false);
+    }
   }, []);
 
   const categoriesWithCounts = useMemo(
@@ -163,7 +172,9 @@ const Categories: React.FC = () => {
     await Promise.allSettled([loadData(), fetchStats()]);
   }, [loadData, fetchStats]);
 
-  useEffect(() => { fetchStats(); }, [fetchStats]);
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -188,7 +199,10 @@ const Categories: React.FC = () => {
     const fd = new FormData(form);
     const nom = String(fd.get('nom') || '').trim();
     const description = String(fd.get('description') || '').trim();
-    if (!nom) { showError('Champ requis', 'Le nom de la catégorie est obligatoire.'); return; }
+    if (!nom) {
+      showError('Champ requis', 'Le nom de la catégorie est obligatoire.');
+      return;
+    }
     try {
       if (editingCategorie) {
         await updateCategorie(editingCategorie.id, { nom, description });
@@ -197,7 +211,9 @@ const Categories: React.FC = () => {
         await createCategorie({ nom, description });
         showSuccess('Catégorie ajoutée', `"${nom}" a été ajoutée avec succès.`);
       }
-      setShowModal(false); setEditingCategorie(null); setSelectedIds(new Set());
+      setShowModal(false);
+      setEditingCategorie(null);
+      setSelectedIds(new Set());
       await refreshAll();
     } catch (error: any) {
       showError('Erreur', error?.message || 'Une erreur est survenue lors de l’opération.');
@@ -213,7 +229,11 @@ const Categories: React.FC = () => {
     if (!deleteTarget) return;
     try {
       await deleteCategorie(deleteTarget.id);
-      setSelectedIds(prev => { const n = new Set(prev); n.delete(Number(deleteTarget.id)); return n; });
+      setSelectedIds(prev => {
+        const n = new Set(prev);
+        n.delete(Number(deleteTarget.id));
+        return n;
+      });
       showSuccess('Catégorie supprimée', `"${deleteTarget.nom}" a été supprimée avec succès.`);
       await refreshAll();
     } catch (error: any) {
@@ -243,9 +263,7 @@ const Categories: React.FC = () => {
         background: isDark ? '#0F172A' : '#EEF2FF',
       }}
     >
-    
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
-
         <CategoriesHeader
           onAddCategorie={handleOpenAddModal}
           onOpenStats={() => {}}
@@ -265,53 +283,16 @@ const Categories: React.FC = () => {
           evolutionTauxCompletion={0}
         />
 
+        {/* ✅ CategoriesSearchBar (search + sort + view mode) */}
+        <CategoriesSearchBar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          sortOption={sortOption}
+          onSortChange={setSortOption}
+          viewMode="table"
+          onViewModeChange={() => {}}
+        />
 
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative min-w-0 flex-1">
-            <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-500" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Rechercher une catégorie..."
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-[13px] text-slate-900 outline-none transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-white/[0.18]"
-            />
-            {hasSearch && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-500 dark:hover:bg-white/[0.08] dark:hover:text-slate-300"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <div className="relative">
-              <ArrowUpDown size={13} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-500" />
-              <select
-                value={sortOption}
-                onChange={e => { setSortOption(e.target.value); setSelectedIds(new Set()); }}
-                className="h-10 min-w-[150px] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-10 pr-9 text-[13px] font-medium text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-200 dark:hover:border-white/[0.18]"
-              >
-                {SORT_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-              </select>
-            </div>
-
-         
-            <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-white p-1 dark:border-white/[0.12] dark:bg-slate-800">
-              <button
-                type="button"
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-white shadow-sm dark:bg-brand-500/15 dark:text-brand-400"
-              >
-                <List size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-    
         <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_4px_20px_-4px_rgba(79,70,229,0.08)] transition-all duration-300 dark:border-white/[0.1] dark:bg-[#0F172A] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.35)]">
           {(refreshing || statsLoading) && (
             <div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent">
@@ -372,7 +353,10 @@ const Categories: React.FC = () => {
               currentPage={currentPage}
               totalPages={totalPages}
               totalItems={totalItems}
-              onPageChange={page => { setSelectedIds(new Set()); setCurrentPage(page); }}
+              onPageChange={page => {
+                setSelectedIds(new Set());
+                setCurrentPage(page);
+              }}
             />
           </div>
         )}
@@ -389,8 +373,14 @@ const Categories: React.FC = () => {
       {showViewModal && selectedCategorie && (
         <CategoriesViewModal
           categorie={selectedCategorie}
-          onClose={() => { setShowViewModal(false); setSelectedCategorie(null); }}
-          onEdit={() => { setShowViewModal(false); handleEditCategorie(selectedCategorie); }}
+          onClose={() => {
+            setShowViewModal(false);
+            setSelectedCategorie(null);
+          }}
+          onEdit={() => {
+            setShowViewModal(false);
+            handleEditCategorie(selectedCategorie);
+          }}
           getCategoryColor={getCategoryColor}
           isDark={isDark}
         />
@@ -398,7 +388,10 @@ const Categories: React.FC = () => {
 
       <ConfirmModal
         isOpen={showDeleteModal}
-        onClose={() => { setShowDeleteModal(false); setDeleteTarget(null); }}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteTarget(null);
+        }}
         onConfirm={handleConfirmDelete}
         title="Suppression"
         message={`Supprimer "${deleteTarget?.nom || ''}" ?`}
@@ -410,7 +403,10 @@ const Categories: React.FC = () => {
 
       <ConfirmModal
         isOpen={showBulkDeleteModal}
-        onClose={() => { setShowBulkDeleteModal(false); setBulkDeleteTargetIds([]); }}
+        onClose={() => {
+          setShowBulkDeleteModal(false);
+          setBulkDeleteTargetIds([]);
+        }}
         onConfirm={handleConfirmBulkDelete}
         title="Suppression en lot"
         message={`Voulez-vous supprimer ${bulkDeleteTargetIds.length} catégorie(s) ?`}

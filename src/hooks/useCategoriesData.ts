@@ -12,7 +12,6 @@ const SORT_MAP = {
 } as const;
 
 export const useCategoriesData = () => {
-  // ✅ FIX: HOOKS REHETRA ETO AMBONY (TSY MISY CONDITION)
   const isMounted = useRef(true);
   const fetchLock = useRef(false);
   const firstLoadDone = useRef(false);
@@ -47,11 +46,8 @@ export const useCategoriesData = () => {
     fetchLock.current = true;
 
     try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else if (!firstLoadDone.current) {
-        setLoading(true);
-      }
+      if (isRefresh) setRefreshing(true);
+      else if (!firstLoadDone.current) setLoading(true);
 
       if (!window.api?.categories?.getAll) {
         throw new Error('API categories.getAll non disponible');
@@ -70,28 +66,17 @@ export const useCategoriesData = () => {
       const result = await window.api.categories.getAll(params);
 
       if (!isMounted.current) return;
-      if (!result?.success) {
-        throw new Error(result?.error || 'Erreur de chargement');
-      }
+      if (!result?.success) throw new Error(result?.error || 'Erreur de chargement');
 
       const data = result.data || [];
-      const uniqueData = data.filter((item, index, self) =>
-        self.findIndex(t => t.id === item.id) === index
-      );
+      const uniqueData = data.filter((item, index, self) => self.findIndex(t => t.id === item.id) === index);
 
       setCategories(uniqueData);
 
-      // ⭐ FIX PAGINATION
       const totalItemsCount = Number(result.pagination?.total || 0);
       setTotalItems(totalItemsCount);
-
-      // Raha tsy misy totalPages avy any backend, dia kajiaina eto
       const totalPagesFromBackend = Number(result.pagination?.totalPages);
-      setTotalPages(
-        totalPagesFromBackend > 0 
-          ? totalPagesFromBackend 
-          : Math.ceil(totalItemsCount / ITEMS_PER_PAGE)
-      );
+      setTotalPages(totalPagesFromBackend > 0 ? totalPagesFromBackend : Math.ceil(totalItemsCount / ITEMS_PER_PAGE));
 
       firstLoadDone.current = true;
     } catch (err) {
@@ -123,6 +108,7 @@ export const useCategoriesData = () => {
     }
   }, [currentPage]);
 
+  // CRUD operations ... (tsy niova)
   const createCategorie = useCallback(async (data: Omit<Categorie, 'id' | 'created_at'>) => {
     if (!window.api?.categories?.create) throw new Error('API categories.create indisponible');
     const result = await window.api.categories.create(data);

@@ -1,3 +1,4 @@
+// src/components/produits/ProduitsTable.tsx
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -30,7 +31,7 @@ interface ProduitsTableProps {
   onNewCommande: (produit: Produit) => void;
   getStockLevel: (stock: number, min: number) => { level: string; color: string; bg: string };
   getStatusColor: (status: string) => string;
-  getStatusIcon?: (status: string) => React.ReactNode; // non utilisé
+  getStatusIcon?: (status: string) => React.ReactNode;
   totalStats?: { total: number; rupture: number; alerte: number; valeur_totale: number };
   totalItems?: number;
   selectedIds?: Set<number>;
@@ -40,7 +41,6 @@ interface ProduitsTableProps {
   onBulkUpdateStatus?: (ids: number[], newStatus: string) => void;
 }
 
-// Skeleton compact (60px)
 const SkeletonRow = memo(({ isDark }: { isDark: boolean }) => {
   const c = isDark ? 'animate-pulse rounded-md bg-white/[0.07]' : 'animate-pulse rounded-md bg-slate-200';
   const b = isDark ? 'border-white/[0.10]' : 'border-slate-200';
@@ -258,8 +258,8 @@ const ProduitsTable: React.FC<ProduitsTableProps> = ({
         </div>
       )}
 
-      {/* ⭐ FIX: Haavony raikitra + overflow-y-auto + scrollbar-gutter-stable mba tsy hiova layout rehefa pagination */}
-      <div className="custom-scrollbar overflow-x-auto overflow-y-auto scrollbar-gutter-stable" style={{ height: '600px', minHeight: '400px' }}>
+      {/* ⭐ NESORINA NY overflow-x-auto overflow-y-auto SY NY height/minHeight */}
+      <div>
         <table className={`w-full min-w-[900px] table-fixed border-collapse text-left ${borderColor}`}>
           <thead className={`sticky top-0 z-20 backdrop-blur-xl ${isDark ? 'bg-[#0F172A]/97' : 'bg-slate-50/97'}`}>
             <tr className="text-[12.5px] font-semibold uppercase tracking-[0.055em] text-slate-500 dark:text-slate-400">
@@ -368,12 +368,6 @@ const ProduitsTable: React.FC<ProduitsTableProps> = ({
       </div>
 
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 7px; height: 7px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4F46E5; border-radius: 999px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4338CA; }
-        .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #4F46E5 transparent; }
-        .scrollbar-gutter-stable { scrollbar-gutter: stable; }
         @keyframes productRowIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
         .group { animation: productRowIn 0.16s ease-out; }
       `}</style>
