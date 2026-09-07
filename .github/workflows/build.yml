@@ -1,6 +1,7 @@
 # ============================================================
 # TAHIRYPRO ERP - GitHub Actions - Windows + Linux
 # ⭐ FIX: Mampiasa build:electron (build.cjs) fa tsy build:obfuscate
+# ⭐ FIX: Mampiditra ny private.pem avy amin'ny GitHub Secrets
 # ============================================================
 
 name: Build & Release
@@ -73,11 +74,24 @@ jobs:
           Write-Host "OK: auth.cjs"
           Write-Host "OK: auth/handlers.cjs"
 
+      # ⭐ NEW: Mamorona ny private.pem avy amin'ny secret
+      - name: Create private key from secret
+        shell: pwsh
+        run: |
+          $privateKey = $env:PRIVATE_KEY
+          if (-not $privateKey) { throw "PRIVATE_KEY secret is not set" }
+          New-Item -ItemType Directory -Force -Path "admin-tools/keys" | Out-Null
+          Set-Content -Path "admin-tools/keys/private.pem" -Value $privateKey -NoNewline
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+
       - name: Build frontend
         run: npm run build
 
       - name: Build electron (bytenode + obfuscation)
         run: npm run build:electron
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}  # ⭐ Hampiasaina raha ilaina
 
       - name: Verify production frontend
         shell: pwsh
@@ -206,11 +220,26 @@ jobs:
           echo "OK: auth.cjs"
           echo "OK: auth/handlers.cjs"
 
+      # ⭐ NEW: Mamorona ny private.pem avy amin'ny secret
+      - name: Create private key from secret
+        shell: bash
+        run: |
+          if [ -z "$PRIVATE_KEY" ]; then
+            echo "PRIVATE_KEY secret is not set"
+            exit 1
+          fi
+          mkdir -p admin-tools/keys
+          echo "$PRIVATE_KEY" > admin-tools/keys/private.pem
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+
       - name: Build frontend
         run: npm run build
 
       - name: Build electron (bytenode + obfuscation)
         run: npm run build:electron
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
 
       - name: Verify production frontend
         shell: bash
