@@ -1,3 +1,4 @@
+// Ventes.tsx
 import React, { useCallback, useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { Search } from 'lucide-react';
@@ -9,7 +10,7 @@ import { useCompany } from '../contexts/CompanyContext';
 import ConfirmModal from '../components/common/ConfirmModal';
 import SuccessModal from '../components/common/SuccessModal';
 import ErrorModal from '../components/common/ErrorModal';
-import { useVentesData } from '../hooks/useVentesData';
+import { useVentesData, ExportPeriod } from '../hooks/useVentesData';
 import { downloadVentePDF } from '../lib/ventesPDFService';
 
 interface SelectedProduct { id: number; quantite: number; prix_unitaire: number; total: number; }
@@ -37,7 +38,10 @@ const Ventes: React.FC = () => {
   const { isDark } = useTheme();
   const { company } = useCompany();
 
-  const { devisList, factures, clients, produits, loading, refreshing, searchTerm, setSearchTerm, totalDevis, totalFactures, currentPage, setCurrentPage, totalPages, viewItem, setViewItem, viewDetails, setViewDetails, loadingDetails, setLoadingDetails, refresh, createDevis, createFacture, convertDevisToFacture, deleteDevis, deleteFacture, detteStats, getDevisDetails, getFactureDetails } = useVentesData();
+  const { devisList, factures, clients, produits, loading, refreshing, searchTerm, setSearchTerm, totalDevis, totalFactures, currentPage, setCurrentPage, totalPages, viewItem, setViewItem, viewDetails, setViewDetails, loadingDetails, setLoadingDetails, refresh, createDevis, createFacture, convertDevisToFacture, deleteDevis, deleteFacture, detteStats, getDevisDetails, getFactureDetails, 
+    exportPeriod, setExportPeriod, exportCustomDate, setExportCustomDate,
+    exportToExcel, exportToPDF, exportToCSV,
+  } = useVentesData();
 
   const [activeTab, setActiveTab] = useState<'devis' | 'factures'>('devis');
   const [showFormModal, setShowFormModal] = useState(false);
@@ -59,6 +63,20 @@ const Ventes: React.FC = () => {
   const [formData, setFormData] = useState({ reference: '', observation: '', validite_jours: 30 });
 
   const showError = useCallback((message: string) => { setErrorMessage(message); setShowErrorModal(true); }, []);
+
+  const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
+    try {
+      let result;
+      if (format === 'excel') result = await exportToExcel(period, customDate);
+      else if (format === 'pdf') result = await exportToPDF(period, customDate);
+      else result = await exportToCSV(period, customDate);
+
+      if (result?.canceled) return;
+      if (result?.success === false) { showError(result.error || 'Impossible d\'exporter les données.'); return; }
+
+      setShowSuccessModal(true);
+    } catch (error: any) { showError(error?.message || 'Impossible d\'exporter les données.'); }
+  }, [exportToExcel, exportToPDF, exportToCSV, showError]);
 
   const handleAddProduit = useCallback((id: number, quantite: number, prix_unitaire: number) => {
     setSelectedProduits(prev => {
@@ -164,20 +182,46 @@ const Ventes: React.FC = () => {
     } catch (err: any) { console.error('[VENTES] Erreur update paiement:', err); showError(err?.message || 'Erreur mise à jour paiement'); }
   }, [refresh, showError, activeTab, devisList, factures]);
 
-  const handleDownloadPDF = useCallback(async (facture: any) => {
+  // ⭐ FIX: IZAY NO NOVAINA - MAMOKATRA NY MODAL ALOHA
+  const handleDownloadFacture = useCallback(async (details: any[]) => {
     try {
-      if (!facture?.id) return;
-      const result = await window.api.ventes.getFactureDetails(Number(facture.id));
-      if (!result?.success) { console.error('[VENTES] Impossible charger facture:', result?.error); return; }
-      const { facture: f, details: d } = result.data;
+      if (!viewItem || !viewItem.id) return;
+
+      // Mampiasa ny details voa-enrichie avy amin'ny modal (misy tva_rate marina)
+      let safeDetails = Array.isArray(details) ? details : [];
+      if (safeDetails.length === 0) {
+        const result = await window.api.ventes.getFactureDetails(Number(viewItem.id));
+        if (result?.success) safeDetails = result.data.details || [];
+      }
+
+      // Normaliser ny TVA (0% raha 0, 10% raha 0.1, etc.)
+      const normalizedDetails = safeDetails.map((d: any) => ({
+        ...d,
+        tva_rate: (d.tva_rate !== undefined && d.tva_rate !== null && d.tva_rate !== '') ? Number(d.tva_rate) : 0
+      }));
+
+      // 🔥 Mamorona ny options ary alefa any amin'ny CompanySettingsModal aloha
       const pdfOptions = {
-        vente: { id: f.id, reference: f.reference, client_nom: f.client_nom, client_email: '', client_telephone: '', total_ht: f.total_ht, total_ttc: f.total_ttc, date_facture: f.date_facture, statut: f.statut_paiement || 'Payé', products: Array.isArray(d) ? d : [] },
-        type: 'factures' as const, clientName: f.client_nom || 'Client', clientEmail: '', clientPhone: '', clientAddress: '', paymentMethod: 'Espèces', paymentTerms: 'Sous 30 jours',
-        montantPaye: Number(f.montant_paye) || 0,
+        vente: { ...viewItem, details: normalizedDetails, products: normalizedDetails },
+        type: 'factures' as const,
+        clientName: viewItem.client_nom || 'Client',
+        clientEmail: viewItem.client_email || '',
+        clientPhone: viewItem.client_telephone || '',
+        clientAddress: viewItem.client_address || '',
+        montantPaye: Number(viewItem.montant_paye) || 0,
       };
-      setVenteForInvoice(pdfOptions); setShowCompanyModal(true);
-    } catch (err) { console.error('[VENTES] Erreur PDF:', err); }
-  }, []);
+
+      // ⭐ ATAOVY MIKATONA ILAY MODAL DETAILS ALOHA!
+      setShowViewModal(false);
+
+      // ⭐ ALEFA ANY AMIN'NY MODAL NY DONNÉES (CompanySettingsModal)
+      setVenteForInvoice(pdfOptions);
+      setShowCompanyModal(true);
+    } catch (error: any) {
+      console.error('[VENTES] Erreur préparation PDF Facture:', error);
+      showError(error?.message || 'Erreur préparation facture');
+    }
+  }, [viewItem, showError]);
 
   const handleDownloadDevisPDF = useCallback(async (devis: any) => {
     try {
@@ -190,10 +234,13 @@ const Ventes: React.FC = () => {
         type: 'devis' as const, clientName: dv.client_nom || 'Client', clientEmail: '', clientPhone: '', clientAddress: '', paymentMethod: 'Espèces', paymentTerms: 'Sous 30 jours',
         montantPaye: Number(dv.montant_paye) || 0,
       };
+      // ⭐ ATAOVY MIKATONA ILAY MODAL DETAILS ALOHA!
+      setShowViewModal(false);
       setVenteForInvoice(pdfOptions); setShowCompanyModal(true);
     } catch (err) { console.error('[VENTES] Erreur Devis PDF:', err); }
   }, []);
 
+  // ⭐ IZAY IRAY NO MANAO NY GÉNÉRATION FARANY (Rehefa avy ao amin'ny modal)
   const handleCompanyModalGenerate = useCallback(async (dataFromModal?: any) => {
     if (!venteForInvoice) return;
     setGeneratingPDF(true);
@@ -239,7 +286,15 @@ const Ventes: React.FC = () => {
   return (
     <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
-        <VentesHeader onAddVente={() => { resetForm(); setShowFormModal(true); }} refreshing={refreshing} onRefresh={() => void refresh()} totalItems={activeTab === 'devis' ? totalDevis : totalFactures} activeTab={activeTab} />
+        
+        <VentesHeader 
+          onAddVente={() => { resetForm(); setShowFormModal(true); }} 
+          refreshing={refreshing} 
+          onRefresh={() => void refresh()} 
+          totalItems={activeTab === 'devis' ? totalDevis : totalFactures} 
+          activeTab={activeTab} 
+          onExport={handleExport}
+        />
         <VentesStats totalDevis={totalDevis} totalFactures={totalFactures} totalCA={devisList.reduce((s, d) => s + Number(d.total_ttc || 0), 0) + factures.reduce((s, f) => s + Number(f.total_ttc || 0), 0)} totalItems={devisList.reduce((s, d) => s + (d.produits?.length || 0), 0) + factures.reduce((s, f) => s + (f.produits?.length || 0), 0)} totalDette={detteStats.total_dette || 0} nbFacturesNonPayees={detteStats.nb_commandes_non_payees || 0} refreshing={refreshing} />
 
         <div className="flex items-center gap-2">
@@ -267,7 +322,7 @@ const Ventes: React.FC = () => {
               onDelete={item => { setDeleteTarget(item); setShowDeleteModal(true); }}
               onAdd={() => { resetForm(); setShowFormModal(true); }}
               onConvertDevisToFacture={handleConvertDevisToFacture}
-              onDownloadFacture={handleDownloadPDF}
+              onDownloadFacture={handleDownloadFacture}
               onDownloadDevisPDF={handleDownloadDevisPDF}
               selectedIds={selectedIds}
               onSelectAll={handleSelectAll}
@@ -295,7 +350,19 @@ const Ventes: React.FC = () => {
         montantPaye={montantPaye} onMontantPayeChange={setMontantPaye}
         isDark={isDark}
       />
-      {showViewModal && (<VentesViewModal item={viewItem} type={activeTab} details={viewDetails} loading={loadingDetails} onClose={() => setShowViewModal(false)} onConvertDevisToFacture={() => handleConvertDevisToFacture(viewItem)} onDownloadFacture={() => handleDownloadPDF(viewItem)} onDownloadDevisPDF={() => handleDownloadDevisPDF(viewItem)} isDark={isDark} />)}
+      {showViewModal && (
+        <VentesViewModal 
+          item={viewItem} 
+          type={activeTab} 
+          details={viewDetails} 
+          loading={loadingDetails} 
+          onClose={() => setShowViewModal(false)} 
+          onConvertDevisToFacture={() => handleConvertDevisToFacture(viewItem)} 
+          onDownloadFacture={handleDownloadFacture} 
+          onDownloadDevisPDF={() => handleDownloadDevisPDF(viewItem)} 
+          isDark={isDark} 
+        />
+      )}
       <ConfirmModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} onConfirm={async () => { try { if (!deleteTarget?.id) return; const result = activeTab === 'devis' ? await deleteDevis(Number(deleteTarget.id)) : await deleteFacture(Number(deleteTarget.id)); if (result?.success !== false) { setShowDeleteModal(false); setDeleteTarget(null); setShowSuccessModal(true); await refresh(); } else { showError(result?.error || 'Erreur suppression'); } } catch (err: any) { console.error('[VENTES] Delete error:', err); showError(err?.message || 'Erreur suppression'); } }} title="Suppression" message={`Supprimer "${deleteTarget?.reference || ''}" ?`} confirmText="Supprimer" cancelText="Annuler" confirmColor="red" isDark={isDark} />
       <ConfirmModal isOpen={showBulkDeleteModal} onClose={() => { setShowBulkDeleteModal(false); setBulkDeleteTargetIds([]); }} onConfirm={handleConfirmBulkDelete} title="Suppression en lot" message={`Supprimer ${bulkDeleteTargetIds.length} élément(s) ?`} confirmText="Supprimer" cancelText="Annuler" confirmColor="red" isDark={isDark} />
       <CompanySettingsModal isOpen={showCompanyModal} onClose={() => { setShowCompanyModal(false); setVenteForInvoice(null); }} onSave={() => { setShowCompanyModal(false); setVenteForInvoice(null); }} onGenerate={handleCompanyModalGenerate} mode="generate" isDark={isDark} commandeForInvoice={venteForInvoice} initialData={company} onPDFGenerated={(success, filePath) => { if (success) console.log(`✅ Facture enregistrée: ${filePath}`); }} />

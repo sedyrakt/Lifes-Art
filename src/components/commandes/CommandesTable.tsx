@@ -78,16 +78,16 @@ const CommandRow = memo(({ commande, isDark, isSelected, products, hiddenProduct
         <input type="checkbox" checked={isSelected} onChange={e => onSelectOne?.(commande.id, e.target.checked)} className="h-[15px] w-[15px] cursor-pointer accent-brand-500" aria-label={`Sélectionner ${commande.numero}`} />
       </td>
       <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>
-        <span className="inline-flex max-w-[120px] truncate rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-[12.5px] font-semibold leading-tight text-brand-600 dark:border-brand-500/15 dark:bg-brand-500/10 dark:text-brand-400">{commande.numero}</span>
+        <span className="inline-flex max-w-[120px] truncate rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-[14px] font-semibold leading-tight text-brand-600 dark:border-brand-500/15 dark:bg-brand-500/10 dark:text-brand-400">{commande.numero}</span>
       </td>
       <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>
         <div className="min-w-0 leading-tight">
           <div className="max-w-[150px] truncate text-[14.5px] font-semibold text-slate-900 transition-colors group-hover:text-brand-600 dark:text-slate-100 dark:group-hover:text-brand-400">{commande.client_nom || 'Client inconnu'}</div>
-          {/* ⭐ FIX: Aseho ny téléphone raha misy */}
+          
           {commande.client_telephone ? (
             <div className="mt-0.5 max-w-[130px] truncate text-[12.5px] text-slate-500 dark:text-slate-400">{commande.client_telephone}</div>
           ) : (
-            <span className="mt-0.5 block text-[12.5px] text-slate-400">Aucun téléphone</span>
+            <span className="mt-0.5 block text-[13.5px] text-slate-400">Aucun téléphone</span>
           )}
         </div>
       </td>

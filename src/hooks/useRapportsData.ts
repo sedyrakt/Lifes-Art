@@ -1,7 +1,9 @@
+// src/hooks/useRapportsData.ts
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { saveFileWithDialog } from '../utils/saveFileWithDialog';
 
 export interface RapportsStats {
   totalProduits: number;
@@ -58,6 +60,9 @@ export interface CommandeRecente {
 
 export type Periode = 'jour' | 'semaine' | 'mois' | 'trimestre' | 'annee';
 
+// ⭐ Type export period
+export type ExportPeriod = 'aujourdhui' | 'hier' | 'semaine' | 'mois' | 'annee' | 'custom';
+
 const toNumber = (value: unknown): number => {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -73,6 +78,7 @@ const getReportsApi = () => {
 };
 
 export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
+  // ===== HOOKS – rehetra ato ambony, tsy misy condition =====
   const isMounted = useRef(true);
   const fetchLock = useRef(false);
   const firstLoadDone = useRef(false);
@@ -94,6 +100,10 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
   const [topClients, setTopClients] = useState<any[]>([]);
   const [depensesParCategorie, setDepensesParCategorie] = useState<any[]>([]);
   const [commandesStatut, setCommandesStatut] = useState<any[]>([]);
+
+  // ⭐ Vaovao: Export period sy customDate
+  const [exportPeriod, setExportPeriod] = useState<ExportPeriod>('mois');
+  const [exportCustomDate, setExportCustomDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -228,6 +238,7 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     }
   }, [selectedDate, granularity]);
 
+  // ⭐ EFFECTS – rehetra ato ambony
   useEffect(() => {
     const api = getReportsApi();
     if (!api?.onChanged) return;
@@ -253,27 +264,74 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     }
   }, [loadData]);
 
-  const exportToExcel = useCallback((data: any[], filename: string, sheetName = 'Rapport') => {
-    if (!data.length) return;
+  // ============================================================
+  // ⭐ EXPORT FUNCTIONS – misy période + save dialog
+  // ============================================================
+
+  const getExportPeriodRange = useCallback((period: ExportPeriod, customDate: string) => {
+    const now = new Date();
+    let startDate: string | undefined, endDate: string | undefined;
+    if (period === 'aujourdhui') {
+      startDate = now.toISOString().split('T')[0] + ' 00:00:00';
+      endDate = now.toISOString().split('T')[0] + ' 23:59:59';
+    } else if (period === 'hier') {
+      const yest = new Date(now);
+      yest.setDate(now.getDate() - 1);
+      startDate = yest.toISOString().split('T')[0] + ' 00:00:00';
+      endDate = yest.toISOString().split('T')[0] + ' 23:59:59';
+    } else if (period === 'semaine') {
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(now);
+      monday.setDate(diff);
+      startDate = monday.toISOString().split('T')[0] + ' 00:00:00';
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      endDate = sunday.toISOString().split('T')[0] + ' 23:59:59';
+    } else if (period === 'mois') {
+      startDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01 00:00:00`;
+      const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+      endDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')} 23:59:59`;
+    } else if (period === 'annee') {
+      startDate = `${now.getFullYear()}-01-01 00:00:00`;
+      endDate = `${now.getFullYear()}-12-31 23:59:59`;
+    } else if (period === 'custom') {
+      const dateStr = customDate || now.toISOString().split('T')[0];
+      startDate = dateStr + ' 00:00:00';
+      endDate = dateStr + ' 23:59:59';
+    }
+    return { startDate, endDate };
+  }, []);
+
+  const exportToExcel = useCallback(async (data: any[], filename: string, sheetName = 'Rapport', period: ExportPeriod = 'mois', customDate: string = '') => {
+    if (!data.length) return { success: true, canceled: false };
     try {
       const worksheet = XLSX.utils.json_to_sheet(data);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-      XLSX.writeFile(workbook, `${filename}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const fileName = `${filename}_${period}_${customDate || new Date().toISOString().slice(0, 10)}.xlsx`;
+      const result = await saveFileWithDialog(wbout, fileName, [{ name: 'Excel', extensions: ['xlsx'] }]);
+      if (!result.success) {
+        if (result.canceled) return result;
+        throw new Error(result.error || 'Impossible d\'enregistrer le fichier Excel.');
+      }
+      return result;
     } catch (error) {
       console.error('❌ Erreur export Excel:', error);
+      throw error;
     }
   }, []);
 
-  const exportToPDF = useCallback((data: any[], filename: string, title: string, columns: string[], companyName?: string) => {
-    if (!data.length) return;
+  const exportToPDF = useCallback(async (data: any[], filename: string, title: string, columns: string[], companyName?: string, period: ExportPeriod = 'mois', customDate: string = '') => {
+    if (!data.length) return { success: true, canceled: false };
     try {
       const doc = new jsPDF('landscape', 'mm', 'a4');
       doc.setFillColor(15, 23, 42);
       doc.rect(0, 0, 297, 15, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(12);
-      doc.text(`${companyName || "TahiryPro"} - Rapport Officiel`, 14, 10);
+      doc.text(`${companyName || "LifesArt"} - Rapport Officiel`, 14, 10);
       doc.setTextColor(15, 23, 42);
       doc.setFontSize(18);
       doc.text(title, 14, 28);
@@ -296,14 +354,22 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
         theme: 'grid',
       });
 
-      doc.save(`${filename}_${new Date().toISOString().slice(0, 10)}.pdf`);
+      const pdfArrayBuffer = doc.output('arraybuffer');
+      const fileName = `${filename}_${period}_${customDate || new Date().toISOString().slice(0, 10)}.pdf`;
+      const result = await saveFileWithDialog(pdfArrayBuffer, fileName, [{ name: 'PDF', extensions: ['pdf'] }]);
+      if (!result.success) {
+        if (result.canceled) return result;
+        throw new Error(result.error || 'Impossible d\'enregistrer le PDF.');
+      }
+      return result;
     } catch (error) {
       console.error('❌ Erreur export PDF:', error);
+      throw error;
     }
   }, []);
 
-  const exportToCSV = useCallback((data: any[], filename: string) => {
-    if (!data.length) return;
+  const exportToCSV = useCallback(async (data: any[], filename: string, period: ExportPeriod = 'mois', customDate: string = '') => {
+    if (!data.length) return { success: true, canceled: false };
     try {
       const headers = Object.keys(data[0]);
       const escapeCSV = (value: any) => {
@@ -317,21 +383,20 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
         ...data.map(item => headers.map(header => escapeCSV(item?.[header])).join(',')),
       ].join('\n');
 
-      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `${filename}_${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
+      const fileName = `${filename}_${period}_${customDate || new Date().toISOString().slice(0, 10)}.csv`;
+      const result = await saveFileWithDialog(csv, fileName, [{ name: 'CSV', extensions: ['csv'] }]);
+      if (!result.success) {
+        if (result.canceled) return result;
+        throw new Error(result.error || 'Impossible d\'enregistrer le CSV.');
+      }
+      return result;
     } catch (error) {
       console.error('❌ Erreur export CSV:', error);
+      throw error;
     }
   }, []);
 
-  const handleExportStats = useCallback((formatMoneyFn: (value: number) => string) => {
+  const handleExportStats = useCallback(async (formatMoneyFn: (value: number) => string, period: ExportPeriod = 'mois', customDate: string = '') => {
     const data = [
       { Indicateur: "Chiffre d'affaires", Valeur: sanitizeMoney(formatMoneyFn(stats.chiffreAffaires)) },
       { Indicateur: 'Bénéfice Net', Valeur: sanitizeMoney(formatMoneyFn(stats.benefice)) },
@@ -341,11 +406,11 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
       { Indicateur: 'Clients Actifs', Valeur: stats.nbClients },
       { Indicateur: 'Taux de marge', Valeur: stats.tauxBenefice.toFixed(2) + '%' },
     ];
-    exportToExcel(data, 'Rapport_Statistiques_LifeArt');
+    return await exportToExcel(data, 'Rapport_Statistiques', 'Stats', period, customDate);
   }, [stats, exportToExcel]);
 
-  const handleExportTopProduits = useCallback((formatMoneyFn: (value: number) => string) => {
-    if (!topProduits.length) return;
+  const handleExportTopProduits = useCallback(async (formatMoneyFn: (value: number) => string, period: ExportPeriod = 'mois', customDate: string = '') => {
+    if (!topProduits.length) return { success: true, canceled: false };
     const data = topProduits.map((product, index) => ({
       Rang: `#${index + 1}`,
       Produit: product.nom || 'N/A',
@@ -354,11 +419,11 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
       'Total ventes': sanitizeMoney(formatMoneyFn(product.total_ventes || 0)),
       Pourcentage: product.pourcentage ? `${product.pourcentage}%` : '0%',
     }));
-    exportToExcel(data, 'Top_Produits_LifeArt');
+    return await exportToExcel(data, 'Top_Produits', 'Top', period, customDate);
   }, [topProduits, exportToExcel]);
 
-  const handleExportCommandes = useCallback(() => {
-    if (!commandesRecentes.length) return;
+  const handleExportCommandes = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
+    if (!commandesRecentes.length) return { success: true, canceled: false };
     const data = commandesRecentes.map(command => ({
       'N° Commande': command.commande_numero || `CMD-${String(command.id || 0).padStart(6, '0')}`,
       Client: command.client_nom || 'N/A',
@@ -367,10 +432,10 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
       Statut: command.statut || 'N/A',
       'Nb Produits': command.nb_produits || 0,
     }));
-    exportToExcel(data, 'Commandes_Recentes_LifeArt');
+    return await exportToExcel(data, 'Commandes_Recentes', 'Commandes', period, customDate);
   }, [commandesRecentes, exportToExcel]);
 
-  const handleExportPDF = useCallback((formatMoneyFn: (value: number) => string, companyName = "TahiryPro") => {
+  const handleExportPDF = useCallback(async (formatMoneyFn: (value: number) => string, companyName = "LifesArt", period: ExportPeriod = 'mois', customDate: string = '') => {
     const data = [
       { Indicateur: "Chiffre d'affaires", Valeur: sanitizeMoney(formatMoneyFn(stats.chiffreAffaires)) },
       { Indicateur: 'Bénéfice Net', Valeur: sanitizeMoney(formatMoneyFn(stats.benefice)) },
@@ -380,10 +445,10 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
       { Indicateur: 'Clients Actifs', Valeur: stats.nbClients },
       { Indicateur: 'Taux de marge', Valeur: stats.tauxBenefice.toFixed(2) + '%' },
     ];
-    exportToPDF(data, 'Rapport_Statistiques', `Rapport d'analyse financière - ${companyName}`, ['Indicateur', 'Valeur'], companyName);
+    return await exportToPDF(data, 'Rapport_Statistiques', `Rapport d'analyse financière - ${companyName}`, ['Indicateur', 'Valeur'], companyName, period, customDate);
   }, [stats, exportToPDF]);
 
-  const handleExportCSV = useCallback((formatMoneyFn: (value: number) => string) => {
+  const handleExportCSV = useCallback(async (formatMoneyFn: (value: number) => string, period: ExportPeriod = 'mois', customDate: string = '') => {
     const data = [
       { Indicateur: "Chiffre d'affaires", Valeur: sanitizeMoney(formatMoneyFn(stats.chiffreAffaires)) },
       { Indicateur: 'Bénéfice Net', Valeur: sanitizeMoney(formatMoneyFn(stats.benefice)) },
@@ -393,7 +458,7 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
       { Indicateur: 'Clients Actifs', Valeur: stats.nbClients },
       { Indicateur: 'Taux de marge', Valeur: stats.tauxBenefice.toFixed(2) + '%' },
     ];
-    exportToCSV(data, 'Rapport_Statistiques_LifeArt');
+    return await exportToCSV(data, 'Rapport_Statistiques', period, customDate);
   }, [stats, exportToCSV]);
 
   return {
@@ -423,5 +488,9 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     handleExportCommandes,
     handleExportPDF,
     handleExportCSV,
+    exportPeriod,
+    setExportPeriod,
+    exportCustomDate,
+    setExportCustomDate,
   };
 };

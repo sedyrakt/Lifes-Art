@@ -14,6 +14,8 @@ interface Produit {
   fournisseur_nom?: string;
   prix_achat: number;
   prix_vente: number;
+
+  tva_rate?: number;
   quantite_stock: number;
   quantite_minimale: number;
   unite: string;
@@ -41,6 +43,13 @@ interface ProduitsTableProps {
   onBulkUpdateStatus?: (ids: number[], newStatus: string) => void;
 }
 
+// ⭐ Helper ho an'ny TVA (Raha 0 dia 0%, 0.1 dia 10%, 0.2 dia 20%)
+const formatTva = (rate: number | undefined | null) => {
+  if (rate === undefined || rate === null) return '0%';
+  if (rate > 1) return `${rate}%`;
+  return `${Math.round(rate * 100)}%`;
+};
+
 const SkeletonRow = memo(({ isDark }: { isDark: boolean }) => {
   const c = isDark ? 'animate-pulse rounded-md bg-white/[0.07]' : 'animate-pulse rounded-md bg-slate-200';
   const b = isDark ? 'border-white/[0.10]' : 'border-slate-200';
@@ -48,8 +57,9 @@ const SkeletonRow = memo(({ isDark }: { isDark: boolean }) => {
     <tr className="h-[60px]">
       <td className={`border-b px-2 py-2 align-middle ${b}`}><div className={`${c} h-4 w-4`} /></td>
       <td className={`border-b px-2 py-2 align-middle ${b}`}><div className={`${c} h-5 w-20`} /></td>
-      <td className={`border-b px-2 py-2 align-middle ${b}`}><div className={`${c} h-5 w-32`} /></td>
+      <td className={`border-b pl-4 pr-2 py-2 align-middle ${b}`}><div className={`${c} h-5 w-32`} /></td>
       <td className={`border-b px-2 py-2 align-middle ${b}`}><div className={`${c} h-5 w-28`} /></td>
+      <td className={`border-b px-2 py-2 align-middle ${b}`}><div className={`${c} h-5 w-12`} /></td>
       <td className={`border-b px-2 py-2 align-middle ${b}`}><div className={`${c} h-5 w-16`} /></td>
       <td className={`border-b px-2 py-2 align-middle ${b}`}><div className={`${c} h-5 w-12`} /></td>
       <td className={`border-b px-2 py-2 align-middle ${b}`}><div className={`${c} h-5 w-24`} /></td>
@@ -87,7 +97,8 @@ const ProductRow = memo(({ produit, isDark, isSelected, stock, stockMin, prixAch
         </span>
       </td>
 
-      <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>
+      {/* ⭐ FIX: Nampiana pl-4 (marge gauche) ho an'ny Désignation */}
+      <td className={`border-b pl-4 pr-2 py-2 align-middle ${cellBorderColor}`}>
         <div className="min-w-0 leading-tight">
           <div title={produit.nom} className="max-w-[200px] truncate text-[14.5px] font-semibold text-slate-900 group-hover:text-brand-600 dark:text-slate-100 dark:group-hover:text-brand-400">
             {produit.nom}
@@ -102,12 +113,19 @@ const ProductRow = memo(({ produit, isDark, isSelected, stock, stockMin, prixAch
 
       <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>
         {produit.categorie_nom ? (
-          <span className="inline-flex max-w-[120px] truncate rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12.5px] font-medium text-slate-600 dark:border-white/[0.12] dark:bg-white/[0.05] dark:text-slate-300" title={produit.categorie_nom}>
+          <span className="inline-flex max-w-[120px] truncate rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[14px] font-medium text-slate-600 dark:border-white/[0.12] dark:bg-white/[0.05] dark:text-slate-300" title={produit.categorie_nom}>
             {produit.categorie_nom}
           </span>
         ) : (
-          <span className="text-[12.5px] italic text-slate-400 dark:text-slate-500">Sans catégorie</span>
+          <span className="text-[14px] text-slate-600 dark:text-slate-500">Sans catégorie</span>
         )}
+      </td>
+
+      {/* ⭐ NOVAINA: CELLULE TVA */}
+      <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>
+        <span className="inline-flex min-w-[30px] items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[13.5px] font-semibold text-slate-700 dark:border-white/[0.12] dark:bg-white/[0.05] dark:text-slate-300">
+          {formatTva(produit.tva_rate)}
+        </span>
       </td>
 
       <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>
@@ -258,20 +276,23 @@ const ProduitsTable: React.FC<ProduitsTableProps> = ({
         </div>
       )}
 
-      {/* ⭐ NESORINA NY overflow-x-auto overflow-y-auto SY NY height/minHeight */}
       <div>
-        <table className={`w-full min-w-[900px] table-fixed border-collapse text-left ${borderColor}`}>
+        <table className={`w-full min-w-[970px] table-fixed border-collapse text-left ${borderColor}`}>
           <thead className={`sticky top-0 z-20 backdrop-blur-xl ${isDark ? 'bg-[#0F172A]/97' : 'bg-slate-50/97'}`}>
             <tr className="text-[12.5px] font-semibold uppercase tracking-[0.055em] text-slate-500 dark:text-slate-400">
               <th scope="col" className={`w-[40px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>
                 <input type="checkbox" checked={allSelected} ref={(input) => { if (input) input.indeterminate = someSelected; }} onChange={(event) => onSelectAll?.(event.target.checked)} className="h-[15px] w-[15px] cursor-pointer accent-brand-500" aria-label="Sélectionner tous les produits" />
               </th>
               <th scope="col" className={`w-[100px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>Ref.</th>
-              <th scope="col" className={`w-[200px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>Désignation</th>
-              <th scope="col" className={`w-[130px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>Catégorie</th>
+              
+              {/* ⭐ FIX: Header Désignation nampiana pl-4 */}
+              <th scope="col" className={`w-[170px] border-b pl-4 pr-2 py-2.5 align-middle ${headerBorderColor}`}>Désignation</th>
+              
+              <th scope="col" className={`w-[120px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>Catégorie</th>
+              <th scope="col" className={`w-[80px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>TVA</th>
               <th scope="col" className={`w-[120px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>Stock</th>
               <th scope="col" className={`w-[60px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>CMD</th>
-              <th scope="col" className={`w-[140px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>Prix</th>
+              <th scope="col" className={`w-[130px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>Prix</th>
               <th scope="col" className={`w-[90px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>Statut</th>
               <th scope="col" className={`w-[60px] border-b px-2 py-2.5 text-right align-middle ${headerBorderColor}`}>Actions</th>
             </tr>

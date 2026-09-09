@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { FolderOpen, FileText, Award, Package } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -67,12 +65,14 @@ const CategoriesStats: React.FC<CategoriesStatsProps> = ({
             {stat.icon}
           </div>
           
-          <div className="flex min-w-0 flex-col">
-            <span className="text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-              {stat.value}
-            </span>
-            <span className="mt-0.5 truncate text-[14px] font-medium text-slate-500 dark:text-slate-400">
+
+          <div className="flex min-w-0 flex-1 flex-col">
+        
+            <span className="min-w-0 truncate text-[15px] font-medium text-slate-500 dark:text-slate-400">
               {stat.label}
+            </span>
+            <span className="mt-0.5 truncate text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {stat.value}
             </span>
           </div>
         </div>

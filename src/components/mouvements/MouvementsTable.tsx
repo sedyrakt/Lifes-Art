@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -239,7 +238,7 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
                       <div title={m.produit_nom || 'Produit inconnu'} className="max-w-[150px] truncate text-[14.5px] font-semibold text-slate-900 group-hover:text-brand-600 dark:text-slate-100 dark:group-hover:text-brand-400">
                         {m.produit_nom || 'Produit inconnu'}
                       </div>
-                      <div className="mt-0.5 truncate font-mono text-[12.5px] text-slate-500 dark:text-slate-400">
+                      <div className="mt-2 truncate font-mono text-[12.5px] text-slate-500 dark:text-slate-400">
                         {m.produit_code || 'Sans code'}
                       </div>
                     </div>
@@ -318,12 +317,15 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
             if (!current) return null;
             return (
               <div className="flex flex-col text-[14.5px]">
-                <button type="button" onMouseDown={(e) => menuAction(() => onView?.(current), e)} className="flex w-full items-center px-3 py-2 text-left font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.06]">
+                {/* ⭐ FIX: ESORINA NY "Voir les détails" SY "Modifier" */}
+                {/* <button type="button" onMouseDown={(e) => menuAction(() => onView?.(current), e)} className="flex w-full items-center px-3 py-2 text-left font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.06]">
                   Voir les détails
                 </button>
                 <button type="button" onMouseDown={(e) => menuAction(() => onEdit?.(current), e)} className="flex w-full items-center px-3 py-2 text-left font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.06]">
                   Modifier
-                </button>
+                </button> */}
+
+                {/* ⭐ FIX: ATAOVY MANDÉHA NY "Exporter" SY "Supprimer" */}
                 <button type="button" onMouseDown={(e) => menuAction(() => onExport?.(current), e)} className="flex w-full items-center px-3 py-2 text-left font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.06]">
                   Exporter
                 </button>

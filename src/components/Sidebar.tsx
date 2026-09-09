@@ -1,4 +1,3 @@
-
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   LayoutDashboard, Package, Tags, Users2, Briefcase, DollarSign,
@@ -159,11 +158,11 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
       systemBorder: 'border-white/[0.12]',
       systemText: '#FFFFFF',
       systemSubtext: '#EEF2FF',
-      modalBg: '#FFFFFF',         // ⭐ FIX: White modal in Light Mode
-      modalText: '#0F172A',       // ⭐ FIX: Dark text in Light Mode
-      modalMuted: '#64748B',      // ⭐ FIX: Muted text in Light Mode
-      modalBorder: '#E2E8F0',     // ⭐ FIX: Border in Light Mode
-      modalButtonBorder: '#CBD5E1', // ⭐ FIX: Border for Annuler button
+      modalBg: '#FFFFFF',
+      modalText: '#0F172A',
+      modalMuted: '#64748B',
+      modalBorder: '#E2E8F0',
+      modalButtonBorder: '#CBD5E1',
     },
     dark: {
       bg: '#0F172A',
@@ -183,11 +182,11 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
       systemBorder: 'border-white/[0.12]',
       systemText: '#F8FAFC',
       systemSubtext: '#94A3B8',
-      modalBg: '#0F172A',         // ⭐ FIX: Dark modal in Dark Mode
-      modalText: '#F8FAFC',       // ⭐ FIX: White text in Dark Mode
-      modalMuted: '#94A3B8',      // ⭐ FIX: Muted text in Dark Mode
-      modalBorder: 'rgba(255,255,255,0.15)', // ⭐ FIX: Border in Dark Mode
-      modalButtonBorder: 'rgba(255,255,255,0.2)', // ⭐ FIX: Border for Annuler button
+      modalBg: '#0F172A',
+      modalText: '#F8FAFC',
+      modalMuted: '#94A3B8',
+      modalBorder: 'rgba(255,255,255,0.15)',
+      modalButtonBorder: 'rgba(255,255,255,0.2)',
     }
   };
 
@@ -269,8 +268,9 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
 
   return (
     <>
+      {/* ⭐ Sidebar: z-[9999] (ambany noho ny header izay z-[99999]) */}
       <aside
-        className={`fixed left-0 top-0 h-screen flex flex-col z-50 transition-all duration-300 ease-in-out border-r ${c.border}`}
+        className={`fixed left-0 top-0 h-screen flex flex-col z-[9999] transition-all duration-300 ease-in-out border-r ${c.border}`}
         style={{
           width: '268px',
           background: c.bgGradient,
@@ -290,14 +290,14 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
                 background: isLight ? 'rgba(255,255,255,0.15)' : 'rgba(16, 16, 16, 0.08)',
               }}
             >
-              <img src={logoSrc} alt="TahiryPro" className="w-10 h-10 object-contain" />
+              <img src={logoSrc} alt="Life's Art" className="w-10 h-10 object-contain" />
             </div>
             <div className="min-w-0">
               <div
                 className="text-[16.5px] font-bold tracking-tight leading-none"
                 style={{ color: c.text }}
               >
-                TahiryPro
+                Life's Art
               </div>
               <div
                 className="mt-1 text-[12.5px] font-medium tracking-wide"
@@ -385,12 +385,12 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
         `}</style>
       </aside>
 
+      {/* ⭐ Logout modal: z-[99999] - avo indrindra */}
       {showLogoutModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
           <div
             className="relative max-w-sm w-full rounded-xl shadow-2xl overflow-hidden"
             style={{
-              // ⭐ FIX: Mampiasa ny modalBg sy modalBorder mifanaraka amin'ny mode
               background: c.modalBg,
               borderColor: c.modalBorder,
               boxShadow: isDark
@@ -408,8 +408,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
             </button>
 
             <div className="flex items-center justify-center pt-6 pb-2">
-              {/* ⭐ FIX: Rehefa Light Mode dia ampiasao ny logo Light, rehefa Dark mode dia logo Dark */}
-              <img src={logoSrc} alt="TahiryPro" className="w-20 h-auto object-contain" />
+              <img src={logoSrc} alt="Life's Art" className="w-20 h-auto object-contain" />
             </div>
 
             <div
@@ -432,7 +431,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
               className="flex gap-2.5 px-5 py-3 border-t"
               style={{
                 borderColor: c.modalBorder,
-                background: isDark ? '#0F172A' : '#F8FAFC', // ⭐ FIX: Footer bg mifanaraka amin'ny mode
+                background: isDark ? '#0F172A' : '#F8FAFC',
               }}
             >
               <button
@@ -440,7 +439,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
                 onClick={() => setShowLogoutModal(false)}
                 className="flex-1 px-4 py-2 rounded-lg border text-[14.5px] font-medium transition-colors"
                 style={{
-                  borderColor: c.modalButtonBorder, // ⭐ FIX: Border miovaova arakaraka ny mode
+                  borderColor: c.modalButtonBorder,
                   color: c.modalMuted,
                 }}
               >

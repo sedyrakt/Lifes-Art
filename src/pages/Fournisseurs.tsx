@@ -1,7 +1,6 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useFournisseursData } from '../hooks/useFournisseursData';
+import { useFournisseursData, ExportPeriod } from '../hooks/useFournisseursData';
 import FournisseursHeader from '../components/fournisseurs/FournisseursHeader';
 import FournisseursStats from '../components/fournisseurs/FournisseursStats';
 import FournisseursSearchBar from '../components/fournisseurs/FournisseursSearchBar';
@@ -12,7 +11,6 @@ import ErrorModal from '../components/common/ErrorModal';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const INITIAL_STATS = { total: 0, avecContact: 0, avecEmail: 0 };
-
 
 const FournisseursSkeleton = ({ isDark }: { isDark: boolean }) => {
   const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
@@ -41,10 +39,14 @@ const FournisseursSkeleton = ({ isDark }: { isDark: boolean }) => {
 
 const Fournisseurs: React.FC = () => {
   const { isDark } = useTheme();
+  // ⭐ NOVAINA: Nakarina ny sortOption sy setSortOption
   const {
     fournisseurs, loading, refreshing, totalItems, totalPages, currentPage, setCurrentPage,
-    filters, setFilters, createFournisseur, updateFournisseur, deleteFournisseur,
-    bulkDelete, getStats, loadData
+    filters, setFilters, sortOption, setSortOption,
+    createFournisseur, updateFournisseur, deleteFournisseur,
+    bulkDelete, getStats, loadData,
+    exportPeriod, setExportPeriod, exportCustomDate, setExportCustomDate,
+    exportToExcel, exportToPDF, exportToCSV,
   } = useFournisseursData();
 
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -53,6 +55,23 @@ const Fournisseurs: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [imageError, setImageError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [reelStats, setReelStats] = useState(INITIAL_STATS);
+  const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [selectedFournisseur, setSelectedFournisseur] = useState<any>(null);
+  const [editingFournisseur, setEditingFournisseur] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [bulkDeleteTargetIds, setBulkDeleteTargetIds] = useState<number[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successTitle, setSuccessTitle] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorTitle, setErrorTitle] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const resetImageState = useCallback(() => {
     setImagePreview((prev) => { if (prev?.startsWith('blob:')) try { URL.revokeObjectURL(prev); } catch {} return null; });
@@ -91,37 +110,25 @@ const Fournisseurs: React.FC = () => {
     try { if (imagePath && window.api?.images?.delete) await window.api.images.delete(imagePath); } catch {} finally { resetImageState(); }
   }, [imagePath, resetImageState]);
 
-  const [reelStats, setReelStats] = useState(INITIAL_STATS);
   const fetchReelStats = useCallback(async () => {
     try { const data = await getStats(); setReelStats({ total: Number(data?.total || 0), avecContact: Number(data?.avec_contact || 0), avecEmail: Number(data?.avec_email || 0) }); }
     catch (err) { console.error('❌ Stats:', err); setReelStats(INITIAL_STATS); }
   }, [getStats]);
 
-  useEffect(() => { if (!loading) fetchReelStats(); }, [loading, fournisseurs, fetchReelStats]);
+  const showSuccess = useCallback((t: string, m: string) => { setSuccessTitle(t); setSuccessMessage(m); setShowSuccessModal(true); }, []);
+  const showError = useCallback((t: string, m: string) => { setErrorTitle(t); setErrorMessage(m); setShowErrorModal(true); }, []);
 
-  const [showModal, setShowModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
-  const [selectedFournisseur, setSelectedFournisseur] = useState<any>(null);
-  const [editingFournisseur, setEditingFournisseur] = useState<any>(null);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
-  const [bulkDeleteTargetIds, setBulkDeleteTargetIds] = useState<number[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [successTitle, setSuccessTitle] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorTitle, setErrorTitle] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-
-  const showSuccess = useCallback((t: string, m: string) => {
-    setSuccessTitle(t); setSuccessMessage(m); setShowSuccessModal(true);
-  }, []);
-  const showError = useCallback((t: string, m: string) => {
-    setErrorTitle(t); setErrorMessage(m); setShowErrorModal(true);
-  }, []);
+  const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
+    try {
+      let result;
+      if (format === 'excel') result = await exportToExcel(period, customDate);
+      else if (format === 'pdf') result = await exportToPDF(period, customDate);
+      else result = await exportToCSV(period, customDate);
+      if (result?.canceled) return;
+      if (result?.success === false) { showError('Erreur export', result.error || 'Impossible d\'exporter les données.'); return; }
+      showSuccess('Export réussi', `Les fournisseurs ont été exportés en ${format.toUpperCase()} (${period}${period === 'custom' ? ' - ' + customDate : ''}).`);
+    } catch (error: any) { showError('Erreur export', error?.message || 'Impossible d\'exporter les données.'); }
+  }, [exportToExcel, exportToPDF, exportToCSV, showSuccess, showError]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (!checked) { setSelectedIds(new Set()); return; }
@@ -171,13 +178,7 @@ const Fournisseurs: React.FC = () => {
     const fd = new FormData(e.currentTarget);
     const nom = String(fd.get('nom') || '').trim();
     if (!nom) { showError('Champ requis', 'Le nom est obligatoire.'); return; }
-    const data: any = {
-      nom,
-      contact: String(fd.get('contact') || '').trim(),
-      telephone: String(fd.get('telephone') || '').trim(),
-      email: String(fd.get('email') || '').trim(),
-      adresse: String(fd.get('adresse') || '').trim()
-    };
+    const data: any = { nom, contact: String(fd.get('contact') || '').trim(), telephone: String(fd.get('telephone') || '').trim(), email: String(fd.get('email') || '').trim(), adresse: String(fd.get('adresse') || '').trim() };
     if (imagePath) data.image = imagePath;
     else if (editingFournisseur?.image && imagePreview) data.image = editingFournisseur.image;
     else data.image = null;
@@ -196,14 +197,8 @@ const Fournisseurs: React.FC = () => {
     } catch (err: any) { showError('Erreur', err.message); }
   }, [editingFournisseur, imagePath, imagePreview, createFournisseur, updateFournisseur, resetImageState, loadData, fetchReelStats, showSuccess, showError]);
 
-  const handleViewFournisseur = useCallback((fournisseur: any) => {
-    if (fournisseur?.id) { setSelectedFournisseur(fournisseur); setShowViewModal(true); }
-  }, []);
-
-  const handleDeleteClick = useCallback((fournisseur: any) => {
-    if (fournisseur?.id) { setDeleteTarget(fournisseur); setShowDeleteModal(true); }
-  }, []);
-
+  const handleViewFournisseur = useCallback((fournisseur: any) => { if (fournisseur?.id) { setSelectedFournisseur(fournisseur); setShowViewModal(true); } }, []);
+  const handleDeleteClick = useCallback((fournisseur: any) => { if (fournisseur?.id) { setDeleteTarget(fournisseur); setShowDeleteModal(true); } }, []);
   const handleConfirmDelete = useCallback(async () => {
     if (!deleteTarget?.id) return;
     try {
@@ -224,47 +219,38 @@ const Fournisseurs: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentPage, setCurrentPage, safeTotalPages]);
 
+  useEffect(() => { if (!loading) fetchReelStats(); }, [loading, fournisseurs, fetchReelStats]);
   const tauxContact = reelStats.total > 0 ? Math.round((reelStats.avecContact / reelStats.total) * 100) : 0;
 
+  // ⭐ FIX: Ny onSearchChange sy onSortChange dia mampiasa ny Setter tompon'andraikitra!
   return (
-
-    <main
-      className="min-h-full w-full transition-colors duration-300"
-      style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}
-    >
+    <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
-        <FournisseursHeader onAddFournisseur={handleAddClick} refreshing={refreshing} onRefresh={loadData} isLoading={loading} totalItems={reelStats.total || totalItems} />
+        <FournisseursHeader onAddFournisseur={handleAddClick} onExport={handleExport} refreshing={refreshing} onRefresh={loadData} isLoading={loading} totalItems={reelStats.total || totalItems} />
         <FournisseursStats total={reelStats.total} avecContact={reelStats.avecContact} avecEmail={reelStats.avecEmail} tauxContact={tauxContact} />
-
+        
         <FournisseursSearchBar
           searchTerm={filters.searchTerm}
-          onSearchChange={(value) => { setFilters({ searchTerm: value }); setCurrentPage(1); setSelectedIds(new Set()); }}
-          sortOption={filters.sortOption}
-          onSortChange={(value) => { setFilters({ sortOption: value }); setCurrentPage(1); }}
+          onSearchChange={(value) => { 
+            // ⭐ FIX: Mampiasa prev state mba tsy hamafa ny filtres hafa!
+            setFilters(prev => ({ ...prev, searchTerm: value })); 
+            setCurrentPage(1); 
+            setSelectedIds(new Set()); 
+          }}
+          sortOption={sortOption} // ⭐ FIX: Nampiasa ny sortOption mivantana
+          onSortChange={(value) => { 
+            // ⭐ FIX: Ny sortOption dia state misaraka fa tsy ao amin'ny filters!
+            setSortOption(value); 
+            setCurrentPage(1); 
+          }}
         />
 
         <section className="relative overflow-hidden rounded-2xl border bg-white transition-all duration-300 dark:bg-[#0F172A]" style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0', boxShadow: isDark ? '0 4px 24px -4px rgba(0,0,0,0.35)' : '0 4px 20px -4px rgba(79,70,229,0.08)' }}>
-          {refreshing && (
-            <div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent">
-              <div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" />
-            </div>
-          )}
-
+          {refreshing && (<div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent"><div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" /></div>)}
           {loading && fournisseurs.length === 0 ? (
             <FournisseursSkeleton isDark={isDark} />
           ) : (
-            <FournisseursTable
-              fournisseurs={fournisseurs}
-              onView={handleViewFournisseur}
-              onEdit={handleEditFournisseur}
-              onDelete={handleDeleteClick}
-              onAdd={handleAddClick}
-              isDark={isDark}
-              selectedIds={selectedIds}
-              onSelectAll={handleSelectAll}
-              onSelectOne={handleSelectOne}
-              onBulkDelete={handleBulkDelete}
-            />
+            <FournisseursTable fournisseurs={fournisseurs} onView={handleViewFournisseur} onEdit={handleEditFournisseur} onDelete={handleDeleteClick} onAdd={handleAddClick} isDark={isDark} selectedIds={selectedIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne} onBulkDelete={handleBulkDelete} />
           )}
         </section>
 

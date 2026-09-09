@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ArrowDownToLine, Boxes, Wallet, Package } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -55,8 +54,9 @@ const EntreesStats: React.FC<EntreesStatsProps> = ({ totalEntries, totalQty, tot
             {stat.icon}
           </div>
           <div className="flex min-w-0 flex-col">
-            <p className="truncate text-[18px] font-bold text-slate-900 dark:text-slate-100">{stat.value}</p>
-            <p className="truncate text-[13px] font-medium text-slate-500 dark:text-slate-400">{stat.label}</p>
+            {/* ⭐ FIX: Nampitombo ho text-[15px] ny label */}
+            <p className="truncate text-[15px] font-medium text-slate-500 dark:text-slate-400">{stat.label}</p>
+            <p className="mt-0.5 truncate text-[18px] font-semibold text-slate-900 dark:text-slate-100">{stat.value}</p>
           </div>
         </div>
       ))}

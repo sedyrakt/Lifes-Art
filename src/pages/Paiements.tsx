@@ -1,3 +1,4 @@
+// src/components/paiements/Paiements.tsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
@@ -25,6 +26,7 @@ interface WindowPaymentsApi {
   delete?: (id: number) => Promise<any>;
   getStats?: () => Promise<any>;
   bulkCreate?: (data: Record<string, unknown>) => Promise<any>;
+  getAbsencesCount?: (employeId: number, mois: number, annee: number) => Promise<any>;
 }
 interface WindowApi { payments?: WindowPaymentsApi; employes?: { getAll?: (params?: Record<string, unknown>) => Promise<any>; }; settings?: any; dialog?: any; }
 declare global { interface Window { api: WindowApi; } }
@@ -74,6 +76,7 @@ export default function Paiements() {
   const ITEMS_PER_PAGE = 10;
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [presenceData, setPresenceData] = useState<{ jours_absences?: number; jours_conges?: number; heures_sup?: number; retards?: number; } | null>(null);
 
   const loadEmployes = useCallback(async () => {
     try {
@@ -97,7 +100,21 @@ export default function Paiements() {
       if (isApiFailure(response)) throw new Error(response?.error || response?.message || 'Impossible de charger les paiements.');
       const raw = extractData<any>(response, []);
       const rows = Array.isArray(raw) ? raw : Array.isArray(raw?.items) ? raw.items : Array.isArray(raw?.paiements) ? raw.paiements : [];
-      const normalized = rows.map((row: any) => ({ ...row, id: row.id != null ? Number(row.id) : undefined, employe_id: Number(row.employe_id), mois: Number(row.mois), annee: Number(row.annee), montant: toNumber(row.montant), salaire_brut: toNumber(row.salaire_brut), cnaps: toNumber(row.cnaps), ostie: toNumber(row.ostie), irsa: toNumber(row.irsa), avance: toNumber(row.avance), date_paiement: normalizeDateISO(row.date_paiement) })) as PaiementEmploye[];
+      const normalized = rows.map((row: any) => ({ 
+        ...row, 
+        id: row.id != null ? Number(row.id) : undefined, 
+        employe_id: Number(row.employe_id), 
+        mois: Number(row.mois), 
+        annee: Number(row.annee), 
+        montant: toNumber(row.montant), 
+        salaire_brut: toNumber(row.salaire_brut), 
+        cnaps: toNumber(row.cnaps), 
+        ostie: toNumber(row.ostie), 
+        irsa: toNumber(row.irsa), 
+        avance: toNumber(row.avance),
+        absences_deduction: toNumber(row.absences_deduction || 0),
+        date_paiement: normalizeDateISO(row.date_paiement) 
+      })) as PaiementEmploye[];
       setAllPaiements(normalized); setPaiements(normalized);
     } catch (error: any) {
       console.error('[Paiements] load:', error);
@@ -145,8 +162,20 @@ export default function Paiements() {
   const visibleTotal = useMemo(() => filteredPaiements.reduce((s, p) => s + toNumber(p.montant), 0), [filteredPaiements]);
   const visibleEmployees = useMemo(() => new Set(filteredPaiements.map((p) => p.employe_id)).size, [filteredPaiements]);
 
-  const handleCreate = () => { setEditingPaiement(null); setModalEmployeId(employeeFilter !== '' ? Number(employeeFilter) : null); setIsModalOpen(true); };
-  const handleEdit = (p: PaiementEmploye) => { setEditingPaiement(p); setModalEmployeId(Number(p.employe_id)); setIsModalOpen(true); };
+  const handleCreate = () => { 
+    setEditingPaiement(null); 
+    const empId = employeeFilter !== '' ? Number(employeeFilter) : null;
+    setModalEmployeId(empId); 
+    setPresenceData(null); 
+    setIsModalOpen(true); 
+  };
+
+  const handleEdit = (p: PaiementEmploye) => { 
+    setEditingPaiement(p); 
+    setModalEmployeId(Number(p.employe_id)); 
+    setPresenceData(null); 
+    setIsModalOpen(true); 
+  };
 
   const handleExportCSV = () => {
     const headers = ['Employé', 'Période', 'Brut', 'CNaPS', 'OSTIE', 'IRSA', 'Net', 'Mode', 'Statut', 'Date'];
@@ -218,9 +247,7 @@ export default function Paiements() {
       confirmText: 'Supprimer',
       onConfirm: async () => {
         try {
-          for (const id of ids) {
-            await window.api.payments.delete(id);
-          }
+          for (const id of ids) { await window.api.payments.delete(id); }
           await loadPaiements({ silent: true });
           setSelectedIds(new Set());
           setSuccessModal({ isOpen: true, title: 'Succès', message: `${ids.length} paiement(s) supprimé(s).` });
@@ -303,7 +330,6 @@ export default function Paiements() {
     try {
       const ids = Array.from(bulkSelectedIds);
       const result = await window.api.payments.bulkCreate({ ids, mois: bulkMonth, annee: bulkYear, date_paiement: bulkFolderDate, mode_paiement: 'Espèces', statut: 'Payé' });
-      
       if (result?.success) {
         const created = result.data?.created || 0;
         const skipped = result.data?.skipped || 0;
@@ -317,7 +343,6 @@ export default function Paiements() {
         } else {
            setErrorModal({ isOpen: true, title: 'Aucun paiement', message: 'Aucun paiement n\'a pu être créé.' });
         }
-
         await loadPaiements({ silent: true });
         await loadEmployes();
       } else {
@@ -332,7 +357,49 @@ export default function Paiements() {
     }
   }, [bulkSelectedIds, bulkMonth, bulkYear, bulkFolderDate, loadPaiements, loadEmployes]);
 
-  const filteredEmployes = useMemo(() => { const search = searchTerm.trim().toLowerCase(); return employes.filter((e) => { const name = `${e.prenom ?? ''} ${e.nom ?? ''}`.trim().toLowerCase(); return !search || name.includes(search); }); }, [employes, searchTerm]);
+  // ⭐ NOVAINA TANTERAKA IZAO: Ny filtrage no ahitsy mba hifanaraka amin'ny filtre rehetra
+  const filteredEmployes = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+    return employes.filter((e) => {
+      // 1. Recherche par nom
+      const name = `${e.prenom ?? ''} ${e.nom ?? ''}`.trim().toLowerCase();
+      if (search && !name.includes(search)) return false;
+
+      // 2. Filtre Employé
+      if (employeeFilter !== '' && Number(e.id) !== Number(employeeFilter)) return false;
+
+      // 3. Filtre Mois / Année / Statut (Misy ifandraisany amin'ny Paiement)
+      const targetMonth = monthFilter !== '' ? Number(monthFilter) : null;
+      const targetYear = yearFilter !== '' ? Number(yearFilter) : null;
+
+      const existingPayment = allPaiements.find(p =>
+        p.employe_id === e.id &&
+        (!targetMonth || p.mois === targetMonth) &&
+        (!targetYear || p.annee === targetYear)
+      );
+
+      if (targetMonth || targetYear) {
+        // Raha misy filtre période
+        if (statutFilter !== 'Tous') {
+          if (!existingPayment) {
+            if (statutFilter !== 'Non payé') return false;
+          } else {
+            if (existingPayment.statut !== statutFilter) return false;
+          }
+        }
+      } else if (statutFilter !== 'Tous') {
+        // Raha tsy misy filtre période, fa misy filtre Statut
+        if (statutFilter === 'Non payé') {
+          if (existingPayment) return false; // Raha efa nandoa izy dia tsy "Non payé"
+        } else {
+          const hasPaymentWithStatus = allPaiements.some(p => p.employe_id === e.id && p.statut === statutFilter);
+          if (!hasPaymentWithStatus) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [employes, searchTerm, employeeFilter, monthFilter, yearFilter, statutFilter, allPaiements]);
 
   const showSuccess = useCallback((t: string, m: string) => { setSuccessTitle(t); setSuccessMessage(m); setSuccessModal({ isOpen: true, title: t, message: m }); }, []);
   const showError = useCallback((t: string, m: string) => { setErrorTitle(t); setErrorMessage2(m); setErrorModal({ isOpen: true, title: t, message: m }); }, []);
@@ -341,91 +408,44 @@ export default function Paiements() {
   return (
     <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
-        <PaiementsHeader
-          onRefresh={() => loadPaiements({ silent: true })}
-          refreshing={refreshing}
-          onAddPaiement={handleCreate}
-          totalItems={filteredPaiements.length}
-        />
-
+        <PaiementsHeader onRefresh={() => loadPaiements({ silent: true })} refreshing={refreshing} onAddPaiement={handleCreate} totalItems={filteredPaiements.length} />
         <PaiementsStatsCards paiementsCount={filteredPaiements.length} visibleTotal={visibleTotal} visibleEmployees={visibleEmployees} statsTotalPaiements={stats.totalPaiements} />
-
         <PaiementsSearchFilter searchTerm={searchTerm} setSearchTerm={setSearchTerm} viewMode={viewMode} setViewMode={setViewMode} showFilters={showFilters} setShowFilters={setShowFilters} employeeFilter={employeeFilter} setEmployeeFilter={setEmployeeFilter} monthFilter={monthFilter} setMonthFilter={setMonthFilter} yearFilter={yearFilter} setYearFilter={setYearFilter} statutFilter={statutFilter} setStatutFilter={setStatutFilter} employes={employes} yearOptions={yearOptions} hasActiveFilters={hasActiveFilters} resetFilters={resetFilters} />
-
         <PaiementsErrorBanner errorMessage={errorMessage} onClose={() => setErrorMessage('')} />
 
         <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_4px_20px_-4px_rgba(79,70,229,0.08)] transition-all duration-300 dark:border-white/[0.1] dark:bg-[#0F172A] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.35)]">
-          {refreshing && (
-            <div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent">
-              <div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" />
-            </div>
-          )}
+          {refreshing && (<div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent"><div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" /></div>)}
           <PaiementsContent
-            loading={loading}
-            refreshing={refreshing}
-            viewMode={viewMode}
-            filteredPaiements={filteredPaiements}
-            allPaiements={allPaiements}
-            employes={employes}
-            paiements={paiements}
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={filteredPaiements.length}
-            onPageChange={setCurrentPage}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            deletingId={deletingId}
-            onValidate={handleValidate}
-            onAdd={handleCreate}
-            onOpenBulletin={handleOpenBulletin}
+            loading={loading} refreshing={refreshing} viewMode={viewMode}
+            filteredPaiements={filteredPaiements} allPaiements={allPaiements} employes={employes} paiements={paiements}
+            currentPage={currentPage} totalPages={totalPages} totalItems={filteredPaiements.length} onPageChange={setCurrentPage}
+            onEdit={handleEdit} onDelete={handleDelete} deletingId={deletingId}
+            onValidate={handleValidate} onAdd={handleCreate} onOpenBulletin={handleOpenBulletin}
             onRefresh={() => loadPaiements({ silent: true })}
-            bulkSelectedIds={bulkSelectedIds}
-            setBulkSelectedIds={setBulkSelectedIds}
-            bulkMonth={bulkMonth}
-            setBulkMonth={setBulkMonth}
-            bulkYear={bulkYear}
-            setBulkYear={setBulkYear}
-            bulkFolderDate={bulkFolderDate}
-            setBulkFolderDate={setBulkFolderDate}
-            filteredEmployes={filteredEmployes}
-            getPaymentForEmployee={getPaymentForEmployee}
-            handleBulkPay={handleBulkPay}
-            handleBulkGenerate={handleBulkGenerate}
-            isGeneratingBulk={isGeneratingBulk}
-            selectedIds={selectedIds}
-            onSelectAll={handleSelectAll}
-            onSelectOne={handleSelectOne}
-            onBulkDelete={handleBulkDelete}
+            bulkSelectedIds={bulkSelectedIds} setBulkSelectedIds={setBulkSelectedIds}
+            bulkMonth={bulkMonth} setBulkMonth={setBulkMonth} bulkYear={bulkYear} setBulkYear={setBulkYear}
+            bulkFolderDate={bulkFolderDate} setBulkFolderDate={setBulkFolderDate}
+            filteredEmployes={filteredEmployes} getPaymentForEmployee={getPaymentForEmployee}
+            handleBulkPay={handleBulkPay} handleBulkGenerate={handleBulkGenerate} isGeneratingBulk={isGeneratingBulk}
+            selectedIds={selectedIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne} onBulkDelete={handleBulkDelete}
           />
         </section>
       </div>
 
       <PaiementsModals
-        isModalOpen={isModalOpen}
-        setIsModalOpen={setIsModalOpen}
-        editingPaiement={editingPaiement}
-        setEditingPaiement={setEditingPaiement}
-        modalEmployeId={modalEmployeId}
-        setModalEmployeId={setModalEmployeId}
-        employes={employes}
-        onModalSuccess={handleModalSuccess}
-        showCompanyModal={showCompanyModal}
-        setShowCompanyModal={setShowCompanyModal}
-        onCompanySave={handleCompanyModalSave}
-        onCompanyGenerate={handleCompanyModalGenerate}
-        isDark={isDark}
-        company={company}
-        buttonLabel={buttonLabel}
-        bulletinTargetPaiement={bulletinTargetPaiement}
-        setBulletinTargetPaiement={setBulletinTargetPaiement}
-        confirmModal={confirmModal}
-        setConfirmModal={setConfirmModal}
-        successModal={successModal}
-        setSuccessModal={setSuccessModal}
-        errorModal={errorModal}
-        setErrorModal={setErrorModal}
-        warningModal={warningModal}
-        setWarningModal={setWarningModal}
+        isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen}
+        editingPaiement={editingPaiement} setEditingPaiement={setEditingPaiement}
+        modalEmployeId={modalEmployeId} setModalEmployeId={setModalEmployeId}
+        employes={employes} allPaiements={allPaiements} onModalSuccess={handleModalSuccess}
+        showCompanyModal={showCompanyModal} setShowCompanyModal={setShowCompanyModal}
+        onCompanySave={handleCompanyModalSave} onCompanyGenerate={handleCompanyModalGenerate}
+        isDark={isDark} company={company} buttonLabel={buttonLabel}
+        bulletinTargetPaiement={bulletinTargetPaiement} setBulletinTargetPaiement={setBulletinTargetPaiement}
+        confirmModal={confirmModal} setConfirmModal={setConfirmModal}
+        successModal={successModal} setSuccessModal={setSuccessModal}
+        errorModal={errorModal} setErrorModal={setErrorModal}
+        warningModal={warningModal} setWarningModal={setWarningModal}
+        presenceData={presenceData} setPresenceData={setPresenceData}
       />
     </main>
   );

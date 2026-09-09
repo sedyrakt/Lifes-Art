@@ -1,9 +1,8 @@
 // src/pages/Produits.tsx
-import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { CheckCircle, XCircle, Plus } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useProduitsData } from '../hooks/useProduitsData';
-import { useCommandesData } from '../hooks/useCommandesData';
+import { useProduitsData, ExportPeriod } from '../hooks/useProduitsData';
 
 import ProduitsHeader from '../components/produits/ProduitsHeader';
 import ProduitsStats from '../components/produits/ProduitsStats';
@@ -40,23 +39,52 @@ const Produits: React.FC = () => {
   const { isDark } = useTheme();
   const {
     produits, categories, fournisseurs, loadReferences,
-    loading, refreshing, setRefreshing, totalItems, totalPages,
+    loading, refreshing, totalItems, totalPages,
     currentPage, setCurrentPage, filters, setFilters,
     sortOption, setSortOption, generateCode,
     createProduit, updateProduit, deleteProduit, getProduitById,
-    bulkUpdateStatus, bulkDelete, getStats, loadData
+    bulkUpdateStatus, bulkDelete, getStats, loadData,
+    exportPeriod, setExportPeriod, exportCustomDate, setExportCustomDate,
+    exportToExcel, exportToPDF, exportToCSV,
   } = useProduitsData();
 
-  const {
-    clients: commandeClients, produits: commandeProduits, selectedClientId,
-    setSelectedClientId, selectedProduits: commandeSelectedProduits,
-    handleAddProduit: commandeAddProduit, handleUpdateQuantite: commandeUpdateQuantite,
-    handleRemoveProduit: commandeRemoveProduit, clearPanier: commandeClearPanier,
-    createCommande, refreshReferences
-  } = useCommandesData();
+  // ===== STATE HO AN'NY COMMANDE MODAL (local, tsy mampiasa useCommandesData) =====
+  const [commandeClients, setCommandeClients] = useState<any[]>([]);
+  const [commandeProduits, setCommandeProduits] = useState<any[]>([]);
+  const [commandeSelectedClientId, setCommandeSelectedClientId] = useState<number | null>(null);
+  const [commandeSelectedProduits, setCommandeSelectedProduits] = useState<{ id: number; quantite: number; prix_unitaire?: number }[]>([]);
+  const [showCommandeModal, setShowCommandeModal] = useState(false);
+  const [montantPayeCommande, setMontantPayeCommande] = useState(0);
+  const [commandeLoading, setCommandeLoading] = useState(false);
 
+  // ===== STATE PRODUIT =====
   const [reelStats, setReelStats] = useState({ totalItems: 0, totalStock: 0, alertes: 0, totalValeur: 0 });
+  const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [selectedProduit, setSelectedProduit] = useState<any>(null);
+  const [editingProduit, setEditingProduit] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [bulkStatusData, setBulkStatusData] = useState<{ ids: number[]; newStatus: string } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [successTitle, setSuccessTitle] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorTitle, setErrorTitle] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
+  // ===== CALLBACKS =====
+  const showSuccess = useCallback((t: string, m: string) => {
+    setSuccessTitle(t); setSuccessMessage(m); setShowSuccessModal(true);
+  }, []);
+  const showError = useCallback((t: string, m: string) => {
+    setErrorTitle(t); setErrorMessage(m); setShowErrorModal(true);
+  }, []);
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  // ===== FETCH STATS =====
   const fetchReelStats = useCallback(async () => {
     try {
       const data = await getStats();
@@ -72,31 +100,27 @@ const Produits: React.FC = () => {
 
   useEffect(() => { if (!loading) fetchReelStats(); }, [loading, fetchReelStats]);
 
-  const [showModal, setShowModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showCommandeModal, setShowCommandeModal] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showErrorModal, setShowErrorModal] = useState(false);
-  const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
-  const [selectedProduit, setSelectedProduit] = useState<any>(null);
-  const [editingProduit, setEditingProduit] = useState<any>(null);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
-  const [bulkStatusData, setBulkStatusData] = useState<{ ids: number[]; newStatus: string } | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [successTitle, setSuccessTitle] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorTitle, setErrorTitle] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  // ===== HANDLE EXPORT =====
+  const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
+    try {
+      let result;
+      if (format === 'excel') result = await exportToExcel(period, customDate);
+      else if (format === 'pdf') result = await exportToPDF(period, customDate);
+      else result = await exportToCSV(period, customDate);
 
-  const showSuccess = useCallback((t: string, m: string) => {
-    setSuccessTitle(t); setSuccessMessage(m); setShowSuccessModal(true);
-  }, []);
-  const showError = useCallback((t: string, m: string) => {
-    setErrorTitle(t); setErrorMessage(m); setShowErrorModal(true);
-  }, []);
-  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+      if (result?.canceled) return;
+      if (result?.success === false) {
+        showError('Erreur export', result.error || 'Impossible d\'exporter les données.');
+        return;
+      }
 
+      showSuccess('Export réussi', `Les produits ont été exportés en ${format.toUpperCase()} (${period}${period === 'custom' ? ' - ' + customDate : ''}).`);
+    } catch (error: any) {
+      showError('Erreur export', error?.message || 'Impossible d\'exporter les données.');
+    }
+  }, [exportToExcel, exportToPDF, exportToCSV, showSuccess, showError]);
+
+  // ===== HANDLE SELECT ALL / ONE =====
   const handleSelectAll = useCallback((checked: boolean) => {
     if (!checked) { clearSelection(); return; }
     const ids = produits.map((p: any) => Number(p.id)).filter((id: number) => Number.isInteger(id) && id > 0);
@@ -107,6 +131,7 @@ const Produits: React.FC = () => {
     setSelectedIds(prev => { const n = new Set(prev); if (checked) n.add(id); else n.delete(id); return n; });
   }, []);
 
+  // ===== HANDLE BULK =====
   const handleBulkUpdateStatus = useCallback((ids: number[], newStatus: string) => {
     const v = ids.map(Number).filter(id => Number.isInteger(id) && id > 0);
     if (!v.length) { showError('Sélection invalide', 'Aucun produit valide.'); return; }
@@ -149,31 +174,114 @@ const Produits: React.FC = () => {
     }
   }, [deleteTarget, bulkDelete, clearSelection, showError, showSuccess, loadData, fetchReelStats]);
 
+  // ===== HANDLE COMMANDE MODAL =====
+  const loadCommandeReferences = useCallback(async () => {
+    setCommandeLoading(true);
+    try {
+      const [clientsRes, produitsRes] = await Promise.all([
+        window.api.clients.getAll({ limit: 1000 }),
+        window.api.products.getAll({ status: 'actif', limit: 500 }),
+      ]);
+      if (clientsRes?.success) setCommandeClients(clientsRes.data || []);
+      if (produitsRes?.success) setCommandeProduits(produitsRes.data || []);
+    } catch (err) {
+      console.error('❌ [Produits] Erreur chargement commande refs:', err);
+      showError('Erreur', 'Impossible de charger les clients et produits.');
+    } finally {
+      setCommandeLoading(false);
+    }
+  }, [showError]);
+
   const handleNewCommande = useCallback(async (produit: any) => {
     if (!produit?.id) return;
     try {
-      await refreshReferences();
-      commandeAddProduit(Number(produit.id), 1);
+      await loadCommandeReferences();
+      // Ajouter le produit initial
+      setCommandeSelectedProduits([{ id: Number(produit.id), quantite: 1, prix_unitaire: Number(produit.prix_vente) || 0 }]);
+      setMontantPayeCommande(0);
+      setCommandeSelectedClientId(null);
       setShowCommandeModal(true);
     } catch (err: any) {
       showError('Erreur de chargement', err?.message || 'Impossible de charger les clients et produits.');
     }
-  }, [refreshReferences, commandeAddProduit, showError]);
+  }, [loadCommandeReferences, showError]);
+
+  // Handlers pour le modal commande
+  const handleAddProduitCommande = useCallback((id: number, quantite: number, prix_unitaire?: number) => {
+    setCommandeSelectedProduits(prev => {
+      const existing = prev.find(item => item.id === id);
+      if (existing) {
+        return prev.map(item => item.id === id ? { ...item, quantite: item.quantite + quantite } : item);
+      }
+      return [...prev, { id, quantite, prix_unitaire: prix_unitaire || 0 }];
+    });
+  }, []);
+
+  const handleUpdateQuantiteCommande = useCallback((id: number, quantite: number) => {
+    setCommandeSelectedProduits(prev => prev.map(item => item.id === id ? { ...item, quantite } : item));
+  }, []);
+
+  const handleRemoveProduitCommande = useCallback((id: number) => {
+    setCommandeSelectedProduits(prev => prev.filter(item => item.id !== id));
+  }, []);
+
+  const handleClearPanierCommande = useCallback(() => {
+    setCommandeSelectedProduits([]);
+    setCommandeSelectedClientId(null);
+    setMontantPayeCommande(0);
+  }, []);
 
   const handleSubmitCommande = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!selectedClientId) { showError('Client requis', 'Sélectionnez un client.'); return; }
-    if (!commandeSelectedProduits || commandeSelectedProduits.length === 0) { showError('Panier vide', 'Ajoutez au moins un produit.'); return; }
+    if (!commandeSelectedClientId) { showError('Client requis', 'Sélectionnez un client.'); return; }
+    if (!commandeSelectedProduits.length) { showError('Panier vide', 'Ajoutez au moins un produit.'); return; }
+
+    const client = commandeClients.find(c => Number(c.id) === Number(commandeSelectedClientId));
+    if (!client) { showError('Client introuvable', 'Client non trouvé.'); return; }
+
+    let totalHT = 0;
+    let totalTVA = 0;
+    const productDetails = commandeSelectedProduits.map(item => {
+      const produit = commandeProduits.find(p => Number(p.id) === Number(item.id));
+      if (!produit) throw new Error(`Produit ${item.id} non trouvé`);
+      const quantity = Number(item.quantite);
+      if (!Number.isInteger(quantity) || quantity <= 0) throw new Error(`Quantité invalide pour ${produit.nom}`);
+      if (quantity > Number(produit.quantite_stock || 0)) throw new Error(`Stock insuffisant pour ${produit.nom}`);
+      const lineTotal = quantity * Number(produit.prix_vente || 0);
+      totalHT += lineTotal;
+      const rate = (produit.tva_rate !== undefined && produit.tva_rate !== null && produit.tva_rate !== '') ? Number(produit.tva_rate) : 0.2;
+      totalTVA += lineTotal * rate;
+      return { id: produit.id, name: produit.nom, price: Number(produit.prix_vente || 0), quantity, tva_rate: rate };
+    });
+
+    const totalTTC = totalHT + totalTVA;
+    const montantPaye = Math.max(0, Math.min(totalTTC, Number(montantPayeCommande || 0)));
+    const statutPaiement = montantPaye <= 0 ? 'Non payé' : montantPaye >= totalTTC ? 'Payé' : 'Partiel';
+    const montantRestant = Math.max(0, totalTTC - montantPaye);
+
+    const payload = {
+      client_nom: client.nom,
+      client_id: Number(commandeSelectedClientId),
+      products: productDetails,
+      total_ht: totalHT,
+      total_ttc: totalTTC,
+      statut_paiement: statutPaiement,
+      montant_paye: montantPaye,
+      montant_restant: montantRestant,
+    };
+
     try {
-      await createCommande(selectedClientId, commandeSelectedProduits);
+      const result = await window.api.orders.create(payload);
+      if (!result?.success) throw new Error(result?.error || 'Erreur création commande');
       showSuccess('Commande créée', 'Commande enregistrée.');
       setShowCommandeModal(false);
-      commandeClearPanier(); setSelectedClientId(null);
+      handleClearPanierCommande();
     } catch (err: any) {
       showError('Erreur', err?.message || 'Impossible de créer la commande.');
     }
-  }, [selectedClientId, commandeSelectedProduits, createCommande, commandeClearPanier, setSelectedClientId, showError, showSuccess]);
+  }, [commandeSelectedClientId, commandeSelectedProduits, commandeClients, commandeProduits, montantPayeCommande, showError, showSuccess, handleClearPanierCommande]);
 
+  // ===== HANDLE PRODUIT CRUD =====
   const handleViewProduit = useCallback(async (id: number) => {
     if (!Number.isInteger(id) || id <= 0) return;
     try {
@@ -218,7 +326,7 @@ const Produits: React.FC = () => {
     finally { setShowDeleteModal(false); setDeleteTarget(null); }
   }, [deleteTarget, deleteProduit, showError, showSuccess, loadData, fetchReelStats]);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmitProduit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const fd = new FormData(form);
@@ -306,14 +414,16 @@ const Produits: React.FC = () => {
   }, []);
 
   return (
-    <div
-      className="min-h-screen w-full transition-colors duration-300"
-      style={{
-        background: isDark ? '#0F172A' : '#EEF2FF',
-      }}
-    >
+    <div className="min-h-screen w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
-        <ProduitsHeader onAddProduit={handleNewProduit} onOpenStats={() => {}} refreshing={refreshing} onRefresh={loadData} totalItems={totalItems} />
+        <ProduitsHeader
+          onAddProduit={handleNewProduit}
+          onOpenStats={() => {}}
+          onExport={handleExport}
+          refreshing={refreshing}
+          onRefresh={loadData}
+          totalItems={totalItems}
+        />
         <ProduitsStats totalItems={reelStats.totalItems} totalStock={reelStats.totalStock} alertes={reelStats.alertes} totalValeur={reelStats.totalValeur} refreshing={refreshing} />
         
         <ProduitsSearchBar
@@ -330,14 +440,12 @@ const Produits: React.FC = () => {
           hasActiveFilters={hasActiveFilters}
         />
 
-        {/* SECTION - BG WHITE LIGHT / #0F172A DARK */}
         <section className="relative overflow-hidden rounded-2xl border transition-all duration-300" style={{ background: isDark ? '#0F172A' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0', boxShadow: isDark ? '0 4px 24px -4px rgba(0,0,0,0.35)' : '0 4px 20px -4px rgba(79,70,229,0.08)' }}>
           {refreshing && (
             <div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent">
               <div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" />
             </div>
           )}
-          {/* ⭐ FANOVANA: Raha efa misy produits, TSY aseho intsony ny skeleton rehefa pagination */}
           {loading && produits.length === 0 ? (
             <ProduitsSkeleton isDark={isDark} />
           ) : (
@@ -368,13 +476,13 @@ const Produits: React.FC = () => {
           </div>
         )}
 
-        <ProduitsModalForm isOpen={showModal} onClose={handleCloseProductModal} onSubmit={handleSubmit} editingProduit={editingProduit} categories={categories} fournisseurs={fournisseurs} generateCode={generateCode} isDark={isDark} />
+        <ProduitsModalForm isOpen={showModal} onClose={handleCloseProductModal} onSubmit={handleSubmitProduit} editingProduit={editingProduit} categories={categories} fournisseurs={fournisseurs} generateCode={generateCode} isDark={isDark} />
         {showViewModal && selectedProduit && (
           <ProduitsViewModal produit={selectedProduit} onClose={() => setShowViewModal(false)} onEdit={() => { setShowViewModal(false); handleEditProduit(selectedProduit); }} onNewCommande={() => { setShowViewModal(false); handleNewCommande(selectedProduit); }} getStatusColor={getStatusColor} getStatusIcon={getStatusIcon} isDark={isDark} />
         )}
         <ConfirmModal isOpen={showDeleteModal} onClose={() => { setShowDeleteModal(false); setDeleteTarget(null); }} onConfirm={() => deleteTarget?.type === 'bulk' ? handleConfirmBulkDelete() : handleConfirmSingleDelete()} title={deleteModalTitle} message={deleteModalMessage} confirmText="Supprimer" cancelText="Annuler" confirmColor="red" isDark={isDark} />
         <ConfirmModal isOpen={showBulkStatusModal} onClose={() => { setShowBulkStatusModal(false); setBulkStatusData(null); }} onConfirm={handleConfirmBulkStatusUpdate} title="Mise à jour en lot" message={`Changer ${bulkStatusData?.ids?.length || 0} produit(s) en "${bulkStatusData?.newStatus === 'actif' ? 'Actif' : 'Inactif'}" ?`} confirmText="Confirmer" cancelText="Annuler" confirmColor="green" isDark={isDark} />
-        <CommandesModalForm isOpen={showCommandeModal} onClose={() => { setShowCommandeModal(false); commandeClearPanier(); setSelectedClientId(null); }} onSubmit={handleSubmitCommande} clients={commandeClients} produits={commandeProduits} selectedClientId={selectedClientId} onClientChange={setSelectedClientId} selectedProduits={commandeSelectedProduits} onAddProduit={commandeAddProduit} onUpdateQuantite={commandeUpdateQuantite} onRemoveProduit={commandeRemoveProduit} onClearPanier={commandeClearPanier} isDark={isDark} />
+        <CommandesModalForm isOpen={showCommandeModal} onClose={() => { setShowCommandeModal(false); handleClearPanierCommande(); }} onSubmit={handleSubmitCommande} clients={commandeClients} produits={commandeProduits} selectedClientId={commandeSelectedClientId} onClientChange={setCommandeSelectedClientId} selectedProduits={commandeSelectedProduits} onAddProduit={handleAddProduitCommande} onUpdateQuantite={handleUpdateQuantiteCommande} onRemoveProduit={handleRemoveProduitCommande} onClearPanier={handleClearPanierCommande} isDark={isDark} montantPaye={montantPayeCommande} onMontantPayeChange={setMontantPayeCommande} />
         <SuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} title={successTitle} message={successMessage} buttonText="OK" autoCloseDelay={3000} />
         <ErrorModal isOpen={showErrorModal} onClose={() => setShowErrorModal(false)} title={errorTitle} message={errorMessage} buttonText="OK" autoCloseDelay={4000} />
       </div>

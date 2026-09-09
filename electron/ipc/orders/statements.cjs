@@ -1,4 +1,3 @@
-// electron/ipc/orders/statements.cjs
 'use strict';
 
 const { getDb } = require('../../database/connection.cjs');
@@ -27,7 +26,6 @@ function prepareStatements() {
       WHERE id = ?
     `);
 
-    // ⭐ FIX: LEFT JOIN clients ho an'ny téléphone
     const stmtGetById = db.prepare(`
       SELECT c.*, 'CMD-' || printf('%06d', c.id) AS numero,
         cl.telephone AS client_telephone,
@@ -46,7 +44,9 @@ function prepareStatements() {
       SELECT d.id, d.commande_id, d.produit_id,
         COALESCE(p.nom, 'Produit') AS produit_nom,
         COALESCE(p.code, '') AS produit_code,
-        d.quantite, d.prix_unitaire, d.total, d.total AS total_ligne, d.tva_rate
+        d.quantite, d.prix_unitaire, d.total, d.total AS total_ligne,
+        d.tva_rate, 
+        COALESCE(p.tva_rate, 0) AS produit_tva_rate
       FROM details_commandes d
       LEFT JOIN produits p ON p.id = d.produit_id
       WHERE d.commande_id = ?
@@ -57,14 +57,15 @@ function prepareStatements() {
       SELECT d.produit_id,
         COALESCE(p.nom, 'Produit') AS produit_nom,
         COALESCE(p.code, '') AS produit_code,
-        d.quantite, d.prix_unitaire, d.total, d.total AS total_ligne, d.tva_rate
+        d.quantite, d.prix_unitaire, d.total, d.total AS total_ligne,
+        d.tva_rate,
+        COALESCE(p.tva_rate, 0) AS produit_tva_rate
       FROM details_commandes d
       LEFT JOIN produits p ON p.id = d.produit_id
       WHERE d.commande_id = ?
       ORDER BY d.id ASC
     `);
 
-    // ⭐ FIX: JOIN clients ho an'ny téléphone
     const stmtGetByClient = db.prepare(`
       SELECT c.*, 'CMD-' || printf('%06d', c.id) AS numero,
         cl.telephone AS client_telephone
@@ -74,7 +75,6 @@ function prepareStatements() {
       ORDER BY c.date_commande DESC
     `);
 
-    // ⭐ FIX: JOIN clients ho an'ny téléphone
     const stmtGetByStatus = db.prepare(`
       SELECT c.*, 'CMD-' || printf('%06d', c.id) AS numero,
         cl.telephone AS client_telephone
@@ -84,7 +84,6 @@ function prepareStatements() {
       ORDER BY c.date_commande DESC
     `);
 
-    // ⭐ FIX: JOIN clients ho an'ny téléphone
     const stmtGetByDateRange = db.prepare(`
       SELECT c.*, 'CMD-' || printf('%06d', c.id) AS numero,
         cl.telephone AS client_telephone
@@ -186,7 +185,7 @@ function prepareStatements() {
       stmtUpdatePaiement, stmtGetDetteStats
     };
 
-    log('✅ [orders.statements] Statements préparés (Avec téléphone client + TVA dynamique)');
+    log('✅ [orders.statements] Statements préparés (TVA dynamique)');
     return true;
 
   } catch (err) {

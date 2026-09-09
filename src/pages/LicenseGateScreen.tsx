@@ -1,20 +1,9 @@
 // src/pages/LicenseGateScreen.tsx
 import React, { useEffect, useState } from 'react';
 import {
-  ArrowRight,
-  Cloud,
-  CreditCard,
-  KeyRound,
-  LifeBuoy,
-  Loader2,
-  Moon,
-  ShieldCheck,
-  Sun,
-  XCircle,
-  Zap,
-  BarChart3,
-  Users as UsersIcon,
-  LayoutDashboard,
+  ArrowRight, Cloud, CreditCard, KeyRound, LifeBuoy, Loader2,
+  Moon, ShieldCheck, Sun, XCircle, Zap, BarChart3,
+  Users as UsersIcon, LayoutDashboard, CheckCircle2
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
@@ -97,15 +86,15 @@ const SkeletonLicense = () => {
 
   return (
     <div className={`flex min-h-screen w-full items-center justify-center p-3 ${isDark ? 'bg-[#0F172A]' : 'bg-white'}`}>
-      <div className="flex w-full max-w-[980px] overflow-hidden rounded-xl border" style={{ background: isDark ? '#0F172A' : '#FFFFFF', borderColor, boxShadow: isDark ? '0 25px 50px -12px rgba(0,0,0,0.6)' : '0 25px 50px -12px rgba(79,70,229,0.25)' }}>
-        <div className="hidden w-1/2 flex-col justify-between border-r p-5 lg:flex" style={{ background: isDark ? '#1E293B' : '#EEF2FF', borderColor }}>
+      <div className="flex w-full max-w-[1000px] overflow-hidden rounded-xl border" style={{ background: isDark ? '#0F172A' : '#FFFFFF', borderColor, boxShadow: isDark ? '0 20px 50px -12px rgba(0,0,0,0.6)' : '0 20px 50px -12px rgba(79,70,229,0.25)' }}>
+        <div className="hidden w-1/2 flex-col justify-between border-r p-6 lg:flex" style={{ background: isDark ? '#1E293B' : '#EEF2FF', borderColor }}>
           <div>
-            <div className="mb-6 flex items-center gap-2"><Skeleton className="h-7 w-7 rounded-lg" /><Skeleton className="h-3 w-16" /></div>
+            <div className="mb-4 flex items-center gap-2"><Skeleton className="h-7 w-7 rounded-lg" /><Skeleton className="h-3 w-16" /></div>
             <Skeleton className="mb-1 h-6 w-32" /><Skeleton className="h-3 w-48" />
           </div>
           <div className="space-y-2"><Skeleton className="h-7 w-full" /><Skeleton className="h-7 w-full" /><Skeleton className="h-3 w-28" /><Skeleton className="h-8 w-full" /></div>
         </div>
-        <div className="flex w-full flex-col justify-center p-5 lg:w-1/2">
+        <div className="flex w-full flex-col justify-center p-6 lg:w-1/2">
           <div className="space-y-4"><Skeleton className="h-6 w-32" /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /><Skeleton className="h-3 w-24" /><Skeleton className="h-8 w-full" /></div>
         </div>
       </div>
@@ -136,24 +125,45 @@ const LicenseGateScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [isPageLoading, setIsPageLoading] = useState(true);
 
   const logoSrc = isDark ? LOGO_DARK : LOGO_LIGHT;
   const backgroundImage = "url('./images/abstract3.jpeg')";
+  
+  // ⭐ Overlay Light nohenina (0.85 / 0.35)
   const bgOverlay = isDark
     ? 'linear-gradient(to right, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.55) 100%)'
-    : 'linear-gradient(to right, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.45) 100%)';
+    : 'linear-gradient(to right, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.35) 100%)';
 
   const surface = isDark ? '#0F172A' : '#FFFFFF';
   const surfaceAlt = isDark ? '#1E293B' : '#EEF2FF';
   const borderColor = isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0';
   const textColor = isDark ? '#F8FAFC' : '#0F172A';
   const mutedColor = isDark ? '#94A3B8' : '#64748B';
-  const shadow = isDark ? '0 25px 50px -12px rgba(0,0,0,0.6)' : '0 25px 50px -12px rgba(79,70,229,0.25)';
+  
+  // ⭐ Compact Premium: shadow lalina sy mafy
+  const shadow = isDark ? '0 20px 50px -12px rgba(0,0,0,0.7)' : '0 20px 50px -12px rgba(79,70,229,0.25)';
   const primaryBg = isDark ? 'rgba(79,70,229,0.12)' : 'rgba(79,70,229,0.06)';
 
-  // ⭐ NOUVEAU : fond indigo pour le panneau droite en mode light
-  const rightBoxBg = isDark ? surface : surfaceAlt; // #EEF2FF
+  // ⭐ Fotsy tanteraka ny RightBox rehefa mode light
+  const rightBoxBg = isDark ? surface : '#FFFFFF';
+
+  // ⭐ RESUMÉ FOHY: Nohafohezina ny lisitra License!
+  const licenseFeatures = [
+    "Activation sécurisée & cryptée.",
+    "Packages Standard, Premium & Illimité.",
+    "Validité contrôlée (date précise).",
+    "Fonctionnalités selon votre package."
+  ];
+
+  // ⭐ FANOVANA: Badges misy loko samihafa (Indigo, Emerald, Amber, Cyan)
+  const licenseBadges = [
+    { icon: ShieldCheck, title: 'Crypté', color: '#4F46E5' },
+    { icon: KeyRound, title: 'Sécurisé', color: '#10B981' },
+    { icon: CreditCard, title: 'Valide', color: '#F59E0B' },
+    { icon: Zap, title: 'Illimité', color: '#06B6D4' }
+  ];
 
   useEffect(() => {
     const timer = setTimeout(() => setIsPageLoading(false), 400);
@@ -177,10 +187,11 @@ const LicenseGateScreen: React.FC = () => {
     try {
       const result = await activateWithCode(activationCode.trim());
       if (result.success) {
+        setSuccessMessage('Licence activée avec succès ! Vous allez être redirigé...');
         setShowSuccess(true);
         setTimeout(() => {
           navigate(isAuthenticated ? '/dashboard' : '/login', { replace: true });
-        }, 2000);
+        }, 2500); 
       } else {
         setError(result.message || "Code d'activation invalide");
       }
@@ -197,6 +208,7 @@ const LicenseGateScreen: React.FC = () => {
       setActivationCode('');
       setError(null);
       setShowSuccess(false);
+      setSuccessMessage('');
     } catch {
       setError('Impossible de réinitialiser la licence.');
     }
@@ -206,7 +218,7 @@ const LicenseGateScreen: React.FC = () => {
     return <SkeletonLicense />;
   }
 
-  // Si licence active → affiche la page "licence active" (style identique)
+  // Si licence active → affiche la page "licence active"
   if (licenseIsValid && licenseIsActive) {
     const expiryDate = expirationDate ? new Date(expirationDate) : null;
     const formattedExpiry = expiryDate
@@ -225,17 +237,18 @@ const LicenseGateScreen: React.FC = () => {
           {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
         </button>
 
-        <div className="relative z-10 flex w-full max-w-[980px] overflow-hidden rounded-xl border" style={{ background: surface, borderColor, boxShadow: shadow }}>
+        {/* ⭐ Compact Premium: max-w-[1000px], p-6, max-h-[200px] */}
+        <div className="relative z-10 flex w-full max-w-[1000px] overflow-hidden rounded-xl border" style={{ background: surface, borderColor, boxShadow: shadow }}>
           {/* LEFT PANEL */}
-          <div className="hidden w-1/2 flex-col justify-between border-r p-5 lg:flex" style={{ background: surface, borderColor }}>
-            <div className="space-y-6">
-              <div className="space-y-3">
+          <div className="hidden w-1/2 flex-col justify-between border-r p-6 lg:flex" style={{ background: surface, borderColor }}>
+            <div className="space-y-4">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'linear-gradient(135deg, #4F46E5, #4338CA)', boxShadow: `0 2px 8px ${primaryBg}` }}>
                     <Cloud className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <h1 className="text-[15px] font-bold" style={{ color: textColor }}>TahiryPro ERP</h1>
+                    <h1 className="text-[15px] font-bold" style={{ color: textColor }}>Life's Art ERP</h1>
                     <p className="text-[12px] font-medium" style={{ color: mutedColor }}>Enterprise Solution</p>
                   </div>
                 </div>
@@ -245,64 +258,63 @@ const LicenseGateScreen: React.FC = () => {
                 </div>
               </div>
 
-              <div className="relative overflow-hidden rounded-lg border mx-auto w-full max-w-[400px]" style={{ borderColor, background: surface, boxShadow: isDark ? '0 4px 15px rgba(0,0,0,0.4)' : '0 4px 15px rgba(79,70,229,0.1)' }}>
-                <img src={isDark ? MINIATURE_DARK_PATH : MINIATURE_LIGHT_PATH} alt="Dashboard Preview" className="w-full h-auto object-contain max-h-[300px]" />
+              {/* ⭐ Compact: max-h-[200px] */}
+              <div className="relative overflow-hidden rounded-lg border mx-auto w-full max-w-[380px]" style={{ borderColor, background: surface, boxShadow: isDark ? '0 4px 15px rgba(0,0,0,0.4)' : '0 4px 15px rgba(79,70,229,0.1)' }}>
+                <img src={isDark ? MINIATURE_DARK_PATH : MINIATURE_LIGHT_PATH} alt="Dashboard Preview" className="w-full h-auto object-contain max-h-[200px]" />
               </div>
 
-              <div className="space-y-2">
-                <p className="text-[13px] font-semibold" style={{ color: textColor }}>Pourquoi choisir TahiryPro ?</p>
-                {[
-                  "Gestion complète : Produits, Ventes, Achats, Stock & RH.",
-                  "Tableaux de bord en temps réel pour vos décisions.",
-                  "Sécurité des données et accès multi-utilisateurs."
-                ].map((text, i) => (
+              <div className="space-y-1.5">
+
+                {licenseFeatures.map((text, i) => (
                   <div key={i} className="flex items-start gap-2">
-                    <ShieldCheck size={15} className="mt-0.5 shrink-0" style={{ color: '#4F46E5' }} />
-                    <span className="text-[13px] leading-5" style={{ color: mutedColor }}>{text}</span>
+                    <ShieldCheck size={15} className="mt-0.5 shrink-0" style={{ color: licenseBadges[i % 4].color }} />
+                    <span className="text-[13px] leading-snug" style={{ color: mutedColor }}>{text}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-1 mt-6">
-              {[{ icon: ShieldCheck, title: 'Sécurisé' }, { icon: BarChart3, title: 'Analytics' }, { icon: UsersIcon, title: 'Équipe' }, { icon: LayoutDashboard, title: 'Dashboard' }].map((item, i) => (
+            {/* ⭐ Compact: mt-4, Icon lokony samihafa */}
+            <div className="grid grid-cols-2 gap-1.5 mt-4">
+              {licenseBadges.map((item, i) => (
                 <div key={i} className="flex items-center gap-1.5 rounded-lg border px-2 py-1.5" style={{ borderColor }}>
-                  <item.icon size={12} className="text-brand-500" />
+                  <item.icon size={12} style={{ color: item.color }} />
                   <span className="text-[12px] font-medium truncate" style={{ color: textColor }}>{item.title}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* RIGHT PANEL - ⭐ INDIGO EN MODE LIGHT */}
-          <div className="flex w-full flex-col justify-between p-5 lg:w-1/2" style={{ background: rightBoxBg }}>
-            <div className="mb-4 flex items-center gap-2 lg:hidden">
+          {/* RIGHT PANEL - FOTSY */}
+          <div className="flex w-full flex-col justify-between p-6 lg:w-1/2" style={{ background: rightBoxBg }}>
+            <div className="mb-3 flex items-center gap-2 lg:hidden">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'linear-gradient(135deg, #4F46E5, #4338CA)' }}>
                 <Cloud className="h-3.5 w-3.5 text-white" />
               </div>
-              <span className="text-[14px] font-bold" style={{ color: textColor }}>TahiryPro</span>
+              <span className="text-[14px] font-bold" style={{ color: textColor }}>Life's Art</span>
             </div>
 
-            <img src={logoSrc} alt="TahiryPro" className="mx-auto mb-4 h-20 w-20 object-contain" />
+            {/* ⭐ Compact: h-16 */}
+            <img src={logoSrc} alt="Life's Art" className="mx-auto mb-3 h-16 w-16 object-contain" />
 
-            <div className="mb-5 text-center">
+            <div className="mb-3 text-center">
               <h1 className="text-[22px] font-bold" style={{ color: textColor }}>Licence Active</h1>
               <p className="mt-1 text-[13px]" style={{ color: mutedColor }}>Votre licence est valide</p>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between rounded-lg border p-3" style={{ borderColor, background: surfaceAlt }}>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between rounded-lg border p-2.5" style={{ borderColor, background: surfaceAlt }}>
                 <div>
                   <p className="text-[12px] font-medium" style={{ color: mutedColor }}>Code d'activation</p>
                   <p className="font-mono text-[13px] font-semibold" style={{ color: textColor }}>{currentLicenseKey || 'N/A'}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg border p-3" style={{ borderColor }}>
+                <div className="rounded-lg border p-2.5" style={{ borderColor }}>
                   <p className="text-[12px] font-medium" style={{ color: mutedColor }}>Plan</p>
                   <p className="text-[13px] font-semibold capitalize" style={{ color: '#4F46E5' }}>{packageName || 'Non spécifié'}</p>
                 </div>
-                <div className="rounded-lg border p-3" style={{ borderColor }}>
+                <div className="rounded-lg border p-2.5" style={{ borderColor }}>
                   <p className="text-[12px] font-medium" style={{ color: mutedColor }}>Expire le</p>
                   <p className="text-[13px] font-semibold" style={{ color: textColor }}>{isLifetime ? 'Illimitée' : formattedExpiry}</p>
                 </div>
@@ -323,7 +335,7 @@ const LicenseGateScreen: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-4 space-y-2">
+            <div className="mt-3 space-y-2">
               <button
                 type="button"
                 onClick={() => navigate(isAuthenticated ? '/dashboard' : '/login', { replace: true })}
@@ -343,8 +355,8 @@ const LicenseGateScreen: React.FC = () => {
               </button>
             </div>
 
-            <div className="mt-5 flex items-center justify-between border-t pt-3" style={{ borderColor }}>
-              <span className="text-[12px]" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>© 2026 TahiryPro ERP</span>
+            <div className="mt-4 flex items-center justify-between border-t pt-2" style={{ borderColor }}>
+              <span className="text-[12px]" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>© 2026 Life's Art ERP</span>
             </div>
           </div>
         </div>
@@ -380,17 +392,18 @@ const LicenseGateScreen: React.FC = () => {
         {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
       </button>
 
-      <div className="relative z-10 flex w-full max-w-[980px] overflow-hidden rounded-xl border" style={{ background: surface, borderColor, boxShadow: shadow }}>
+      {/* ⭐ Compact Premium */}
+      <div className="relative z-10 flex w-full max-w-[1000px] overflow-hidden rounded-xl border" style={{ background: surface, borderColor, boxShadow: shadow }}>
         {/* LEFT PANEL */}
-        <div className="hidden w-1/2 flex-col justify-between border-r p-5 lg:flex" style={{ background: surface, borderColor }}>
-          <div className="space-y-6">
-            <div className="space-y-3">
+        <div className="hidden w-1/2 flex-col justify-between border-r p-6 lg:flex" style={{ background: surface, borderColor }}>
+          <div className="space-y-4">
+            <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: 'linear-gradient(135deg, #4F46E5, #4338CA)', boxShadow: `0 2px 8px ${primaryBg}` }}>
                   <Cloud className="h-4 w-4 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-[15px] font-bold" style={{ color: textColor }}>TahiryPro ERP</h1>
+                  <h1 className="text-[15px] font-bold" style={{ color: textColor }}>Life's Art ERP</h1>
                   <p className="text-[12px] font-medium" style={{ color: mutedColor }}>Enterprise Solution</p>
                 </div>
               </div>
@@ -406,47 +419,43 @@ const LicenseGateScreen: React.FC = () => {
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-lg border mx-auto w-full max-w-[400px]" style={{ borderColor, background: surface, boxShadow: isDark ? '0 4px 15px rgba(0,0,0,0.4)' : '0 4px 15px rgba(79,70,229,0.1)' }}>
-              <img src={isDark ? MINIATURE_DARK_PATH : MINIATURE_LIGHT_PATH} alt="Dashboard Preview" className="w-full h-auto object-contain max-h-[300px]" />
+            <div className="relative overflow-hidden rounded-lg border mx-auto w-full max-w-[380px]" style={{ borderColor, background: surface, boxShadow: isDark ? '0 4px 15px rgba(0,0,0,0.4)' : '0 4px 15px rgba(79,70,229,0.1)' }}>
+              <img src={isDark ? MINIATURE_DARK_PATH : MINIATURE_LIGHT_PATH} alt="Dashboard Preview" className="w-full h-auto object-contain max-h-[200px]" />
             </div>
 
-            <div className="space-y-2">
-              <p className="text-[13px] font-semibold" style={{ color: textColor }}>Pourquoi choisir TahiryPro ?</p>
-              {[
-                "Gestion complète : Produits, Ventes, Achats, Stock & RH.",
-                "Tableaux de bord en temps réel pour vos décisions.",
-                "Sécurité des données et accès multi-utilisateurs."
-              ].map((text, i) => (
+            <div className="space-y-1.5">
+            
+              {licenseFeatures.map((text, i) => (
                 <div key={i} className="flex items-start gap-2">
-                  <ShieldCheck size={15} className="mt-0.5 shrink-0" style={{ color: '#4F46E5' }} />
-                  <span className="text-[13px] leading-5" style={{ color: mutedColor }}>{text}</span>
+                  <ShieldCheck size={15} className="mt-0.5 shrink-0" style={{ color: licenseBadges[i % 4].color }} />
+                  <span className="text-[13px] leading-snug" style={{ color: mutedColor }}>{text}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-1 mt-6">
-            {[{ icon: ShieldCheck, title: 'Sécurisé' }, { icon: BarChart3, title: 'Analytics' }, { icon: UsersIcon, title: 'Équipe' }, { icon: LayoutDashboard, title: 'Dashboard' }].map((item, i) => (
+          <div className="grid grid-cols-2 gap-1.5 mt-4">
+            {licenseBadges.map((item, i) => (
               <div key={i} className="flex items-center gap-1.5 rounded-lg border px-2 py-1.5" style={{ borderColor }}>
-                <item.icon size={12} className="text-brand-500" />
+                <item.icon size={12} style={{ color: item.color }} />
                 <span className="text-[12px] font-medium truncate" style={{ color: textColor }}>{item.title}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* RIGHT PANEL - ⭐ INDIGO EN MODE LIGHT */}
-        <div className="flex w-full flex-col justify-between p-5 lg:w-1/2" style={{ background: rightBoxBg }}>
-          <div className="mb-4 flex items-center gap-2 lg:hidden">
+        {/* RIGHT PANEL - FOTSY */}
+        <div className="flex w-full flex-col justify-between p-6 lg:w-1/2" style={{ background: rightBoxBg }}>
+          <div className="mb-3 flex items-center gap-2 lg:hidden">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'linear-gradient(135deg, #4F46E5, #4338CA)' }}>
               <Cloud className="h-3.5 w-3.5 text-white" />
             </div>
-            <span className="text-[14px] font-bold" style={{ color: textColor }}>TahiryPro</span>
+            <span className="text-[14px] font-bold" style={{ color: textColor }}>Life's Art</span>
           </div>
 
-          <img src={logoSrc} alt="TahiryPro" className="mx-auto mb-4 h-20 w-20 object-contain" />
+          <img src={logoSrc} alt="Life's Art" className="mx-auto mb-3 h-16 w-16 object-contain" />
 
-          <div className="mb-5 text-center">
+          <div className="mb-3 text-center">
             <h1 className="text-[22px] font-bold" style={{ color: textColor }}>
               {isExpired ? 'Licence expirée' : 'Activation de licence'}
             </h1>
@@ -457,8 +466,18 @@ const LicenseGateScreen: React.FC = () => {
             </p>
           </div>
 
+          {showSuccess && successMessage && (
+            <div className="mb-3 flex items-start gap-3 rounded-lg border p-2.5" style={{ background: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.3)' }}>
+              <CheckCircle2 className="h-5 w-5 mt-0.5 shrink-0" style={{ color: '#10B981' }} />
+              <div>
+                <p className="text-[13px] font-semibold" style={{ color: '#10B981' }}>Succès</p>
+                <p className="text-[13px]" style={{ color: mutedColor }}>{successMessage}</p>
+              </div>
+            </div>
+          )}
+
           {isExpired && expirationDate && (
-            <div className="mb-4 flex items-center justify-between rounded-lg border p-3" style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)' }}>
+            <div className="mb-3 flex items-center justify-between rounded-lg border p-2.5" style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)' }}>
               <div className="flex items-center gap-2">
                 <XCircle className="h-3.5 w-3.5" style={{ color: '#EF4444' }} />
                 <span className="text-[12px] font-medium" style={{ color: mutedColor }}>Date d'expiration :</span>
@@ -469,45 +488,59 @@ const LicenseGateScreen: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleActivate} className="space-y-3">
-            <FormInput
-              label="Code d'activation"
-              name="activationCode"
-              value={activationCode}
-              onChange={(e) => setActivationCode(e.target.value.toUpperCase())}
-              placeholder="Entrez votre code d'activation"
-              icon={KeyRound}
-              error={error || undefined}
-              disabled={isLoading || licenseLoading}
-              autoComplete="off"
-            />
-            <button
-              type="submit"
-              disabled={isLoading || licenseLoading}
-              className="group relative flex h-10 w-full items-center justify-center gap-2 rounded-lg text-[14px] font-semibold text-white transition-all hover:opacity-95 disabled:opacity-50 bg-brand-500 hover:bg-brand-600"
-              style={{ boxShadow: `0 4px 12px ${primaryBg}` }}
-            >
-              {isLoading || licenseLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <span>Activer ma licence</span>
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </>
-              )}
-            </button>
-          </form>
+          {!showSuccess ? (
+            <form onSubmit={handleActivate} className="space-y-2.5">
+              <FormInput
+                label="Code d'activation"
+                name="activationCode"
+                value={activationCode}
+                onChange={(e) => setActivationCode(e.target.value.toUpperCase())}
+                placeholder="Entrez votre code d'activation"
+                icon={KeyRound}
+                error={error || undefined}
+                disabled={isLoading || licenseLoading}
+                autoComplete="off"
+              />
+              <button
+                type="submit"
+                disabled={isLoading || licenseLoading}
+                className="group relative flex h-10 w-full items-center justify-center gap-2 rounded-lg text-[14px] font-semibold text-white transition-all hover:opacity-95 disabled:opacity-50 bg-brand-500 hover:bg-brand-600"
+                style={{ boxShadow: `0 4px 12px ${primaryBg}` }}
+              >
+                {isLoading || licenseLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <span>Activer ma licence</span>
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => navigate(isAuthenticated ? '/dashboard' : '/login', { replace: true })}
+                className="group flex h-10 w-full items-center justify-center gap-2 rounded-lg text-[14px] font-semibold text-white transition-all hover:opacity-95 bg-brand-500 hover:bg-brand-600"
+                style={{ boxShadow: `0 4px 12px ${primaryBg}` }}
+              >
+                {isAuthenticated ? 'Accéder au Dashboard' : 'Se connecter'}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </button>
+            </div>
+          )}
 
-          <div className="mt-4 grid grid-cols-3 gap-1.5">
+          <div className="mt-3 grid grid-cols-3 gap-1.5">
             {[{ icon: Zap, text: 'Instantané' }, { icon: ShieldCheck, text: 'Sécurisé' }, { icon: Cloud, text: 'Offline' }].map((item, i) => (
               <div key={i} className="flex items-center justify-center gap-1 rounded-lg border p-2" style={{ borderColor }}>
-                <item.icon size={12} style={{ color: '#4F46E5' }} />
+                <item.icon size={12} style={{ color: licenseBadges[i % 4].color }} />
                 <span className="text-[12px] font-medium" style={{ color: mutedColor }}>{item.text}</span>
               </div>
             ))}
           </div>
 
-          <div className="mt-4 flex items-center justify-center gap-4">
+          <div className="mt-3 flex items-center justify-center gap-4">
             <button type="button" onClick={() => navigate('/support')} className="group flex items-center gap-1 text-[12px] font-medium hover:underline" style={{ color: '#4F46E5' }}>
               <LifeBuoy className="h-3 w-3" /> Support
             </button>
@@ -516,8 +549,8 @@ const LicenseGateScreen: React.FC = () => {
             </button>
           </div>
 
-          <div className="mt-5 flex items-center justify-between border-t pt-3" style={{ borderColor }}>
-            <span className="text-[12px]" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>© 2026 TahiryPro ERP</span>
+          <div className="mt-4 flex items-center justify-between border-t pt-2" style={{ borderColor }}>
+            <span className="text-[12px]" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>© 2026 Life's Art ERP</span>
             <div className="flex gap-3">
               <Link to="/terms" className="text-[12px] hover:underline" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Conditions</Link>
               <Link to="/support" className="text-[12px] hover:underline" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Support</Link>

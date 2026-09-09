@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { BarChart3, TrendingUp, TrendingDown, Wallet, Package, Users, AlertCircle } from 'lucide-react';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
@@ -71,7 +70,8 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
 
   const chartColors = useMemo(() => ({
     grid: isDark ? 'rgba(79,70,229,0.055)' : 'rgba(79,70,229,0.15)',
-    text: isDark ? '#94A3B8' : '#94A3B8',
+    // ⭐ FIX: Novaina ho #64748B (gris foncé) rehefa light mode mba ho hita mazava
+    text: isDark ? '#94A3B8' : '#64748B', 
     tooltipBackground: isDark ? '#0F172A' : '#FFFFFF',
     tooltipText: isDark ? '#F8FAFC' : '#0F172A',
     tooltipBorder: isDark ? 'rgba(79,70,229,0.12)' : '#E2E8F0',
@@ -257,8 +257,8 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
         },
       },
       scales: {
-        x: { grid: { display: false, drawBorder: false }, border: { display: false }, ticks: { color: chartColors.text, font: { size: 13.5 }, maxTicksLimit: 7 } },
-        y: { beginAtZero: true, border: { display: false }, grid: { color: chartColors.grid, drawBorder: false }, ticks: { color: chartColors.text, font: { size: 13.5 }, padding: 8, callback: (value: any) => formatter(Number(value)) } },
+        x: { grid: { display: false, drawBorder: false }, border: { display: false }, ticks: { color: chartColors.text, font: { size: 14 }, maxTicksLimit: 7 } }, // ⭐ FIX: size 14
+        y: { beginAtZero: true, border: { display: false }, grid: { color: chartColors.grid, drawBorder: false }, ticks: { color: chartColors.text, font: { size: 14 }, padding: 8, callback: (value: any) => formatter(Number(value)) } }, // ⭐ FIX: size 14
       },
       interaction: { intersect: false, mode: 'index' },
     };
@@ -338,7 +338,6 @@ const RapportsCharts: React.FC<RapportsChartsProps> = ({
           </ChartCard>
         );
       case 'categories': {
-        const catColors = [theme.primary]; 
         const hasCatData = normalizedCategories.length > 0 && categoryChartValues.some((value) => value > 0);
         return (
           <ChartCard title="Répartition des ventes" subtitle="Chiffre d'affaires par catégorie">

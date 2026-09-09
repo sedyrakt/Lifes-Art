@@ -48,9 +48,10 @@ const MouvementsSearchBar: React.FC<MouvementsSearchBarProps> = ({
   const [isFocused, setIsFocused] = useState(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ⭐ FIX: NOVAINA HO #0F172A NY BACKGROUND AMIN'NY DARK MODE
   const controlBorder = isDark ? 'border-white/[0.12]' : 'border-slate-200';
   const controlHoverBorder = isDark ? 'hover:border-white/[0.18]' : 'hover:border-slate-300';
-  const controlBackground = isDark ? 'bg-slate-900' : 'bg-white';
+  const controlBackground = isDark ? 'bg-[#0F172A]' : 'bg-white';
   const controlText = isDark ? 'text-slate-200' : 'text-slate-700';
   const controlShadow = isDark ? 'shadow-[0_1px_2px_rgba(0,0,0,0.12)]' : 'shadow-[0_1px_2px_rgba(79,70,229,0.05)]';
 

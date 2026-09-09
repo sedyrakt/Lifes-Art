@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { X, Plus, Wallet, ChevronLeft, ChevronRight, CheckCircle2, Mail, Phone, Building2, Briefcase } from 'lucide-react'; 
 import { useTheme } from '../../contexts/ThemeContext';
 import { format, addDays, startOfMonth, startOfWeek, isSameMonth, isToday } from 'date-fns';
@@ -32,16 +31,16 @@ interface PaiementsHistoriqueModalProps {
 const COLORS = {
   light: {
     card: '#FFFFFF', border: '#E2E8F0', headerBg: '#FFFFFF', softBg: '#F8FAFC',
-    text: '#264653', muted: '#64748B', subMuted: '#94A3B8', primary: '#0d80d2',
-    primaryHover: '#0b6ab0', primaryBg: 'rgba(13,128,210,0.08)', green: '#059669',
+    text: '#0F172A', muted: '#64748B', subMuted: '#94A3B8', primary: '#4F46E5',
+    primaryHover: '#4338CA', primaryBg: 'rgba(79,70,229,0.08)', green: '#059669',
     greenBg: 'rgba(16,185,129,0.08)', greenBorder: 'rgba(16,185,129,0.20)',
     red: '#DC2626', redBg: 'rgba(239,68,68,0.08)', redBorder: 'rgba(239,68,68,0.20)',
     amber: '#D97706', amberBg: 'rgba(245,158,11,0.08)', amberBorder: 'rgba(245,158,11,0.20)'
   },
   dark: {
-    card: '#2A2A2A', border: 'rgba(255,255,255,0.12)', headerBg: '#2A2A2A', softBg: '#333333',
-    text: '#FDE2E4', muted: '#B0B0B0', subMuted: '#94A3B8', primary: '#0d80d2',
-    primaryHover: '#0b6ab0', primaryBg: 'rgba(13,128,210,0.12)', green: '#34D399',
+    card: '#0F172A', border: 'rgba(255,255,255,0.12)', headerBg: '#0F172A', softBg: '#0F172A',
+    text: '#F8FAFC', muted: '#94A3B8', subMuted: '#94A3B8', primary: '#4F46E5',
+    primaryHover: '#4338CA', primaryBg: 'rgba(79,70,229,0.12)', green: '#34D399',
     greenBg: 'rgba(16,185,129,0.11)', greenBorder: 'rgba(52,211,153,0.22)',
     red: '#F87171', redBg: 'rgba(239,68,68,0.10)', redBorder: 'rgba(248,113,113,0.20)',
     amber: '#FBBF24', amberBg: 'rgba(245,158,11,0.11)', amberBorder: 'rgba(251,191,36,0.22)'
@@ -49,12 +48,7 @@ const COLORS = {
 };
 
 const PaiementsHistoriqueModal: React.FC<PaiementsHistoriqueModalProps> = ({
-  isOpen,
-  onClose,
-  onAddPaiement,
-  historiqueData,
-  moisLabels,
-  employe,
+  isOpen, onClose, onAddPaiement, historiqueData, moisLabels, employe,
 }) => {
   const { isDark } = useTheme();
   const theme = isDark ? COLORS.dark : COLORS.light;
@@ -111,38 +105,33 @@ const PaiementsHistoriqueModal: React.FC<PaiementsHistoriqueModalProps> = ({
     </div>
   );
 
-  const modal = (
+  return (
     <div
       className="fixed inset-0 z-[99990] flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm"
-      style={{ background: 'rgba(0,0,0,0.80)' }}
+      style={{ background: isDark ? 'rgba(0,0,0,0.80)' : 'rgba(15,23,42,0.55)' }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className={`relative w-full max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-xl transition-all duration-200 ${isDark ? 'border-white/[0.12]' : 'border-gray-200'} animate-[paiementHistoryIn_200ms_ease-out]`}
+        className={`relative w-full max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-2xl ${isDark ? 'border-white/[0.12]' : 'border-slate-200'}`}
         style={{ background: theme.card }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <header className="flex h-14 shrink-0 items-center justify-between border-b px-6" style={{ background: theme.headerBg, borderColor: theme.border }}>
+        <header className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: theme.border, background: theme.card }}>
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: theme.primaryBg }}>
-              <Wallet size={16} style={{ color: theme.primary }} />
+            <div className="p-2 rounded-lg" style={{ background: theme.primaryBg }}>
+              <Wallet size={19} style={{ color: theme.primary }} />
             </div>
             <div>
-              <h2 className="text-[16px] font-semibold" style={{ color: theme.text }}>Historique des salaires</h2>
-              <p className="text-[13px]" style={{ color: theme.muted }}>Gestion des paiements de <span className="font-semibold" style={{ color: theme.text }}>{fullName}</span></p>
+              <h2 className="text-[17px] font-bold" style={{ color: theme.text }}>Historique des salaires</h2>
+              <p className="text-[13px]" style={{ color: theme.muted }}>{fullName}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all hover:bg-gray-100 dark:hover:bg-white/[0.06]"
-            style={{ color: theme.muted }}
-          >
-            <X size={17} />
+          <button type="button" onClick={onClose} className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>
+            <X size={19} />
           </button>
         </header>
 
-        <div className="custom-history-scrollbar max-h-[75vh] overflow-y-auto p-6">
+        <div className="max-h-[75vh] overflow-y-auto p-6">
           {historiqueData.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ background: theme.primaryBg }}>
@@ -150,22 +139,17 @@ const PaiementsHistoriqueModal: React.FC<PaiementsHistoriqueModalProps> = ({
               </div>
               <h3 className="text-[16px] font-semibold" style={{ color: theme.text }}>Aucun paiement</h3>
               <p className="mt-1 max-w-sm text-[14px]" style={{ color: theme.muted }}>Aucun paiement trouvé pour cet employé.</p>
-              <button type="button" onClick={onAddPaiement} className="mt-6 flex h-10 items-center gap-2 rounded-lg px-5 text-[14px] font-semibold text-white shadow-sm transition-all hover:shadow-md" style={{ background: theme.primary }}>
-                <Plus size={15} />Ajouter un paiement
+              <button type="button" onClick={onAddPaiement} className="mt-6 flex h-10 items-center gap-2 rounded-lg px-5 text-[14px] font-semibold text-white shadow-sm hover:bg-brand-600" style={{ background: theme.primary }}>
+                <Plus size={15} /> Ajouter un paiement
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
               <div className="min-w-0">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 shrink-0 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center text-white font-bold text-lg">
-                    {initials}
-                  </div>
+                  <div className="w-12 h-12 shrink-0 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center text-white font-bold text-lg">{initials}</div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-[19px] font-bold truncate" style={{ color: theme.text }}>
-                      {fullName}
-                    </h3>
+                    <h3 className="text-[19px] font-bold truncate" style={{ color: theme.text }}>{fullName}</h3>
                     <p className="text-[13px] font-medium" style={{ color: theme.primary }}>{poste}</p>
                     <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] font-semibold mt-1" style={{ background: theme.greenBg, borderColor: theme.greenBorder, color: theme.green }}>
                       <CheckCircle2 size={12} /> Actif
@@ -175,29 +159,17 @@ const PaiementsHistoriqueModal: React.FC<PaiementsHistoriqueModalProps> = ({
 
                 <div className="mt-5 border-t pt-4" style={{ borderColor: theme.border }}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}>
-                      <InfoRow label="Email" value={email} />
-                    </div>
-                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}>
-                      <InfoRow label="Téléphone" value={telephone} />
-                    </div>
-                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}>
-                      <InfoRow label="Département" value={departement} />
-                    </div>
-                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}>
-                      <InfoRow label="Poste" value={poste} />
-                    </div>
+                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}><InfoRow label="Email" value={email} /></div>
+                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}><InfoRow label="Téléphone" value={telephone} /></div>
+                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}><InfoRow label="Département" value={departement} /></div>
+                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}><InfoRow label="Poste" value={poste} /></div>
                   </div>
                 </div>
 
                 <div className="mt-5 border-t pt-4" style={{ borderColor: theme.border }}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}>
-                      <InfoRow label="Total versé" value={formatMontant(totalPaye)} />
-                    </div>
-                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}>
-                      <InfoRow label="Paiements" value={`${historiqueData.length} mois`} />
-                    </div>
+                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}><InfoRow label="Total versé" value={formatMontant(totalPaye)} /></div>
+                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}><InfoRow label="Paiements" value={`${historiqueData.length} mois`} /></div>
                   </div>
                 </div>
               </div>
@@ -206,13 +178,9 @@ const PaiementsHistoriqueModal: React.FC<PaiementsHistoriqueModalProps> = ({
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: theme.muted }}>Calendrier paiements</span>
                   <div className="flex items-center gap-1">
-                    <button type="button" onClick={prevMonth} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>
-                      <ChevronLeft size={14} />
-                    </button>
+                    <button type="button" onClick={prevMonth} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}><ChevronLeft size={14} /></button>
                     <span className="text-[13px] font-semibold capitalize" style={{ color: theme.text }}>{monthTitle}</span>
-                    <button type="button" onClick={nextMonth} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>
-                      <ChevronRight size={14} />
-                    </button>
+                    <button type="button" onClick={nextMonth} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}><ChevronRight size={14} /></button>
                   </div>
                 </div>
 
@@ -227,7 +195,6 @@ const PaiementsHistoriqueModal: React.FC<PaiementsHistoriqueModalProps> = ({
                     const paid = isPaid(day);
                     
                     let bg = 'transparent', color = inMonth ? theme.text : theme.subMuted;
-                    
                     if (isSelected) { bg = theme.primary; color = '#fff'; }
                     else if (isTodayDate) { bg = theme.primaryBg; color = theme.primary; }
                     else if (paid) { bg = theme.greenBg; color = theme.green; }
@@ -257,50 +224,19 @@ const PaiementsHistoriqueModal: React.FC<PaiementsHistoriqueModalProps> = ({
                   <Plus size={15} /> Payer ce mois
                 </button>
               </div>
-
             </div>
           )}
         </div>
 
-        <footer className="flex h-[64px] shrink-0 items-center justify-end gap-2 border-t px-6" style={{ borderColor: theme.border, background: theme.softBg }}>
-          <button
-            type="button"
-            onClick={onAddPaiement}
-            className="flex h-10 items-center justify-center gap-2 rounded-lg px-5 text-[14px] font-semibold text-white shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
-            style={{ background: theme.primary }}
-          >
+        <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: theme.border, background: theme.softBg }}>
+          <button type="button" onClick={onAddPaiement} className="flex h-10 items-center justify-center gap-2 rounded-lg px-5 text-[14px] font-semibold text-white shadow-sm hover:bg-brand-600" style={{ background: theme.primary }}>
             <Plus size={15} /> PAYER
           </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-10 rounded-lg px-5 text-[14px] font-medium transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.06]"
-            style={{ color: theme.muted }}
-          >
-            FERMER
-          </button>
-        </footer>
+          <button type="button" onClick={onClose} className="h-10 rounded-lg px-5 text-[14px] font-medium hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>FERMER</button>
+        </div>
       </div>
-
-      <style>{`
-        @keyframes paiementHistoryIn {
-          from { opacity: 0; transform: translateY(8px) scale(0.985); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .custom-history-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-history-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-history-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(13,128,210,0.25);
-          border-radius: 999px;
-        }
-        .custom-history-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(13,128,210,0.4);
-        }
-      `}</style>
     </div>
   );
-
-  return createPortal(modal, document.body);
 };
 
 export default PaiementsHistoriqueModal;

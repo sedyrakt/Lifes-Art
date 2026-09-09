@@ -158,7 +158,7 @@ const CategoriesTable: React.FC<CategoriesTableProps> = ({
                     </div>
                   </td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>
-                    <span title={categorie.description || 'Aucune description'} className={`block max-w-[260px] truncate text-[14.5px] leading-5 ${categorie.description ? 'text-slate-600 dark:text-slate-300' : 'italic text-slate-400 dark:text-slate-500'}`}>{categorie.description || 'Aucune description'}</span>
+                    <span title={categorie.description || 'Aucune description'} className={`block max-w-[260px] truncate text-[14.5px] leading-5 ${categorie.description ? 'text-slate-600 dark:text-slate-300' : 'text-slate-400 dark:text-slate-500'}`}>{categorie.description || 'Aucune description'}</span>
                   </td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>
                     <div className="flex flex-col gap-1">
@@ -172,7 +172,7 @@ const CategoriesTable: React.FC<CategoriesTableProps> = ({
                     </div>
                   </td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>
-                    <span className="whitespace-nowrap text-[14.5px] font-medium text-slate-700 dark:text-slate-300">{new Date(categorie.created_at).toLocaleDateString('fr-FR')}</span>
+                    <span className="whitespace-nowrap text-[13.5px] font-medium text-slate-700 dark:text-slate-300">{new Date(categorie.created_at).toLocaleDateString('fr-FR')}</span>
                   </td>
                   <td className={`border-b px-1.5 py-2 align-middle text-right ${cellBorderColor}`} onClick={(event) => event.stopPropagation()}>
                     <button type="button" title="Plus d'actions" aria-label={`Actions pour ${categorie.nom}`} aria-expanded={openMenuId === categorie.id} onClick={(event) => toggleMenu(categorie.id, event)} className={`flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-slate-400 transition-all duration-150 ${openMenuId === categorie.id ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400' : 'hover:border-slate-200 hover:bg-slate-50 hover:text-brand-600 dark:hover:border-white/[0.12] dark:hover:bg-slate-800 dark:hover:text-slate-200'}`}>

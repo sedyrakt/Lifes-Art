@@ -1,14 +1,12 @@
-
-
-import React, { useState, useEffect } from 'react';
+// src/pages/Rapports.tsx
+import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart3, Loader2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useCompany } from '../contexts/CompanyContext';
-import { useRapportsData } from '../hooks/useRapportsData';
+import { useRapportsData, ExportPeriod } from '../hooks/useRapportsData';
 import { RapportsHeader, RapportsCharts, RapportsCommandes, RapportsSummary, RapportsFooter } from '../components/rapports';
 
 type ChartTab = 'ventes' | 'stock' | 'top' | 'categories' | 'clients' | 'depenses' | 'commandes';
-
 
 const RapportsSkeleton = ({ isDark }: { isDark: boolean }) => {
   const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
@@ -69,7 +67,9 @@ const Rapports: React.FC = () => {
   const {
     loading, refreshing, stats, commandesRecentes, ventesParMois, topProduits, categorieRepartition,
     stockValue, entreesStock, sortiesStock, topClients, depensesParCategorie, commandesStatut, stockStatus,
-    refresh, handleExportStats, handleExportTopProduits, handleExportCommandes, handleExportPDF, handleExportCSV
+    refresh, handleExportStats, handleExportTopProduits, handleExportCommandes, handleExportPDF, handleExportCSV,
+    // ⭐ Vaovao
+    exportPeriod, setExportPeriod, exportCustomDate, setExportCustomDate,
   } = useRapportsData();
 
   useEffect(() => {
@@ -89,10 +89,49 @@ const Rapports: React.FC = () => {
     { id: 'commandes' as const, label: 'Commandes' },
   ];
 
-
   const bgColor = isDark ? '#0F172A' : '#FFFFFF';
   const cardBg = isDark ? '#0F172A' : '#FFFFFF';
   const borderColor = isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0';
+
+  const handleExportStatsClick = useCallback(async () => {
+    try {
+      await handleExportStats((value: number) => `${value.toLocaleString('fr-FR')} Ar`, exportPeriod, exportCustomDate);
+    } catch (error: any) {
+      console.error('Erreur export stats:', error);
+    }
+  }, [handleExportStats, exportPeriod, exportCustomDate]);
+
+  const handleExportPDFClick = useCallback(async () => {
+    try {
+      await handleExportPDF((value: number) => `${value.toLocaleString('fr-FR')} Ar`, company?.name || "Lifes-Art", exportPeriod, exportCustomDate);
+    } catch (error: any) {
+      console.error('Erreur export PDF:', error);
+    }
+  }, [handleExportPDF, company, exportPeriod, exportCustomDate]);
+
+  const handleExportCSVClick = useCallback(async () => {
+    try {
+      await handleExportCSV((value: number) => `${value.toLocaleString('fr-FR')} Ar`, exportPeriod, exportCustomDate);
+    } catch (error: any) {
+      console.error('Erreur export CSV:', error);
+    }
+  }, [handleExportCSV, exportPeriod, exportCustomDate]);
+
+  const handleExportTopProduitsClick = useCallback(async () => {
+    try {
+      await handleExportTopProduits((value: number) => `${value.toLocaleString('fr-FR')} Ar`, exportPeriod, exportCustomDate);
+    } catch (error: any) {
+      console.error('Erreur export top produits:', error);
+    }
+  }, [handleExportTopProduits, exportPeriod, exportCustomDate]);
+
+  const handleExportCommandesClick = useCallback(async () => {
+    try {
+      await handleExportCommandes(exportPeriod, exportCustomDate);
+    } catch (error: any) {
+      console.error('Erreur export commandes:', error);
+    }
+  }, [handleExportCommandes, exportPeriod, exportCustomDate]);
 
   return (
     <div className="min-h-screen font-sans transition-colors duration-300" style={{ background: bgColor }}>
@@ -102,32 +141,6 @@ const Rapports: React.FC = () => {
           <RapportsSkeleton isDark={isDark} />
         ) : (
           <>
-            <header className="mb-4 w-full">
-              <div
-                className="group relative flex flex-col gap-3 overflow-hidden rounded-xl border bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-200 md:flex-row md:items-center md:justify-between dark:bg-[#0F172A]"
-                style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}
-              >
-                <div className="absolute left-0 top-0 h-full w-[2px] bg-brand-500" />
-
-                <div className="relative z-10 flex min-w-0 flex-col">
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-[19px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 dark:text-slate-100">Rapports & Analyses</h1>
-                    {refreshing && <span className="hidden rounded-md bg-brand-500 px-2 py-0.5 text-[11px] font-bold text-white sm:inline-flex dark:bg-brand-500/10 dark:text-brand-400">Actualisation...</span>}
-                  </div>
-                  <p className="mt-0.5 text-[13px] font-medium leading-tight text-slate-500 dark:text-slate-400">
-                    Tableau de bord financier et suivi des performances globales
-                  </p>
-                </div>
-
-                <div className="relative z-10 flex shrink-0 items-center gap-2">
-                  <button type="button" onClick={() => { if (!loading && !refreshing) refresh(); }} disabled={loading || refreshing} className="inline-flex h-9 items-center justify-center gap-2 self-start rounded-lg border bg-white px-3 text-[13px] font-medium text-slate-700 shadow-sm transition-all hover:border-brand-200 hover:bg-brand-50 hover:text-brand-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 md:self-auto dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-300 dark:hover:border-brand-500/30 dark:hover:bg-brand-500/10 dark:hover:text-brand-400" style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}>
-                    <Loader2 className={`h-4 w-4 text-brand-500 dark:text-brand-400 ${refreshing ? 'animate-spin' : ''}`} />
-                    <span>{refreshing ? 'Actualisation...' : 'Rafraîchir'}</span>
-                  </button>
-                </div>
-              </div>
-            </header>
-
             <section>
               <RapportsHeader
                 selectedDate={selectedDate}
@@ -136,13 +149,17 @@ const Rapports: React.FC = () => {
                 onGranularityChange={setGranularity}
                 onToday={() => setSelectedDate(new Date())}
                 onRefresh={() => { if (!loading && !refreshing) refresh(); }}
-                onExportStats={() => handleExportStats((value: number) => `${value.toLocaleString('fr-FR')} Ar`)}
-                onExportPDF={() => handleExportPDF((value: number) => `${value.toLocaleString('fr-FR')} Ar`, company?.name || "Life's Art")}
-                onExportCSV={() => handleExportCSV((value: number) => `${value.toLocaleString('fr-FR')} Ar`)}
-                onExportTopProduits={() => handleExportTopProduits((value: number) => `${value.toLocaleString('fr-FR')} Ar`)}
-                onExportCommandes={handleExportCommandes}
+                onExportStats={handleExportStatsClick}
+                onExportPDF={handleExportPDFClick}
+                onExportCSV={handleExportCSVClick}
+                onExportTopProduits={handleExportTopProduitsClick}
+                onExportCommandes={handleExportCommandesClick}
                 isLoading={loading}
                 isRefreshing={refreshing}
+                exportPeriod={exportPeriod}
+                onExportPeriodChange={setExportPeriod}
+                exportCustomDate={exportCustomDate}
+                onExportCustomDateChange={setExportCustomDate}
               />
             </section>
 
@@ -151,10 +168,22 @@ const Rapports: React.FC = () => {
               <div className="flex w-full items-center gap-1 overflow-x-auto scrollbar-hide">
                 {tabItems.map(tab => {
                   const isActive = activeTab === tab.id;
-                  return (<button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} className={`group relative flex h-9 shrink-0 items-center gap-2 rounded-lg px-3.5 text-[13px] font-medium whitespace-nowrap transition-all duration-200 ${isActive ? 'bg-brand-500 text-white dark:bg-brand-500/10 dark:text-brand-400' : 'text-slate-500 hover:bg-brand-500 hover:text-white dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200'}`}>
-                    <span>{tab.label}</span>
-                    {isActive && <span className="absolute bottom-0 left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-brand-500 dark:bg-brand-400" />}
-                  </button>);
+                  return (
+                    <button 
+                      key={tab.id} 
+                      type="button" 
+                      onClick={() => setActiveTab(tab.id)} 
+                      // ⭐ FIX: bg-indigo-50 + text-[14px]
+                      className={`group relative flex h-9 shrink-0 items-center gap-2 rounded-lg px-3.5 text-[14px] font-medium whitespace-nowrap transition-all duration-200 ${
+                        isActive 
+                          ? 'bg-indigo-50 text-indigo-900 dark:bg-brand-500/10 dark:text-brand-400' 
+                          : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200'
+                      }`}
+                    >
+                      <span>{tab.label}</span>
+                      {isActive && <span className="absolute bottom-0 left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-indigo-500 dark:bg-brand-400" />}
+                    </button>
+                  );
                 })}
               </div>
             </section>

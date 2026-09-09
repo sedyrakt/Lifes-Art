@@ -1,4 +1,3 @@
-// electron/ipc/ventes/handlers.cjs
 'use strict';
 
 const { getDb } = require('../../database/connection.cjs');
@@ -10,20 +9,40 @@ function normalizeId(value) {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-function normalizeProductDetail(detail = {}) {
+function parseTvaRate(value) {
+  return (value !== undefined && value !== null && value !== '')
+    ? Number(value)
+    : 0;
+}
+
+// ⭐ FIX: Raha tsy misy ny tva_rate avy amin'ny frontend, dia maka avy amin'ny produit
+function resolveTvaRate(db, produitId, detailTvaRate) {
+  if (detailTvaRate !== undefined && detailTvaRate !== null && detailTvaRate !== '') {
+    return Number(detailTvaRate);
+  }
+  if (produitId) {
+    const row = db.prepare('SELECT tva_rate FROM produits WHERE id = ?').get(produitId);
+    if (row && row.tva_rate !== undefined && row.tva_rate !== null) {
+      return Number(row.tva_rate);
+    }
+  }
+  return 0;
+}
+
+function normalizeProductDetail(db, detail = {}) {
   const produit_id = normalizeId(detail.produit_id ?? detail.id);
   const quantite = Number(detail.quantite);
   const prix_unitaire = Number(detail.prix_unitaire) || 0;
-  const tva_rate = Number(detail.tva_rate) || 0.2;
+  const tva_rate = resolveTvaRate(db, produit_id, detail.tva_rate); // ⭐ FIX
   
   if (!produit_id || !Number.isFinite(quantite) || quantite <= 0) return null;
   const total = Number.isFinite(Number(detail.total)) ? Number(detail.total) : quantite * prix_unitaire;
   return { produit_id, quantite, prix_unitaire, total, tva_rate };
 }
 
-function normalizeDetails(details) {
+function normalizeDetails(db, details) {
   if (!Array.isArray(details)) return [];
-  return details.map(normalizeProductDetail).filter(Boolean);
+  return details.map(d => normalizeProductDetail(db, d)).filter(Boolean);
 }
 
 function generateReference(db, table, prefix) {
@@ -75,7 +94,6 @@ function registerVentesHandlers(ipcMain) {
     return false;
   }
 
-  // ⭐ FIX: CONVERT DEVIS TO FACTURE (Nampiana ny tva_rate)
   ipcMain.handle('ventes:convert-devis-to-facture', async (_event, devisId) => {
     try {
       const db = getDb();
@@ -102,7 +120,7 @@ function registerVentesHandlers(ipcMain) {
         const factureId = Number(result.lastInsertRowid);
 
         for (const detail of details) {
-          const tvaRate = Number(detail.tva_rate) || 0.2;
+          const tvaRate = resolveTvaRate(db, detail.produit_id, detail.tva_rate);
           stmts.stmtInsertFactureDetail.run(factureId, detail.produit_id, detail.quantite, detail.prix_unitaire, detail.total, tvaRate);
           db.prepare('UPDATE produits SET quantite_stock = quantite_stock - ? WHERE id = ?').run(detail.quantite, detail.produit_id);
         }
@@ -116,7 +134,6 @@ function registerVentesHandlers(ipcMain) {
       const result = transaction();
       emitVentesChanged({ type: 'devis_converted', id: result.id });
       emitVentesChanged({ type: 'facture_created', id: result.id });
-      log(`✅ Devis #${id} converti en Facture #${result.id} - Ref: ${finalReference}`);
       return { success: true, data: result };
     } catch (err) {
       error('❌ convert-devis-to-facture:', err.message);
@@ -124,7 +141,6 @@ function registerVentesHandlers(ipcMain) {
     }
   });
 
-  // GET DEVIS DETAILS
   ipcMain.handle('ventes:get-devis-details', async (_event, devisId) => {
     try {
       const db = getDb();
@@ -133,9 +149,8 @@ function registerVentesHandlers(ipcMain) {
       const devis = db.prepare('SELECT * FROM devis WHERE id = ?').get(id);
       if (!devis) return { success: false, error: 'Devis non trouvé' };
       const enrichedDevis = attachClientDetails(db, devis);
-      // ⭐ FIX: Esorina ny p.image
       const details = db.prepare(`
-        SELECT dd.*, p.nom as produit_nom, p.code as produit_code
+        SELECT dd.*, p.nom as produit_nom, p.code as produit_code, p.tva_rate as produit_tva_rate
         FROM details_devis dd
         LEFT JOIN produits p ON p.id = dd.produit_id
         WHERE dd.devis_id = ?
@@ -147,7 +162,6 @@ function registerVentesHandlers(ipcMain) {
     }
   });
 
-  // GET FACTURE DETAILS
   ipcMain.handle('ventes:get-facture-details', async (_event, factureId) => {
     try {
       const db = getDb();
@@ -156,9 +170,8 @@ function registerVentesHandlers(ipcMain) {
       const facture = db.prepare('SELECT * FROM factures WHERE id = ?').get(id);
       if (!facture) return { success: false, error: 'Facture non trouvée' };
       const enrichedFacture = attachClientDetails(db, facture);
-      // ⭐ FIX: Esorina ny p.image
       const details = db.prepare(`
-        SELECT fd.*, p.nom as produit_nom, p.code as produit_code
+        SELECT fd.*, p.nom as produit_nom, p.code as produit_code, p.tva_rate as produit_tva_rate
         FROM details_factures fd
         LEFT JOIN produits p ON p.id = fd.produit_id
         WHERE fd.facture_id = ?
@@ -170,28 +183,20 @@ function registerVentesHandlers(ipcMain) {
     }
   });
 
-  // GET DEVIS / FACTURES PAGINATION
   ipcMain.handle('ventes:get-devis', async (_event, options = {}) => {
     try {
       const db = getDb();
       const { search = '', statut = '', page = 1, limit = 20 } = options || {};
       let where = 'WHERE 1=1';
       const params = [];
-      if (search && String(search).trim()) {
-        where += ' AND (reference LIKE ? OR client_nom LIKE ?)';
-        const value = `%${String(search).trim()}%`;
-        params.push(value, value);
-      }
+      if (search && String(search).trim()) { where += ' AND (reference LIKE ? OR client_nom LIKE ?)'; const value = `%${String(search).trim()}%`; params.push(value, value); }
       if (statut) { where += ' AND statut_paiement = ?'; params.push(statut); }
       const offset = (Number(page) - 1) * Number(limit);
       const totalResult = db.prepare(`SELECT COUNT(*) as total FROM devis ${where}`).get(...params);
       const total = Number(totalResult?.total || 0);
       const rows = db.prepare(`SELECT * FROM devis ${where} ORDER BY date_devis DESC, id DESC LIMIT ? OFFSET ?`).all(...params, Number(limit), offset);
       return { success: true, data: rows, pagination: { total, limit: Number(limit), page: Number(page), totalPages: Math.ceil(total / Number(limit)) } };
-    } catch (err) {
-      error('❌ get-devis:', err.message);
-      return { success: false, error: err.message };
-    }
+    } catch (err) { error('❌ get-devis:', err.message); return { success: false, error: err.message }; }
   });
 
   ipcMain.handle('ventes:get-factures', async (_event, options = {}) => {
@@ -200,190 +205,116 @@ function registerVentesHandlers(ipcMain) {
       const { search = '', statut = '', page = 1, limit = 20 } = options || {};
       let where = 'WHERE 1=1';
       const params = [];
-      if (search && String(search).trim()) {
-        where += ' AND (reference LIKE ? OR client_nom LIKE ?)';
-        const value = `%${String(search).trim()}%`;
-        params.push(value, value);
-      }
+      if (search && String(search).trim()) { where += ' AND (reference LIKE ? OR client_nom LIKE ?)'; const value = `%${String(search).trim()}%`; params.push(value, value); }
       if (statut) { where += ' AND statut_paiement = ?'; params.push(statut); }
       const offset = (Number(page) - 1) * Number(limit);
       const totalResult = db.prepare(`SELECT COUNT(*) as total FROM factures ${where}`).get(...params);
       const total = Number(totalResult?.total || 0);
       const rows = db.prepare(`SELECT * FROM factures ${where} ORDER BY date_facture DESC, id DESC LIMIT ? OFFSET ?`).all(...params, Number(limit), offset);
       return { success: true, data: rows, pagination: { total, limit: Number(limit), page: Number(page), totalPages: Math.ceil(total / Number(limit)) } };
-    } catch (err) {
-      error('❌ get-factures:', err.message);
-      return { success: false, error: err.message };
-    }
+    } catch (err) { error('❌ get-factures:', err.message); return { success: false, error: err.message }; }
   });
 
-  // CREATE DEVIS
   ipcMain.handle('ventes:create-devis', async (_event, data = {}) => {
     try {
       const db = getDb();
       const { client_id = null, client_nom = '', reference = '', total_ht = 0, total_ttc = 0, validite_jours = 30, observation = '', montant_paye = 0, details = [] } = data || {};
       if (!String(client_nom).trim()) return { success: false, error: 'Nom du client requis' };
-      const normalizedDetails = normalizeDetails(details);
+      const normalizedDetails = normalizeDetails(db, details); // ⭐ Pass db
       if (normalizedDetails.length === 0) return { success: false, error: 'Au moins un produit est requis' };
       let finalReference = String(reference || '').trim();
       if (!finalReference) finalReference = generateReference(db, 'devis', 'DEV');
       const payment = calculatePayment(Number(total_ttc) || 0, montant_paye);
       const stmts = getStatements();
       const transaction = db.transaction(() => {
-        const result = stmts.stmtCreateDevis.run(
-          normalizeId(client_id), String(client_nom).trim(), finalReference,
-          Number(total_ht) || 0, Number(total_ttc) || 0,
-          payment.statut_paiement, payment.montant_paye, payment.montant_restant,
-          Number(validite_jours) || 30, String(observation || '').trim()
-        );
+        const result = stmts.stmtCreateDevis.run(normalizeId(client_id), String(client_nom).trim(), finalReference, Number(total_ht) || 0, Number(total_ttc) || 0, payment.statut_paiement, payment.montant_paye, payment.montant_restant, Number(validite_jours) || 30, String(observation || '').trim());
         const devisId = Number(result.lastInsertRowid);
         let inserted = 0;
-        for (const detail of normalizedDetails) {
-          stmts.stmtInsertDevisDetail.run(devisId, detail.produit_id, detail.quantite, detail.prix_unitaire, detail.total, detail.tva_rate);
-          inserted++;
-        }
+        for (const detail of normalizedDetails) { stmts.stmtInsertDevisDetail.run(devisId, detail.produit_id, detail.quantite, detail.prix_unitaire, detail.total, detail.tva_rate); inserted++; }
         if (inserted === 0) throw new Error('Aucun détail produit enregistré');
         return { id: devisId, reference: finalReference, detailsCount: inserted };
       });
       const result = transaction();
       emitVentesChanged({ type: 'devis_created', id: result.id });
-      log(`✅ Devis créé #${result.id} - Ref: ${finalReference}`);
       return { success: true, data: result };
-    } catch (err) {
-      error('❌ create-devis:', err.message);
-      return { success: false, error: err.message };
-    }
+    } catch (err) { error('❌ create-devis:', err.message); return { success: false, error: err.message }; }
   });
 
-  // CREATE FACTURE
   ipcMain.handle('ventes:create-facture', async (_event, data = {}) => {
     try {
       const db = getDb();
       const { client_id = null, client_nom = '', reference = '', total_ht = 0, total_ttc = 0, observation = '', montant_paye = 0, details = [] } = data || {};
       if (!String(client_nom).trim()) return { success: false, error: 'Nom du client requis' };
-      const normalizedDetails = normalizeDetails(details);
+      const normalizedDetails = normalizeDetails(db, details); // ⭐ Pass db
       if (normalizedDetails.length === 0) return { success: false, error: 'Au moins un produit est requis' };
       let finalReference = String(reference || '').trim();
       if (!finalReference) finalReference = generateReference(db, 'factures', 'FAC');
       const payment = calculatePayment(Number(total_ttc) || 0, montant_paye);
       const stmts = getStatements();
       const transaction = db.transaction(() => {
-        const result = stmts.stmtCreateFacture.run(
-          normalizeId(client_id), String(client_nom).trim(), finalReference,
-          Number(total_ht) || 0, Number(total_ttc) || 0,
-          payment.statut_paiement, payment.montant_paye, payment.montant_restant,
-          String(observation || '').trim()
-        );
+        const result = stmts.stmtCreateFacture.run(normalizeId(client_id), String(client_nom).trim(), finalReference, Number(total_ht) || 0, Number(total_ttc) || 0, payment.statut_paiement, payment.montant_paye, payment.montant_restant, String(observation || '').trim());
         const factureId = Number(result.lastInsertRowid);
         let inserted = 0;
-        for (const detail of normalizedDetails) {
-          stmts.stmtInsertFactureDetail.run(factureId, detail.produit_id, detail.quantite, detail.prix_unitaire, detail.total, detail.tva_rate);
-          inserted++;
-        }
-        for (const detail of normalizedDetails) {
-          db.prepare('UPDATE produits SET quantite_stock = quantite_stock - ? WHERE id = ?').run(detail.quantite, detail.produit_id);
-        }
+        for (const detail of normalizedDetails) { stmts.stmtInsertFactureDetail.run(factureId, detail.produit_id, detail.quantite, detail.prix_unitaire, detail.total, detail.tva_rate); inserted++; }
+        for (const detail of normalizedDetails) { db.prepare('UPDATE produits SET quantite_stock = quantite_stock - ? WHERE id = ?').run(detail.quantite, detail.produit_id); }
         return { id: factureId, reference: finalReference, detailsCount: inserted };
       });
       const result = transaction();
       emitVentesChanged({ type: 'facture_created', id: result.id });
-      log(`✅ Facture créée #${result.id} - Ref: ${finalReference}`);
       return { success: true, data: result };
-    } catch (err) {
-      error('❌ create-facture:', err.message);
-      return { success: false, error: err.message };
-    }
+    } catch (err) { error('❌ create-facture:', err.message); return { success: false, error: err.message }; }
   });
 
-  // DELETE DEVIS
   ipcMain.handle('ventes:delete-devis', async (_event, id) => {
     try {
-      const db = getDb();
-      const devisId = normalizeId(id);
+      const db = getDb(); const devisId = normalizeId(id);
       if (!devisId) return { success: false, error: 'ID devis invalide' };
-      const transaction = db.transaction(() => {
-        db.prepare('DELETE FROM details_devis WHERE devis_id = ?').run(devisId);
-        db.prepare('DELETE FROM devis WHERE id = ?').run(devisId);
-      });
+      const transaction = db.transaction(() => { db.prepare('DELETE FROM details_devis WHERE devis_id = ?').run(devisId); db.prepare('DELETE FROM devis WHERE id = ?').run(devisId); });
       transaction();
       emitVentesChanged({ type: 'devis_deleted', id: devisId });
       return { success: true };
-    } catch (err) {
-      error('❌ delete-devis:', err.message);
-      return { success: false, error: err.message };
-    }
+    } catch (err) { error('❌ delete-devis:', err.message); return { success: false, error: err.message }; }
   });
 
-  // DELETE FACTURE (Avereno ny stock)
   ipcMain.handle('ventes:delete-facture', async (_event, id) => {
     try {
-      const db = getDb();
-      const factureId = normalizeId(id);
+      const db = getDb(); const factureId = normalizeId(id);
       if (!factureId) return { success: false, error: 'ID facture invalide' };
-      const stmts = getStatements();
-      const details = stmts.stmtGetFactureDetails.all(factureId);
+      const stmts = getStatements(); const details = stmts.stmtGetFactureDetails.all(factureId);
       const transaction = db.transaction(() => {
         for (const detail of details) {
-          const normalized = normalizeProductDetail(detail);
+          const normalized = normalizeProductDetail(db, detail);
           if (!normalized) continue;
           db.prepare('UPDATE produits SET quantite_stock = quantite_stock + ? WHERE id = ?').run(normalized.quantite, normalized.produit_id);
         }
-        db.prepare('DELETE FROM details_factures WHERE facture_id = ?').run(factureId);
-        db.prepare('DELETE FROM factures WHERE id = ?').run(factureId);
+        db.prepare('DELETE FROM details_factures WHERE facture_id = ?').run(factureId); db.prepare('DELETE FROM factures WHERE id = ?').run(factureId);
       });
-      transaction();
-      emitVentesChanged({ type: 'facture_deleted', id: factureId });
+      transaction(); emitVentesChanged({ type: 'facture_deleted', id: factureId });
       return { success: true };
-    } catch (err) {
-      error('❌ delete-facture:', err.message);
-      return { success: false, error: err.message };
-    }
+    } catch (err) { error('❌ delete-facture:', err.message); return { success: false, error: err.message }; }
   });
 
-  // UPDATE PAIEMENT
   ipcMain.handle('ventes:update-paiement', async (_event, id, data = {}) => {
     try {
-      const db = getDb();
-      const itemId = normalizeId(id);
+      const db = getDb(); const itemId = normalizeId(id);
       if (!itemId) return { success: false, error: 'ID invalide' };
       const { type = 'devis', statut_paiement } = data || {};
-      if (!type || !['devis', 'factures'].includes(type)) {
-        return { success: false, error: 'Type invalide (devis ou factures)' };
-      }
+      if (!type || !['devis', 'factures'].includes(type)) return { success: false, error: 'Type invalide (devis ou factures)' };
       const table = type === 'devis' ? 'devis' : 'factures';
       const existing = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(itemId);
       if (!existing) return { success: false, error: 'Document non trouvé' };
       const totalTTC = Number(existing.total_ttc || 0);
       let nouveauStatut = statut_paiement || 'Non payé';
-      let safeMontantPaye = 0;
-      let montantRestant = 0;
-      if (nouveauStatut === 'Payé') {
-        safeMontantPaye = totalTTC;
-        montantRestant = 0;
-      } else if (nouveauStatut === 'Non payé') {
-        safeMontantPaye = 0;
-        montantRestant = totalTTC;
-      } else {
-        const inputMontantPaye = Number(data.montant_paye) || 0;
-        safeMontantPaye = Math.min(totalTTC, Math.max(0, inputMontantPaye));
-        montantRestant = Math.max(0, totalTTC - safeMontantPaye);
-      }
-      db.prepare(`
-        UPDATE ${table}
-        SET statut_paiement = ?,
-            montant_paye = ?,
-            montant_restant = ?
-        WHERE id = ?
-      `).run(nouveauStatut, safeMontantPaye, montantRestant, itemId);
+      let safeMontantPaye = 0; let montantRestant = 0;
+      if (nouveauStatut === 'Payé') { safeMontantPaye = totalTTC; montantRestant = 0; }
+      else if (nouveauStatut === 'Non payé') { safeMontantPaye = 0; montantRestant = totalTTC; }
+      else { const inputMontantPaye = Number(data.montant_paye) || 0; safeMontantPaye = Math.min(totalTTC, Math.max(0, inputMontantPaye)); montantRestant = Math.max(0, totalTTC - safeMontantPaye); }
+      db.prepare(`UPDATE ${table} SET statut_paiement = ?, montant_paye = ?, montant_restant = ? WHERE id = ?`).run(nouveauStatut, safeMontantPaye, montantRestant, itemId);
       emitVentesChanged({ type: 'payment_updated', id: itemId, table });
       return { success: true, data: { id: itemId, statut_paiement: nouveauStatut, montant_paye: safeMontantPaye, montant_restant: montantRestant } };
-    } catch (err) {
-      error('❌ update-paiement:', err.message);
-      return { success: false, error: err.message };
-    }
+    } catch (err) { error('❌ update-paiement:', err.message); return { success: false, error: err.message }; }
   });
 
-  log('✅ Ventes handlers enregistrés (TVA Dynamique active)');
   return true;
 }
 

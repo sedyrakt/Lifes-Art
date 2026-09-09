@@ -1,16 +1,16 @@
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLicense } from '../contexts/LicenseContext';
 import { useNavigate } from 'react-router-dom';
-import { Settings2, User, Info, LogOut, Database, Crown, X } from 'lucide-react';
+import { Settings2, User, Info, LogOut, Database, Crown, X, BookOpen } from 'lucide-react';
 
 import ParametresGeneral from '../components/parametres/ParametresGeneral';
 import ParametresProfile from '../components/parametres/ParametresProfile';
 import ParametresSystemInfo from '../components/parametres/ParametresSystemInfo';
 import ParametresBackup from '../components/parametres/ParametresBackup';
 import ParametresLicense, { type LicenseInfo } from '../components/parametres/ParametresLicense';
+import ParametresAbout from '../components/parametres/ParametresAbout';
 
 import SuccessModal from '../components/common/SuccessModal';
 import ErrorModal from '../components/common/ErrorModal';
@@ -23,7 +23,6 @@ interface AppSettings {
   dateFormat: string;
   timeZone: string;
 }
-
 
 const ParametresSkeleton = ({ isDark }: { isDark: boolean }) => {
   const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
@@ -72,12 +71,12 @@ const Parametres: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'general' | 'profile' | 'system' | 'backup' | 'license'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'profile' | 'system' | 'backup' | 'license' | 'about'>('general');
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const [settings, setSettings] = useState<AppSettings>({
-    appName: "TahiryPro",
+    appName: "Lifes-Art",
     companyName: '',
     language: 'fr',
     currency: 'Ar',
@@ -181,6 +180,7 @@ const Parametres: React.FC = () => {
     { id: 'system' as const, label: 'Système', icon: Info },
     { id: 'backup' as const, label: 'Sauvegarde', icon: Database },
     { id: 'license' as const, label: 'Licence', icon: Crown },
+    { id: 'about' as const, label: 'À propos', icon: BookOpen }, // ⭐ Nouveau tab
   ];
 
   const renderContent = () => {
@@ -190,10 +190,10 @@ const Parametres: React.FC = () => {
       case 'system': return <ParametresSystemInfo systemInfo={systemInfo} isDark={isDark} />;
       case 'backup': return <ParametresBackup isDark={isDark} />;
       case 'license': return <ParametresLicense status={licenseStatus} licenseInfo={licenseInfo} />;
+      case 'about': return <ParametresAbout isDark={isDark} />; // ⭐ Nouveau case
       default: return null;
     }
   };
-
 
   const bgColor = isDark ? '#0F172A' : '#FFFFFF';
   const cardColor = isDark ? '#0F172A' : '#FFFFFF';  
@@ -257,7 +257,6 @@ const Parametres: React.FC = () => {
           </>
         )}
       </div>
-
 
       {showLogoutModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">

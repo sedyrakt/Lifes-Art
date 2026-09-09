@@ -94,7 +94,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  useEffect(() => { loadUser(); }, [loadUser]);
+  // ⭐ FIX: Nampiana interval 15 MINITRA ho an'ny famerenana ny session
+  useEffect(() => {
+    loadUser();
+    const intervalId = setInterval(() => {
+      loadUser();
+    }, 15 * 60 * 1000); // 15 minitra (15 * 60 * 1000 = 900,000 ms)
+
+    return () => clearInterval(intervalId);
+  }, [loadUser]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setLoading(true);

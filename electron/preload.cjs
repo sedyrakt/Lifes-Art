@@ -7,6 +7,7 @@
 // ⭐ NEW: NAMPIANA NY PRESENCE JOURNALIERE + HISTORIQUE
 // ⭐ NEW: NAMPIANA NY getAbsencesCount (PAYMENTS)
 // ⭐ NEW: NAMPIANA NY saveFileToDirectory (BULK BULLETIN)
+// ⭐ NEW: NAMPIANA FILTERS HO AN'NY saveFile (Save As - Excel/PDF/CSV)
 // ============================================================
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -303,11 +304,14 @@ const api = {
   },
   dialog: {
     showOpenDialog: (options) => invoke('dialog:show-open-dialog', options),
+    // ⭐ FANAMPINANA: Save Dialog ho an'ny export
+    showSaveDialog: (options) => invoke('dialog:show-save-dialog', options),
   },
   utils: {
     exportData: (data, format) => invoke('utils:export-data', data, format),
     print: () => invoke('utils:print'),
-    saveFile: (data, defaultPath) => invoke('utils:save-file', data, defaultPath),
+    // ⭐ FANOVANA: Nampiana filters ho an'ny Save As (Excel/PDF/CSV)
+    saveFile: (data, defaultPath, filters) => invoke('utils:save-file', data, defaultPath, filters),
     // ⭐ VAOVAO: Mitahiry mivantana ao anaty dossier (tsy misy dialog)
     saveFileToDirectory: (data, directory, filename) => invoke('utils:save-file-to-directory', data, directory, filename),
   },
@@ -316,7 +320,7 @@ const api = {
     arch: process.arch,
     electron: process.versions.electron,
     node: process.versions.node,
-    app: "TahiryPro",
+    app: "Lifes-Art",
     version: APP_VERSION,
   },
 };

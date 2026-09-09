@@ -1,14 +1,12 @@
-
-
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MoreVertical, Eye, Edit, Trash2 } from 'lucide-react';
 import { DeleteType } from './PaiementsUtils';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface DropdownProps {
   id: number;
   type: DeleteType;
   data: any;
-  isDark: boolean;
   onView?: (data: any) => void;
   onEdit?: (data: any) => void;
   onDelete: (id: number, type: string) => void;
@@ -17,8 +15,9 @@ interface DropdownProps {
 }
 
 const EllipsisDropdown: React.FC<DropdownProps> = ({
-  id, type, data, isDark, onView, onEdit, onDelete, onViewHistorique, onOpenChange,
+  id, type, data, onView, onEdit, onDelete, onViewHistorique, onOpenChange,
 }) => {
+  const { isDark } = useTheme();
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -95,7 +94,7 @@ const EllipsisDropdown: React.FC<DropdownProps> = ({
         ref={buttonRef}
         type="button"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggle(); }}
-        className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-white/[0.06] dark:hover:text-slate-200"
+        className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-600 dark:hover:bg-white/[0.06] dark:hover:text-slate-200"
       >
         <MoreVertical size={18} />
       </button>
@@ -105,7 +104,7 @@ const EllipsisDropdown: React.FC<DropdownProps> = ({
           <div
             ref={menuRef}
             className={`fixed z-[99999] w-[205px] overflow-hidden rounded-xl border py-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 ${
-              isDark ? 'border-white/[0.10] bg-[#2A2A2A]' : 'border-rose-100 bg-white'
+              isDark ? 'border-white/[0.10] bg-[#0F172A]' : 'border-slate-200 bg-white'
             }`}
             style={{ top: position.top, left: position.left }}
             onMouseDown={(e) => e.stopPropagation()}
@@ -113,22 +112,22 @@ const EllipsisDropdown: React.FC<DropdownProps> = ({
             <button
               type="button"
               onClick={(e) => action(e, 'view')}
-              className="flex w-full items-center px-4 py-2.5 text-left text-[14px] text-slate-700 transition-colors hover:bg-rose-50 dark:text-slate-200 dark:hover:bg-white/[0.06]"
+              className="flex w-full items-center px-4 py-2.5 text-left text-[14px] text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.06]"
             >
               <Eye size={16} className="mr-3 shrink-0 text-slate-500 dark:text-slate-400" /> Voir les détails
             </button>
             <button
               type="button"
               onClick={(e) => action(e, 'edit')}
-              className="flex w-full items-center px-4 py-2.5 text-left text-[14px] text-slate-700 transition-colors hover:bg-rose-50 dark:text-slate-200 dark:hover:bg-white/[0.06]"
+              className="flex w-full items-center px-4 py-2.5 text-left text-[14px] text-slate-700 transition-colors hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.06]"
             >
               <Edit size={16} className="mr-3 shrink-0 text-slate-500 dark:text-slate-400" /> Modifier
             </button>
-            <div className={`my-1 border-t ${isDark ? 'border-white/[0.08]' : 'border-rose-100'}`} />
+            <div className={`my-1 border-t ${isDark ? 'border-white/[0.08]' : 'border-slate-100'}`} />
             <button
               type="button"
               onClick={(e) => action(e, 'delete')}
-              className="flex w-full items-center px-4 py-2.5 text-left text-[14px] text-rose-500 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:text-rose-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
+              className="flex w-full items-center px-4 py-2.5 text-left text-[14px] text-danger-600 transition-colors hover:bg-danger-50 hover:text-danger-700 dark:text-danger-400 dark:hover:bg-danger-500/10 dark:hover:text-danger-300"
             >
               <Trash2 size={16} className="mr-3 shrink-0" /> Supprimer
             </button>

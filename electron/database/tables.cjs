@@ -52,7 +52,7 @@ function ensureTables() {
     db.exec(`CREATE TABLE IF NOT EXISTS sorties_stock (id INTEGER PRIMARY KEY AUTOINCREMENT, produit_id INTEGER NOT NULL, quantite INTEGER NOT NULL, prix_unitaire REAL DEFAULT 0, reference TEXT, destination TEXT, observation TEXT, date_sortie TEXT DEFAULT CURRENT_TIMESTAMP, created_at TEXT DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (produit_id) REFERENCES produits(id) ON DELETE CASCADE);`);
     db.exec(`CREATE TABLE IF NOT EXISTS mouvements_stock (id INTEGER PRIMARY KEY AUTOINCREMENT, produit_id INTEGER NOT NULL, type_mouvement TEXT NOT NULL CHECK (type_mouvement IN ('ENTREE', 'SORTIE')), quantite INTEGER NOT NULL, ancien_stock INTEGER NOT NULL, nouveau_stock INTEGER NOT NULL, reference TEXT, observation TEXT, prix_unitaire REAL DEFAULT 0, created_by INTEGER, date_mouvement TEXT DEFAULT CURRENT_TIMESTAMP, created_at TEXT DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (produit_id) REFERENCES produits(id) ON DELETE CASCADE, FOREIGN KEY (created_by) REFERENCES utilisateurs(id) ON DELETE SET NULL);`);
     db.exec(`CREATE TABLE IF NOT EXISTS employes (id INTEGER PRIMARY KEY AUTOINCREMENT, nom TEXT NOT NULL, prenom TEXT NOT NULL, email TEXT UNIQUE NOT NULL, telephone TEXT, poste TEXT NOT NULL, departement TEXT, date_embauche TEXT, salaire REAL DEFAULT 0, status TEXT DEFAULT 'actif', created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP);`);
-    db.exec(`CREATE TABLE IF NOT EXISTS paiements_employes (id INTEGER PRIMARY KEY AUTOINCREMENT, employe_id INTEGER NOT NULL, mois INTEGER NOT NULL, annee INTEGER NOT NULL, montant REAL NOT NULL DEFAULT 0, mode_paiement TEXT DEFAULT 'Espèces', statut TEXT DEFAULT 'Payé', reference TEXT, observation TEXT, salaire_brut REAL DEFAULT 0, cnaps REAL DEFAULT 0, ostie REAL DEFAULT 0, irsa REAL DEFAULT 0, avance REAL DEFAULT 0, date_paiement TEXT DEFAULT CURRENT_TIMESTAMP, created_at TEXT DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (employe_id) REFERENCES employes(id) ON DELETE CASCADE);`);
+    db.exec(`CREATE TABLE IF NOT EXISTS paiements_employes (id INTEGER PRIMARY KEY AUTOINCREMENT, employe_id INTEGER NOT NULL, mois INTEGER NOT NULL, annee INTEGER NOT NULL, montant REAL NOT NULL DEFAULT 0, mode_paiement TEXT DEFAULT 'Espèces', statut TEXT DEFAULT 'Payé', reference TEXT, observation TEXT, salaire_brut REAL DEFAULT 0, cnaps REAL DEFAULT 0, ostie REAL DEFAULT 0, irsa REAL DEFAULT 0, avance REAL DEFAULT 0, absences_deduction REAL DEFAULT 0, date_paiement TEXT DEFAULT CURRENT_TIMESTAMP, created_at TEXT DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (employe_id) REFERENCES employes(id) ON DELETE CASCADE);`);
     db.exec(`CREATE TABLE IF NOT EXISTS depenses (id INTEGER PRIMARY KEY AUTOINCREMENT, fournisseur_id INTEGER, description TEXT NOT NULL, montant REAL NOT NULL DEFAULT 0, categorie TEXT, date_depense TEXT DEFAULT CURRENT_TIMESTAMP, created_at TEXT DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (fournisseur_id) REFERENCES fournisseurs(id) ON DELETE SET NULL);`);
     db.exec(`CREATE TABLE IF NOT EXISTS achats (id INTEGER PRIMARY KEY AUTOINCREMENT, fournisseur_id INTEGER NOT NULL, reference TEXT, date_achat TEXT DEFAULT CURRENT_TIMESTAMP, total_ht REAL DEFAULT 0, total_ttc REAL DEFAULT 0, designation TEXT, nombre_produits INTEGER DEFAULT 0, statut_paiement TEXT DEFAULT 'Non payé', montant_paye REAL DEFAULT 0, montant_restant REAL DEFAULT 0, observation TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (fournisseur_id) REFERENCES fournisseurs(id) ON DELETE SET NULL);`);
     db.exec(`CREATE TABLE IF NOT EXISTS details_achats (id INTEGER PRIMARY KEY AUTOINCREMENT, achat_id INTEGER NOT NULL, produit_id INTEGER, quantite INTEGER NOT NULL, prix_unitaire REAL NOT NULL, total REAL NOT NULL, tva_rate REAL DEFAULT 0.2, created_at TEXT DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (achat_id) REFERENCES achats(id) ON DELETE CASCADE, FOREIGN KEY (produit_id) REFERENCES produits(id) ON DELETE CASCADE);`);
@@ -62,7 +62,12 @@ function ensureTables() {
     db.exec(`CREATE TABLE IF NOT EXISTS details_factures (id INTEGER PRIMARY KEY AUTOINCREMENT, facture_id INTEGER NOT NULL, produit_id INTEGER, quantite INTEGER NOT NULL, prix_unitaire REAL NOT NULL, total REAL NOT NULL, tva_rate REAL DEFAULT 0.2, FOREIGN KEY (facture_id) REFERENCES factures(id) ON DELETE CASCADE, FOREIGN KEY (produit_id) REFERENCES produits(id) ON DELETE CASCADE);`);
     db.exec(`CREATE TABLE IF NOT EXISTS presence_employes (id INTEGER PRIMARY KEY AUTOINCREMENT, employe_id INTEGER NOT NULL, mois INTEGER NOT NULL, annee INTEGER NOT NULL, jours_absences INTEGER DEFAULT 0, jours_conges INTEGER DEFAULT 0, jours_maladie INTEGER DEFAULT 0, justificatif_maladie TEXT, observation TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, UNIQUE(employe_id, mois, annee), FOREIGN KEY (employe_id) REFERENCES employes(id) ON DELETE CASCADE);`);
     db.exec(`CREATE TABLE IF NOT EXISTS historique_salaires (id INTEGER PRIMARY KEY AUTOINCREMENT, employe_id INTEGER NOT NULL, ancien_salaire REAL DEFAULT 0, nouveau_salaire REAL DEFAULT 0, date_changement TEXT DEFAULT CURRENT_TIMESTAMP, raison TEXT, FOREIGN KEY (employe_id) REFERENCES employes(id) ON DELETE CASCADE);`);
-    db.exec(`CREATE TABLE IF NOT EXISTS presence_journaliere (id INTEGER PRIMARY KEY AUTOINCREMENT, employe_id INTEGER NOT NULL, date TEXT NOT NULL, statut TEXT NOT NULL DEFAULT 'present', heure_arrivee TEXT, heure_depart TEXT, observation TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, UNIQUE(employe_id, date), FOREIGN KEY (employe_id) REFERENCES employes(id) ON DELETE CASCADE);`);
+
+    // ⭐ NOVAINA: Planning hebdomadaire
+    db.exec(`CREATE TABLE IF NOT EXISTS planning (id INTEGER PRIMARY KEY AUTOINCREMENT, employe_id INTEGER NOT NULL, jour_semaine INTEGER NOT NULL, heure_debut TEXT DEFAULT '08:00', heure_fin TEXT DEFAULT '17:00', pause REAL DEFAULT 1, FOREIGN KEY (employe_id) REFERENCES employes(id) ON DELETE CASCADE, UNIQUE(employe_id, jour_semaine));`);
+
+    // ⭐ NOVAINA: presence_journaliere misy ny kajy automatique
+    db.exec(`CREATE TABLE IF NOT EXISTS presence_journaliere (id INTEGER PRIMARY KEY AUTOINCREMENT, employe_id INTEGER NOT NULL, date TEXT NOT NULL, statut TEXT NOT NULL DEFAULT 'present', heure_arrivee TEXT, heure_depart TEXT, heure_debut_planifiee TEXT DEFAULT '08:00', heure_fin_planifiee TEXT DEFAULT '17:00', retard INTEGER DEFAULT 0, heures_travaillees REAL DEFAULT 0, heures_sup REAL DEFAULT 0, observation TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP, UNIQUE(employe_id, date), FOREIGN KEY (employe_id) REFERENCES employes(id) ON DELETE CASCADE);`);
 
     log('🔧 Vérification des migrations...');
     addColumnIfMissing(db, 'fournisseurs', 'updated_at', 'TEXT DEFAULT CURRENT_TIMESTAMP');
@@ -147,6 +152,7 @@ function ensureTables() {
       addColumnIfMissing(db, 'paiements_employes', 'ostie', 'REAL DEFAULT 0');
       addColumnIfMissing(db, 'paiements_employes', 'irsa', 'REAL DEFAULT 0');
       addColumnIfMissing(db, 'paiements_employes', 'avance', 'REAL DEFAULT 0');
+      addColumnIfMissing(db, 'paiements_employes', 'absences_deduction', 'REAL DEFAULT 0'); // ⭐ VAOVAO
       addColumnIfMissing(db, 'paiements_employes', 'created_at', 'TEXT DEFAULT CURRENT_TIMESTAMP');
       try {
         db.exec(`UPDATE paiements_employes SET date_paiement = CASE WHEN date_paiement IS NOT NULL AND TRIM(date_paiement) <> '' THEN substr(date_paiement, 1, 10) WHEN created_at IS NOT NULL AND TRIM(created_at) <> '' THEN substr(created_at, 1, 10) WHEN annee IS NOT NULL AND mois IS NOT NULL THEN printf('%04d-%02d-01', annee, mois) ELSE date('now') END WHERE date_paiement IS NULL OR TRIM(date_paiement) = ''`);
@@ -155,6 +161,16 @@ function ensureTables() {
     }
     if (tableExists(db, 'mouvements_stock')) addColumnIfMissing(db, 'mouvements_stock', 'prix_unitaire', 'REAL DEFAULT 0');
     if (tableExists(db, 'presence_employes')) addColumnIfMissing(db, 'presence_employes', 'justificatif_maladie', 'TEXT');
+
+    // ⭐ NOVAINA: Migration kolontsaina vaovao amin'ny presence_journaliere
+    if (tableExists(db, 'presence_journaliere')) {
+      addColumnIfMissing(db, 'presence_journaliere', 'heure_debut_planifiee', "TEXT DEFAULT '08:00'");
+      addColumnIfMissing(db, 'presence_journaliere', 'heure_fin_planifiee', "TEXT DEFAULT '17:00'");
+      addColumnIfMissing(db, 'presence_journaliere', 'retard', 'INTEGER DEFAULT 0');
+      addColumnIfMissing(db, 'presence_journaliere', 'heures_travaillees', 'REAL DEFAULT 0');
+      addColumnIfMissing(db, 'presence_journaliere', 'heures_sup', 'REAL DEFAULT 0');
+    }
+
     try { db.exec(`UPDATE produits SET status = 'inactif' WHERE quantite_stock <= 0`); } catch (err) { warn('⚠️ Update produits status:', err.message); }
 
     log('🔧 Création des indexes...');
@@ -179,22 +195,19 @@ function ensureTables() {
     createIndex(db, `CREATE INDEX IF NOT EXISTS idx_factures_date ON factures(date_facture)`, 'idx_factures_date');
     createIndex(db, `CREATE INDEX IF NOT EXISTS idx_factures_statut_paiement ON factures(statut_paiement)`, 'idx_factures_statut_paiement');
     
-    // PAYMENTS INDEXES
     createIndex(db, `CREATE INDEX IF NOT EXISTS idx_paiements_employes_employe ON paiements_employes(employe_id)`, 'idx_paiements_employes_employe');
     createIndex(db, `CREATE INDEX IF NOT EXISTS idx_paiements_employes_mois_annee ON paiements_employes(mois, annee)`, 'idx_paiements_employes_mois_annee');
     createIndex(db, `CREATE INDEX IF NOT EXISTS idx_paiements_employes_date ON paiements_employes(date_paiement DESC)`, 'idx_paiements_employes_date');
     createIndex(db, `CREATE INDEX IF NOT EXISTS idx_paiements_employes_employe_date ON paiements_employes(employe_id, date_paiement DESC, id DESC)`, 'idx_paiements_employes_employe_date');
     createIndex(db, `CREATE INDEX IF NOT EXISTS idx_paiements_employes_period_date ON paiements_employes(annee, mois, date_paiement DESC, id DESC)`, 'idx_paiements_employes_period_date');
-    
-    // ⭐ UNIQUE CONSTRAINT (Tsy azo averina in-2 ny mandoa karama isambolana ho an'ny employé iray)
     createIndex(db, `CREATE UNIQUE INDEX IF NOT EXISTS idx_paiements_unique_periode ON paiements_employes(employe_id, mois, annee)`, 'idx_paiements_unique_periode');
 
-    // RH INDEXES
     createIndex(db, `CREATE INDEX IF NOT EXISTS idx_presence_employes_employe ON presence_employes(employe_id)`, 'idx_presence_employes_employe');
     createIndex(db, `CREATE INDEX IF NOT EXISTS idx_presence_employes_mois_annee ON presence_employes(mois, annee)`, 'idx_presence_employes_mois_annee');
     createIndex(db, `CREATE INDEX IF NOT EXISTS idx_historique_salaires_employe ON historique_salaires(employe_id)`, 'idx_historique_salaires_employe');
     createIndex(db, `CREATE INDEX IF NOT EXISTS idx_presence_journaliere_employe_date ON presence_journaliere(employe_id, date DESC)`, 'idx_presence_journaliere_employe_date');
     createIndex(db, `CREATE INDEX IF NOT EXISTS idx_presence_journaliere_date ON presence_journaliere(date DESC)`, 'idx_presence_journaliere_date');
+    createIndex(db, `CREATE INDEX IF NOT EXISTS idx_planning_employe_jour ON planning(employe_id, jour_semaine)`, 'idx_planning_employe_jour');
 
     try {
       db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS produits_fts USING fts5(nom, code, description, content='produits', content_rowid='id');`);
@@ -219,7 +232,7 @@ function ensureTables() {
     log('✅ FTS5 vérifié');
     log('✅ Triggers vérifiés');
     log('✅ Modules ERP: Achats, Ventes, Commandes, RH Payroll');
-    log('✅ Nouvelle table: presence_journaliere');
+    log('✅ Nouvelle table: presence_journaliere (avec calculs) + planning');
     log('================================================');
     return true;
   } catch (err) {

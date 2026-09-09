@@ -161,7 +161,7 @@ const FournisseursTable: React.FC<FournisseursTableProps> = ({
         <table className={`w-full min-w-[850px] table-fixed border-collapse text-left ${borderColor}`}>
   
           <thead className={`sticky top-0 z-20 backdrop-blur-xl ${isDark ? 'bg-[#0F172A]/97' : 'bg-slate-50/97'}`}>
-            <tr className="text-[12.5px] font-semibold uppercase tracking-[0.055em] text-slate-500 dark:text-slate-400">
+            <tr className="text-[13px] font-semibold uppercase tracking-[0.055em] text-slate-500 dark:text-slate-400">
               <th scope="col" className={`w-[40px] border px-2 py-2.5 align-middle ${headerBorderColor}`}>
                 <input
                   type="checkbox"
@@ -209,7 +209,7 @@ const FournisseursTable: React.FC<FournisseursTableProps> = ({
                   <td className={`border px-2 py-2 align-middle ${cellBorderColor}`}>
                     <div className="min-w-0">
                       <div title={fournisseur.nom || 'Fournisseur inconnu'} className="truncate text-[14.5px] font-semibold text-slate-900 transition-colors group-hover:text-brand-600 dark:text-slate-100 dark:group-hover:text-brand-400">{fournisseur.nom || 'Fournisseur inconnu'}</div>
-                      <div className="mt-0.5 text-[12.5px] font-medium text-slate-500 dark:text-slate-400">ID #{String(fournisseur.id).padStart(3, '0')}</div>
+                      <div className="mt-0.5 text-[13px] font-medium text-slate-500 dark:text-slate-400">ID #{String(fournisseur.id).padStart(3, '0')}</div>
                     </div>
                   </td>
 
@@ -290,21 +290,21 @@ const FournisseursTable: React.FC<FournisseursTableProps> = ({
           </span>
           <span className="hidden h-3.5 w-px bg-slate-300 sm:block dark:bg-white/[0.12]" />
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[12.5px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300">
+            <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[13px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300">
               Contact : <span className="text-slate-400 dark:text-slate-500">{stats.totalAvecContact}</span>
             </span>
-            <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[12.5px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300">
+            <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[13px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300">
               Tél : <span className="text-slate-400 dark:text-slate-500">{stats.totalAvecTelephone}</span>
             </span>
-            <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[12.5px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300">
+            <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[13px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300">
               Email : <span className="text-slate-400 dark:text-slate-500">{stats.totalAvecEmail}</span>
             </span>
-            <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[12.5px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300">
+            <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[13px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300">
               Adresse : <span className="text-slate-400 dark:text-slate-500">{stats.totalAvecAdresse}</span>
             </span>
           </div>
         </div>
-        <span className="text-[12.5px] font-medium text-slate-400 dark:text-slate-500">Gestion des fournisseurs</span>
+        <span className="text-[13px] font-medium text-slate-400 dark:text-slate-500">Gestion des fournisseurs</span>
       </div>
 
       <style>{`

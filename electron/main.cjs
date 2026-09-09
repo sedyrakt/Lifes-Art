@@ -1,7 +1,6 @@
 // ============================================================
-// electron/main.cjs - TahiryPro ERP
-// ⭐ VERSION FINALE - LICENSE HANDLER EXPLICITE
-// ⭐ FIX: Mampiditra mivantana ny registerLicenseHandlers
+// electron/main.cjs - Lifes-Art ERP
+// ⭐ VERSION FINALE - LICENSE + BACKUP FORCE REGISTRATION
 // ============================================================
 'use strict';
 
@@ -13,14 +12,9 @@ dotenv.config({
   path: path.join(app.getAppPath(), '.env')
 });
 
-// ============================================================
 // ⭐ CONSTANTES
-// ============================================================
-
 const isDev=!app.isPackaged||process.env.NODE_ENV==='development';
 const APP_ROOT=path.resolve(__dirname,'..');
-
-// ⭐ Raha production, ampiasao ny dist-electron/
 const BASE_PATH = !isDev && fs.existsSync(path.join(__dirname, '..', 'dist-electron'))
   ? path.join(__dirname, '..', 'dist-electron')
   : path.resolve(__dirname, '.');
@@ -30,32 +24,24 @@ const DIST_PATH = path.join(APP_ROOT, 'dist');
 const DIST_INDEX = path.join(DIST_PATH, 'index.html');
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
 
-// ============================================================
 // ⭐ DATABASE MODULES
-// ============================================================
 const {initDatabase,closeDatabase}=require('./database/init.cjs');
 const {getDb,getDbPath,getDatabaseDebugInfo}=require('./database/connection.cjs');
 const {log,warn,error}=require('./database/utils.cjs');
 
-// ============================================================
 // ⭐ VARIABLES D'ÉTAT
-// ============================================================
 let mainWindow=null;
 let databaseInitialized=false;
 let handlersRegistered=false;
 let isQuitting=false;
 let windowShown=false;
 
-// ============================================================
 // ⭐ LOGGING
-// ============================================================
 function mainLog(...args){console.log('[MAIN]',...args);}
 function mainWarn(...args){console.warn('[MAIN]',...args);}
 function mainError(...args){console.error('[MAIN]',...args);}
 
-// ============================================================
 // ⭐ DATABASE INITIALIZATION
-// ============================================================
 async function initializeDatabase(){
   if(databaseInitialized){mainLog('ℹ️ Database déjà initialisée');return true;}
   try{
@@ -85,9 +71,7 @@ function shutdownDatabase(){
   }
 }
 
-// ============================================================
 // ⭐ PROTOCOLE LOCAL-IMAGE
-// ============================================================
 function getMimeType(filePath){
   const ext=path.extname(filePath).toLowerCase();
   const mimeTypes={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.gif':'image/gif','.webp':'image/webp','.svg':'image/svg+xml','.ico':'image/x-icon','.bmp':'image/bmp','.avif':'image/avif'};
@@ -132,9 +116,7 @@ function registerLocalImageProtocol(){
   }catch(err){mainError('❌ Impossible enregistrer local-image://:',err.message);}
 }
 
-// ============================================================
 // ⭐ WINDOW CREATION
-// ============================================================
 function showMainWindow(reason='unknown'){
   if(windowShown||!mainWindow||mainWindow.isDestroyed())return;
   windowShown=true;
@@ -216,13 +198,10 @@ async function loadFrontend(){
   }
 }
 
-// ============================================================
-// ⭐ IPC MODULE LOADER - VERSION AMÉLIORÉE
-// ============================================================
-
+// ⭐ IPC MODULE LOADER
 function registerHandlerModule(label,modulePath){
   try{
-    const absolutePath=path.resolve(BASE_PATH,modulePath); // ⭐ Mampiasa BASE_PATH
+    const absolutePath=path.resolve(BASE_PATH,modulePath);
     mainLog(`🔎 IPC ${label}:`,absolutePath);
 
     if(!fs.existsSync(absolutePath)){
@@ -235,23 +214,18 @@ function registerHandlerModule(label,modulePath){
 
     let result=false;
 
-    // ⭐ 1. Raha fonction directe
     if(typeof handler==='function'){
       result=handler(ipcMain);
     }
-    // ⭐ 2. Raha misy register
     else if(handler&&typeof handler.register==='function'){
       result=handler.register(ipcMain);
     }
-    // ⭐ 3. Raha misy registerHandlers
     else if(handler&&typeof handler.registerHandlers==='function'){
       result=handler.registerHandlers(ipcMain);
     }
-    // ⭐ 4. Raha misy registerLicenseHandlers (ho an'ny license)
     else if(handler&&typeof handler.registerLicenseHandlers==='function'){
       result=handler.registerLicenseHandlers(ipcMain);
     }
-    // ⭐ 5. Raha object misy fonctions register*
     else if(handler&&typeof handler==='object'){
       for(const key of Object.keys(handler)){
         if(typeof handler[key]==='function' && key.toLowerCase().includes('register')){
@@ -274,10 +248,7 @@ function registerHandlerModule(label,modulePath){
   }
 }
 
-// ============================================================
-// ⭐ REGISTER ALL IPC (AVEC LICENSE EXPLICITE)
-// ============================================================
-
+// ⭐ REGISTER ALL IPC (AVEC LICENSE + BACKUP FORCE REGISTRATION)
 function registerAllIPC(){
   if(handlersRegistered){
     mainLog('ℹ️ IPC handlers déjà enregistrés');
@@ -307,7 +278,7 @@ function registerAllIPC(){
     ['SETTINGS', './ipc/settings.cjs'],
     ['BACKUP', './ipc/backup.cjs'],
     ['DIALOG', './ipc/dialog.cjs'],
-    ['LICENSE', './ipc/license.cjs'],   // ⭐ License module
+    ['LICENSE', './ipc/license.cjs'],
     ['VENTES', './ipc/ventes.cjs']
   ];
 
@@ -317,32 +288,35 @@ function registerAllIPC(){
   for(const [label,modulePath] of handlerModules){
     mainLog(`\n🔧 Enregistrement du module ${label}...`);
     const success=registerHandlerModule(label,modulePath);
-    
-    if(success){
-      successCount++;
-    } else {
-      failedModules.push(label);
-      if(label==='LICENSE'){
-        mainError('❌ LICENSE HANDLER REGISTRATION FAILED - Activation code tsy handeha');
-      }
-    }
+    if(success){ successCount++; }
+    else { failedModules.push(label); }
   }
 
-  // ⭐ REGISTRATION MANUELLE HO AN'NY LICENSE (raha mbola tsy vita)
+  // ⭐ FORCE REGISTRATION LICENSE
   try{
     const licenseModule = require(path.resolve(BASE_PATH, './ipc/license.cjs'));
     if(licenseModule && typeof licenseModule.registerLicenseHandlers === 'function'){
       const licResult = licenseModule.registerLicenseHandlers(ipcMain);
-      if(licResult){
-        mainLog('✅ LICENSE handlers enregistrés explicitement (mivantana)');
+      if(licResult){ mainLog('✅ LICENSE handlers enregistrés explicitement'); }
+      else { mainError('❌ LICENSE handlers retour false'); }
+    }
+  }catch(licErr){ mainError('❌ Erreur LICENSE:', licErr.message); }
+
+  // ⭐⭐⭐ FANITSIANA LEHIBE: FORCE REGISTRATION HO AN'NY BACKUP! ⭐⭐⭐
+  try{
+    const backupModule = require(path.resolve(BASE_PATH, './ipc/backup.cjs'));
+    if(backupModule && typeof backupModule.registerBackupHandlers === 'function'){
+      const backupResult = backupModule.registerBackupHandlers(ipcMain);
+      if(backupResult){
+        mainLog('✅ BACKUP handlers enregistrés explicitement (mivantana)');
       } else {
-        mainError('❌ LICENSE handlers retour false');
+        mainError('❌ BACKUP handlers retour false');
       }
     } else {
-      mainError('❌ license.cjs tsy manana registerLicenseHandlers');
+      mainError('❌ backup.cjs tsy manana registerBackupHandlers');
     }
-  }catch(licErr){
-    mainError('❌ Erreur lors de l\'enregistrement explicit LICENSE:', licErr.message);
+  }catch(backupErr){
+    mainError('❌ Erreur lors de l\'enregistrement explicit BACKUP:', backupErr.message);
   }
 
   // ⭐ DB debug handlers
@@ -370,27 +344,110 @@ function registerAllIPC(){
     }
   }catch(err){mainWarn('⚠️ IPC app:getInfo:',err.message);}
 
-  // ⭐ Utils save-file (dialog)
+  // ⭐ Dialog ShowSaveDialog
+  try{
+    if(!ipcMain.listenerCount('dialog:show-save-dialog')){
+      ipcMain.handle('dialog:show-save-dialog', async (event, options) => {
+        try { return await dialog.showSaveDialog(options); }
+        catch (err) { return { canceled: true, error: err.message }; }
+      });
+    }
+  }catch(err){mainWarn('⚠️ IPC dialog:show-save-dialog:',err.message);}
+
+  // ⭐ Utils save-file
   try{
     if(!ipcMain.listenerCount('utils:save-file')){
-      ipcMain.handle('utils:save-file',async(event,data,defaultPath)=>{
+      ipcMain.handle('utils:save-file',async(event,data,defaultPath,filters)=>{
         try{
-          const result=await dialog.showSaveDialog({
-            title:'Enregistrer le fichier',
-            defaultPath:defaultPath||'document.pdf',
-            filters:[{name:'PDF',extensions:['pdf']},{name:'Tous',extensions:['*']}]
-          });
-          if(result.canceled)return {canceled:true};
-          await fs.promises.writeFile(result.filePath,Buffer.from(data));
-          return {success:true,filePath:result.filePath};
+          console.log('🔥 [utils:save-file] IPC HANDLER CALLED');
+          console.log('   defaultPath:', defaultPath);
+          console.log('   filters:', filters);
+          console.log('   data type:', typeof data);
+          console.log('   data instanceof ArrayBuffer:', data instanceof ArrayBuffer);
+          console.log('   ArrayBuffer.isView:', ArrayBuffer.isView(data));
+
+          if (data === undefined || data === null) {
+            return { success: false, error: 'Aucune donnée à enregistrer.' };
+          }
+
+          let parentWindow = null;
+          try {
+            parentWindow = BrowserWindow.fromWebContents(event.sender);
+          } catch (_) { parentWindow = null; }
+
+          const safeFilters = Array.isArray(filters) && filters.length > 0
+            ? filters
+                .filter(f => f && typeof f.name === 'string' && Array.isArray(f.extensions) && f.extensions.length > 0)
+                .map(f => ({
+                    name: f.name,
+                    extensions: f.extensions
+                      .filter(ext => typeof ext === 'string')
+                      .map(ext => ext.replace(/^\./, ''))
+                  }))
+                .filter(f => f.extensions.length > 0)
+            : [{ name: 'Tous les fichiers', extensions: ['*'] }];
+
+          let safeDefaultPath = typeof defaultPath === 'string' && defaultPath.trim()
+            ? defaultPath.trim().replace(/\0/g, '')
+            : 'document';
+
+          const dialogOptions = {
+            title: 'Enregistrer le fichier',
+            defaultPath: safeDefaultPath,
+            filters: safeFilters,
+            properties: ['createDirectory', 'showOverwriteConfirmation']
+          };
+
+          console.log('   Showing dialog...');
+          const result = parentWindow
+            ? await dialog.showSaveDialog(parentWindow, dialogOptions)
+            : await dialog.showSaveDialog(dialogOptions);
+          console.log('   dialog result:', result);
+
+          if (!result || result.canceled || !result.filePath) {
+            console.log('ℹ️ [utils:save-file] Utilisateur a annulé');
+            return { success: false, canceled: true };
+          }
+
+          const filePath = result.filePath;
+          console.log('   filePath:', filePath);
+
+          let buffer;
+          if (Buffer.isBuffer(data)) {
+            buffer = data;
+          } else if (data instanceof ArrayBuffer) {
+            buffer = Buffer.from(new Uint8Array(data));
+          } else if (ArrayBuffer.isView(data)) {
+            buffer = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+          } else if (typeof data === 'string') {
+            buffer = Buffer.from(data, 'utf8');
+          } else if (Array.isArray(data)) {
+            buffer = Buffer.from(data);
+          } else {
+            return { success: false, error: `Type de données non supporté: ${typeof data}` };
+          }
+
+          const directory = path.dirname(filePath);
+          await fs.promises.mkdir(directory, { recursive: true });
+
+          await fs.promises.writeFile(filePath, buffer);
+
+          const stat = await fs.promises.stat(filePath);
+          if (!stat.isFile()) {
+            return { success: false, error: 'Le fichier n\'a pas été créé correctement.' };
+          }
+
+          console.log(`✅ Fichier enregistré: ${filePath} (${stat.size} bytes)`);
+          return { success: true, canceled: false, filePath, size: stat.size };
         }catch(err){
-          return {success:false,error:err.message};
+          console.error('❌ [utils:save-file] Error:', err);
+          return { success: false, canceled: false, error: err?.message || 'Erreur inconnue lors de l\'enregistrement.' };
         }
       });
     }
   }catch(err){mainWarn('⚠️ IPC utils:save-file:',err.message);}
 
-  // ⭐ Utils save-file-to-directory (bulk)
+  // ⭐ Utils save-file-to-directory
   try{
     if(!ipcMain.listenerCount('utils:save-file-to-directory')){
       ipcMain.handle('utils:save-file-to-directory',async(event,data,directory,filename)=>{
@@ -400,9 +457,7 @@ function registerAllIPC(){
           const filePath=path.join(directory,filename);
           await fs.promises.writeFile(filePath,Buffer.from(data));
           return {success:true,filePath};
-        }catch(err){
-          return {success:false,error:err.message};
-        }
+        }catch(err){ return {success:false,error:err.message}; }
       });
     }
   }catch(err){mainWarn('⚠️ IPC save-file-to-directory:',err.message);}
@@ -415,9 +470,7 @@ function registerAllIPC(){
   return true;
 }
 
-// ============================================================
 // ⭐ SECURITY
-// ============================================================
 function configureSecurity(){
   try{
     session.defaultSession.setPermissionRequestHandler((webContents,permission,callback)=>{
@@ -426,9 +479,7 @@ function configureSecurity(){
   }catch(err){mainWarn('⚠️ Permission handler:',err.message);}
 }
 
-// ============================================================
 // ⭐ SINGLE INSTANCE
-// ============================================================
 function setupSingleInstance(){
   const gotLock=app.requestSingleInstanceLock();
   if(!gotLock){
@@ -446,12 +497,10 @@ function setupSingleInstance(){
   return true;
 }
 
-// ============================================================
 // ⭐ APP READY
-// ============================================================
 app.whenReady().then(async()=>{
   mainLog('============================================================');
-  mainLog("🚀 TahiryPro ELECTRON START");
+  mainLog("🚀 Lifes-Art ELECTRON START");
   mainLog('============================================================');
   mainLog('📦 Electron:',process.versions.electron);
   mainLog('🟢 Node:',process.versions.node);
@@ -482,15 +531,13 @@ app.whenReady().then(async()=>{
     if(BrowserWindow.getAllWindows().length===0)createMainWindow();
   });
 
-  mainLog("🟢 TahiryPro READY");
+  mainLog("🟢 Lifes-Art READY");
 }).catch(err=>{
   mainError('❌ ELECTRON STARTUP FAILED:',err.message);
   app.quit();
 });
 
-// ============================================================
 // ⭐ LIFECYCLE
-// ============================================================
 app.on('before-quit',()=>{
   if(isQuitting)return;
   isQuitting=true;
@@ -513,7 +560,5 @@ process.on('unhandledRejection',reason=>{
   mainError('❌ UNHANDLED REJECTION:',reason);
 });
 
-// ============================================================
 // ⭐ EXPORTS
-// ============================================================
 module.exports={createMainWindow,initializeDatabase,shutdownDatabase,registerAllIPC,registerLocalImageProtocol};

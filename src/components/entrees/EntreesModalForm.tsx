@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDownToLine, X, Plus, Package, ChevronDown } from 'lucide-react';
@@ -24,6 +23,13 @@ const FormField: React.FC<{ label: string; children: React.ReactNode; required?:
   );
 };
 
+
+const generateEntreeReference = () => {
+  const timestampPart = Date.now().toString(36).toUpperCase().slice(-2);
+  const randomPart = Math.random().toString(36).slice(2, 4).toUpperCase();
+  return `ENT-${timestampPart}${randomPart}`;
+};
+
 const EntreesModalForm: React.FC<EntreesModalFormProps> = ({ isOpen, onClose, onSubmit, produits }) => {
   const { isDark } = useTheme();
   const [selectedProduitId, setSelectedProduitId] = useState<number | null>(null);
@@ -43,8 +49,8 @@ const EntreesModalForm: React.FC<EntreesModalFormProps> = ({ isOpen, onClose, on
     setObservation('');
     setCategorie('');
     setIsDropdownOpen(false);
-    const random = Math.random().toString(36).slice(2, 6).toUpperCase();
-    setReference(`ENT-${random}`);
+    // ⭐ REFERENCE FOHE: ENT-XXXX (4 caractères)
+    setReference(generateEntreeReference());
   }, [isOpen]);
 
   useEffect(() => {
@@ -67,7 +73,6 @@ const EntreesModalForm: React.FC<EntreesModalFormProps> = ({ isOpen, onClose, on
   };
 
   const selectedProduit = produits.find(p => p.id === selectedProduitId);
-
 
   const inputClass = `h-11 w-full rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] px-3 text-[15px] font-medium text-slate-900 dark:text-slate-100 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20`;
   const disabledInputClass = `${inputClass} cursor-not-allowed bg-slate-100 dark:bg-[#1E293B]`;
@@ -103,7 +108,6 @@ const EntreesModalForm: React.FC<EntreesModalFormProps> = ({ isOpen, onClose, on
         <form ref={formRef} onSubmit={(e) => { 
           e.preventDefault(); 
           if (selectedProduitId) {
-        
             onSubmit({ 
               produit_id: selectedProduitId, 
               quantite, 

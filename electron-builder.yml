@@ -1,12 +1,12 @@
 # ============================================================
-# TAHIRYPRO ERP
+# Lifes-Art ERP
 # electron-builder.yml
 # ⭐ extraResources: public.pem + codes.db.enc + hashes (avy amin'ny dist-electron)
 # ⭐ extraMetadata: main -> dist-electron/main.cjs (production build)
 # ============================================================
 
-appId: com.tahirypro.app
-productName: tahirypro
+appId: com.Lifes-Art.app
+productName: Lifes-Art
 
 directories:
   output: release

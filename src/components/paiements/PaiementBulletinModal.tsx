@@ -35,15 +35,9 @@ const PaiementBulletinModal: React.FC<Props> = ({ isOpen, onClose, paiement, emp
         const nifRes = await api.getByKey('societe_nif');
         const adresseRes = await api.getByKey('societe_adresse');
         
-        if (nomRes?.success && nomRes.data) {
-          setDefaultCompany(prev => ({ ...prev, nom: nomRes.data.value || nomRes.data }));
-        }
-        if (nifRes?.success && nifRes.data) {
-          setDefaultCompany(prev => ({ ...prev, nif: nifRes.data.value || nifRes.data }));
-        }
-        if (adresseRes?.success && adresseRes.data) {
-          setDefaultCompany(prev => ({ ...prev, adresse: adresseRes.data.value || adresseRes.data }));
-        }
+        if (nomRes?.success && nomRes.data) setDefaultCompany(prev => ({ ...prev, nom: nomRes.data.value || nomRes.data }));
+        if (nifRes?.success && nifRes.data) setDefaultCompany(prev => ({ ...prev, nif: nifRes.data.value || nifRes.data }));
+        if (adresseRes?.success && adresseRes.data) setDefaultCompany(prev => ({ ...prev, adresse: adresseRes.data.value || adresseRes.data }));
       } catch (error) {
         console.error('[Bulletin] Error fetching company info:', error);
       }
@@ -62,9 +56,7 @@ const PaiementBulletinModal: React.FC<Props> = ({ isOpen, onClose, paiement, emp
   const datePaiement = paiement.date_paiement ? parseDateSafe(paiement.date_paiement).toLocaleDateString('fr-FR') : '—';
 
   const handlePrint = () => window.print();
-  const handleDownload = () => {
-    window.print();
-  };
+  const handleDownload = () => { window.print(); };
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
@@ -72,15 +64,9 @@ const PaiementBulletinModal: React.FC<Props> = ({ isOpen, onClose, paiement, emp
         <div className="flex items-center justify-between border-b p-4 dark:border-white/[0.1]">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">Bulletin de Paie</h2>
           <div className="flex gap-2">
-            <button onClick={handlePrint} className="flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-600">
-              <Printer size={14}/> Imprimer
-            </button>
-            <button onClick={handleDownload} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-white/[0.2] dark:text-slate-300">
-              <Download size={14}/> PDF
-            </button>
-            <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.1]">
-              <X size={16}/>
-            </button>
+            <button onClick={handlePrint} className="flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-600"><Printer size={14}/> Imprimer</button>
+            <button onClick={handleDownload} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-white/[0.2] dark:text-slate-300"><Download size={14}/> PDF</button>
+            <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.1]"><X size={16}/></button>
           </div>
         </div>
 
@@ -118,6 +104,8 @@ const PaiementBulletinModal: React.FC<Props> = ({ isOpen, onClose, paiement, emp
               <tr className="text-red-500"><td className="py-2">CNaPS (1%)</td><td className="py-2 text-right">- {formatAriary(paiement.cnaps)}</td></tr>
               <tr className="text-red-500"><td className="py-2">OSTIE (5%)</td><td className="py-2 text-right">- {formatAriary(paiement.ostie)}</td></tr>
               <tr className="text-red-500"><td className="py-2">IRSA</td><td className="py-2 text-right">- {formatAriary(paiement.irsa)}</td></tr>
+              {/* ⭐ NOVAINA: Déduction Absence */}
+              <tr className="text-red-500"><td className="py-2">Déduction Absence</td><td className="py-2 text-right">- {formatAriary(paiement.absences_deduction || 0)}</td></tr>
               <tr className="text-red-500"><td className="py-2">Avance</td><td className="py-2 text-right">- {formatAriary(paiement.avance)}</td></tr>
               <tr className="font-bold border-t-2 text-lg mt-2"><td className="py-3">NET À PAYER</td><td className="py-3 text-right text-brand-600">{formatAriary(paiement.montant)}</td></tr>
             </tbody>

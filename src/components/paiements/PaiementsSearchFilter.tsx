@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, CalendarDays, CircleDollarSign, FileText, FileClock, ChevronDown, X } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext'; // ⭐ Nampiana
 import { ViewButton } from './ViewButton';
 import { FilterSelect } from './FilterSelect';
 import { MONTHS, getEmployeeName } from '../../utils/paiementUtils';
@@ -49,6 +50,9 @@ export function PaiementsSearchFilter({
   hasActiveFilters,
   resetFilters,
 }: PaiementsSearchFilterProps) {
+  // ⭐ Nampiana ny theme hahazoana ny isDark
+  const { isDark } = useTheme();
+
   return (
     <>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
@@ -59,10 +63,10 @@ export function PaiementsSearchFilter({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Rechercher un employé, référence..."
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-[14px] text-slate-800 outline-none transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-[14px] text-slate-800 outline-none transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-100 dark:placeholder:text-slate-500"
           />
         </div>
-        <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 dark:border-white/[0.12] dark:bg-slate-800">
+        <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 dark:border-white/[0.12] dark:bg-[#0F172A]">
           <ViewButton active={viewMode === 'liste'} icon={<FileClock size={14} />} label="Liste" onClick={() => setViewMode('liste')} />
           <ViewButton active={viewMode === 'calendrier'} icon={<CalendarDays size={14} />} label="Calendrier" onClick={() => setViewMode('calendrier')} />
           <ViewButton active={viewMode === 'echeances'} icon={<CircleDollarSign size={14} />} label="Échéances" onClick={() => setViewMode('echeances')} />
@@ -73,7 +77,7 @@ export function PaiementsSearchFilter({
           className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-[14px] font-semibold ${
             hasActiveFilters
               ? 'border-brand-200 bg-brand-50 text-brand-600 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-400'
-              : 'border-slate-200 bg-white text-slate-600 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-300'
+              : 'border-slate-200 bg-white text-slate-600 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-300'
           }`}
         >
           <ChevronDown size={14} className={showFilters ? 'rotate-180 transition' : 'transition'} />Filtres
@@ -94,12 +98,27 @@ export function PaiementsSearchFilter({
               <option key={m} value={i + 1}>{m}</option>
             ))}
           </FilterSelect>
-          <FilterSelect label="Période — année" value={yearFilter} onChange={(v) => setYearFilter(v ? Number(v) : '')}>
-            <option value="">Toutes les années</option>
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </FilterSelect>
+          
+          {/* ⭐ FIX: NOVAINA HO INPUT ISAN'NY "ANNÉE" (Mifanaraka amin'ny sary 2) */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Période — année</label>
+            <div className="relative">
+              <input
+                type="number"
+                min="2000"
+                max="2100"
+                value={yearFilter === '' ? '' : yearFilter}
+                onChange={(e) => setYearFilter(e.target.value === '' ? '' : Number(e.target.value))}
+                placeholder="Toutes les années"
+                className={`h-10 w-full rounded-lg border px-3 pr-8 text-[14px] outline-none transition-all focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:[color-scheme:dark] ${
+                  isDark
+                    ? 'bg-[#0F172A] border-white/[0.12] text-slate-100 placeholder:text-slate-500'
+                    : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400'
+                }`}
+              />
+            </div>
+          </div>
+
           <FilterSelect label="Statut" value={statutFilter} onChange={(v) => setStatutFilter(v as StatutFilter)}>
             <option value="Tous">Tous les statuts</option>
             <option value="Brouillon">Brouillon</option>

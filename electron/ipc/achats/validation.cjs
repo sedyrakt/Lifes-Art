@@ -1,4 +1,4 @@
-// electron/ipc/achats/validation.cjs — ACHATS VALIDATION (FIXED TVA)
+// electron/ipc/achats/validation.cjs — ACHATS VALIDATION (FIXED TVA PAR PRODUIT)
 'use strict';
 
 function normalizeDate(date) {
@@ -47,20 +47,19 @@ function validateAchat(data = {}) {
   else if (montantPaye >= totalTTC) statutPaiement = 'Payé';
   else statutPaiement = 'Partiel';
 
-  // ⭐ NEW: TVA OVERRIDE
-  const tvaOverride = (data.tva_rate !== undefined && data.tva_rate !== null && data.tva_rate !== '') 
-    ? Number(data.tva_rate) 
-    : null;
-
+  // ⭐ FIX: TSY MISY OVERRIDE INTRONTSON. Ampiasaina avy hatrany ny tva_rate isaky ny produit (na 0%, 10%, 20%)
   const details = Array.isArray(data.details)
     ? data.details.map(item => {
-        const tvaRate = (tvaOverride !== null) ? tvaOverride : (Number(item?.tva_rate) || 0.2);
+        // Raha 0 dia 0, raha null/undefined/'' dia default 0.2
+        const tvaRate = (item?.tva_rate !== undefined && item?.tva_rate !== null && item?.tva_rate !== '')
+          ? Number(item.tva_rate)
+          : 0.2;
         return {
           produit_id: Number(item?.produit_id),
           quantite: Number(item?.quantite),
           prix_unitaire: Number(item?.prix_unitaire),
           total: Number(item?.total),
-          tva_rate: tvaRate // ⭐ MANDEFA NY RATE
+          tva_rate: tvaRate
         };
       })
     : [];
@@ -81,8 +80,8 @@ function validateAchat(data = {}) {
       reference, fournisseur_id: fournisseurId, date_achat: dateAchat,
       total_ht: totalHT, total_ttc: totalTTC, statut_paiement: statutPaiement,
       montant_paye: montantPaye, montant_restant: montantRestant,
-      observation, designation, nombre_produits: nombreProduits, details,
-      tva_rate: tvaOverride // ⭐ NEW
+      observation, designation, nombre_produits: nombreProduits, details
+      // ⭐ ESORINA NY tva_rate GLOBAL SATRIA TSY ILAINA
     }
   };
 }

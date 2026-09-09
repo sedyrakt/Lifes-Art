@@ -1,96 +1,104 @@
-// ============================================================
-// database/index.cjs - RE-EXPORT (CommonJS)
-// ⭐ Re-export rehetra avy amin'ny components
-// ⭐ FIX: ESRINA NY database/backup.cjs (TSY AMPIASANA)
-// ============================================================
+'use strict';
 
-const config = require('./config.cjs');
-const utils = require('./utils.cjs');
-const connection = require('./connection.cjs');
-const queries = require('./queries.cjs');
+const Database = require('better-sqlite3');
+const path = require('path');
+const fs = require('fs');
+const { app } = require('electron');
+const { log, warn, error, getEncryptionKey } = require('./utils.cjs');
 
-const tables = require('./tables.cjs');
-const financial = require('./financial.cjs');
+let dbInstance = null;
 
-// ============================================================
-// ⭐ Re-export tsirairay avy amin'ny modules (CommonJS safe)
-// ============================================================
+function getDbPath() {
+  const userDataPath = app.getPath('userData');
+  const dbPath = path.join(userDataPath, 'tahirypro.db');
+  
+  console.log('============================================================');
+  console.log('📦 TAHIRYPRO DATABASE DEBUG');
+  console.log('============================================================');
+  console.log('📁 app.getPath("userData") :', userDataPath);
+  console.log('📁 Database path            :', dbPath);
+  console.log('📊 Database exists          :', fs.existsSync(dbPath));
+  console.log('============================================================');
+  
+  return dbPath;
+}
 
-// Config
-module.exports.ALLOWED_TABLES = config.ALLOWED_TABLES;
-module.exports.DB_JOURNAL_MODE = config.DB_JOURNAL_MODE;
-module.exports.DB_SYNCHRONOUS = config.DB_SYNCHRONOUS;
-module.exports.DB_CACHE_SIZE = config.DB_CACHE_SIZE;
-module.exports.DB_MMAP_SIZE = config.DB_MMAP_SIZE;
-module.exports.DB_JOURNAL_SIZE_LIMIT = config.DB_JOURNAL_SIZE_LIMIT;
-module.exports.DB_BUSY_TIMEOUT = config.DB_BUSY_TIMEOUT;
-module.exports.DEBUG = config.DEBUG;
-module.exports.isPackaged = config.isPackaged; // ⭐ Nampiana
-
-// Utils
-module.exports.log = utils.log;
-module.exports.warn = utils.warn;
-module.exports.error = utils.error;
-module.exports.getEncryptionKey = utils.getEncryptionKey;
-module.exports.setDatabasePermissions = utils.setDatabasePermissions;
-module.exports.verifyDatabaseIntegrity = utils.verifyDatabaseIntegrity;
-module.exports.createFolders = utils.createFolders;
-module.exports.hashPassword = utils.hashPassword;
-module.exports.verifyPassword = utils.verifyPassword;
-module.exports.normalizeRow = utils.normalizeRow;      // ⭐ Nampiana
-module.exports.normalizeRows = utils.normalizeRows;    // ⭐ Nampiana
-
-// Connection
-module.exports.getDb = connection.getDb;
-module.exports.getDatabasePath = connection.getDatabasePath;
-module.exports.getDbPath = connection.getDbPath;
-module.exports.createConnection = connection.createConnection;
-module.exports.closeDatabase = connection.closeDatabase;
-module.exports.dbInstance = connection.dbInstance;
-module.exports.dbPath = connection.dbPath;
-module.exports.sqlCipherActive = connection.sqlCipherActive;
-
-// Queries
-module.exports.validateTable = queries.validateTable;
-module.exports.getTableColumns = queries.getTableColumns;
-module.exports.columnExists = queries.columnExists;
-module.exports.buildInsertQuery = queries.buildInsertQuery;
-module.exports.buildUpdateQuery = queries.buildUpdateQuery;
-module.exports.buildSelectQuery = queries.buildSelectQuery;
-module.exports.buildCountQuery = queries.buildCountQuery;
-
-// ⭐ FIX: ESRINA NY BACKUP RE-EXPORTS (TSY AMPIASANA)
-// module.exports.createBackup = backup.createBackup;
-// module.exports.restoreBackup = backup.restoreBackup;
-// module.exports.listBackups = backup.listBackups;
-// module.exports.deleteBackup = backup.deleteBackup;
-
-// Tables
-module.exports.ensureTables = tables.ensureTables;
-module.exports.tableExists = tables.tableExists;
-module.exports.getTableInfo = tables.getTableInfo;
-module.exports.addColumnIfNotExists = tables.addColumnIfNotExists;
-
-// Financial
-module.exports.getFinancialSummary = financial.getFinancialSummary;
-module.exports.getMonthlyRevenue = financial.getMonthlyRevenue;
-module.exports.getExpensesBreakdown = financial.getExpensesBreakdown;
-
-// ============================================================
-// ⭐ Fonction initDatabase
-// ============================================================
-module.exports.initDatabase = () => {
-  const db = connection.getDb();
-  if (!db || !db.open) {
-    throw new Error('Connexion à la base de données non disponible');
+function createConnection() {
+  const dbPath = getDbPath();
+  const dbDir = path.dirname(dbPath);
+  
+  if (!fs.existsSync(dbDir)) {
+    try {
+      fs.mkdirSync(dbDir, { recursive: true });
+      log(`📁 Dossier DB créé: ${dbDir}`);
+    } catch (mkdirErr) {
+      error(`❌ [connection] Impossible de créer '${dbDir}':`, mkdirErr.message);
+      return null;
+    }
   }
-  const success = tables.ensureTables();
-  if (!success) {
-    throw new Error('Erreur lors de la création des tables/indexes');
+  
+  let encryptionKey = null;
+  try {
+    encryptionKey = getEncryptionKey();
+  } catch (keyErr) {
+    warn('⚠️ Impossible récupérer encryption key:', keyErr.message);
   }
-  return { success: true, db };
-};
+  
+  try {
+    const options = encryptionKey ? { key: encryptionKey } : {};
+    const newDb = new Database(dbPath, options);
 
-console.log('✅ database/index.cjs - Tous les modules chargés (CommonJS)');
-console.log('   - ensureTables disponible');
-console.log('   - backup module ESRINA (tsy ampiasaina)');
+    try { newDb.pragma('journal_mode = WAL'); } catch (pragmaErr) { warn('⚠️ journal_mode pragma:', pragmaErr.message); }
+    try { newDb.pragma('busy_timeout = 30000'); } catch (pragmaErr) { warn('⚠️ busy_timeout pragma:', pragmaErr.message); }
+    try { newDb.pragma('optimize'); } catch (pragmaErr) { warn('⚠️ optimize pragma:', pragmaErr.message); }
+    
+    const connectionTest = newDb.prepare('SELECT 1 AS ok').get();
+    if (!connectionTest || Number(connectionTest.ok) !== 1) {
+      throw new Error('SQLite connection test failed');
+    }
+    
+    console.log('============================================================');
+    console.log('✅ SQLITE DATABASE CONNECTED');
+    console.log('============================================================');
+    console.log('📁 Path       :', dbPath);
+    console.log('📦 Size       :', fs.existsSync(dbPath) ? fs.statSync(dbPath).size : 0, 'bytes');
+    console.log('🔐 Encrypted  :', encryptionKey ? 'YES' : 'NO');
+    console.log('🟢 Open       :', newDb.open);
+    console.log('============================================================');
+    
+    return newDb;
+  } catch (err) {
+    error(`❌ [connection] Erreur ouverture DB:`, err.message);
+    return null;
+  }
+}
+
+function getDb() {
+  // ⭐ FIX LEHIBE: Raha misy objet nefa mikatona (db.open == false), dia fafana aloha!
+  if (dbInstance && !dbInstance.open) {
+    dbInstance = null;
+  }
+  
+  // ⭐ Rehefa null na mikatona, dia mamorona vaovao
+  if (!dbInstance) {
+    dbInstance = createConnection();
+  }
+  
+  return dbInstance;
+}
+
+function closeDatabase() {
+  try {
+    if (dbInstance) {
+      if (dbInstance.open) {
+        dbInstance.close();
+      }
+      dbInstance = null; // ⭐ Zava-dehibe: Atombohy ho null!
+    }
+  } catch (err) {
+    warn('⚠️ [connection] Erreur fermeture:', err.message);
+    dbInstance = null;
+  }
+}
+
+module.exports = { getDb, getDbPath, closeDatabase };

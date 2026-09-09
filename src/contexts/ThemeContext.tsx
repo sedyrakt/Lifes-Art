@@ -27,13 +27,14 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 // PROVIDER
 // ============================================================
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  // ⭐ LIGHT PAR DÉFAUT : si aucune préférence enregistrée, on reste en clair
+
   const [isDark, setIsDark] = useState<boolean>(() => {
     const saved = localStorage.getItem('theme');
-    return saved === 'dark'; // seul 'dark' force le mode sombre
+    
+    return saved ? saved === 'dark' : true;
   });
 
-  // Appliquer le thème au document
+  // Appliquer le thème au document (class 'dark' ao amin'ny <html>)
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark');
@@ -43,9 +44,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       localStorage.setItem('theme', 'light');
     }
   }, [isDark]);
-
-  // ⭐ SUPPRIMÉ : ne plus écouter la préférence système pour éviter le dark automatique
-  // (ou bien on peut garder mais uniquement si aucun choix utilisateur, mais ici on veut light par défaut)
 
   // Basculer entre light et dark
   const toggleTheme = (): void => {
@@ -62,7 +60,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     return isDark ? darkClass : lightClass;
   };
 
-  // Obtenir la classe de background
+ 
   const getBgClass = (lightBg: string = 'bg-white', darkBg: string = 'bg-gray-800'): string => {
     return isDark ? darkBg : lightBg;
   };

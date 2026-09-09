@@ -92,7 +92,7 @@ const AchatsProductSelector: React.FC<Props> = ({ produits, selectedProduits, on
     <div className="p-4 space-y-3.5">
       <div className="relative">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: theme.muted }} />
-        <input value={isOpen ? searchTerm : ''} onChange={(e) => { setSearchTerm(e.target.value); setIsOpen(true); setErrorMessage(''); }} onFocus={() => setIsOpen(true)} placeholder="Rechercher un produit..." className="w-full h-11 rounded-lg border pl-9 pr-3 text-[15px] outline-none focus:ring-2" style={inputStyle} />
+        <input value={isOpen ? searchTerm : ''} onChange={(e) => { setSearchTerm(e.target.value); setIsOpen(true); setErrorMessage(''); }} onFocus={() => setIsOpen(true)} placeholder="Rechercher un produit..." className="w-full h-11 rounded-lg border pl-9 pr-3 text-[14px] outline-none focus:ring-2" style={inputStyle} />
         {isOpen && (
           <div className="absolute left-0 right-0 z-20 mt-1.5 max-h-60 overflow-y-auto rounded-lg border shadow-lg" style={{ borderColor: theme.border, background: theme.bg }} onMouseDown={(e) => e.preventDefault()}>
             {filtered.length === 0 ? <div className="px-4 py-3 text-[14px] text-slate-500">Aucun produit</div> : filtered.map(p => (
@@ -100,7 +100,7 @@ const AchatsProductSelector: React.FC<Props> = ({ produits, selectedProduits, on
                 <Package size={15} style={{ color: theme.primary }} />
                 <div className="min-w-0 flex-1">
                   <p className="text-[14px] font-semibold truncate" style={{ color: theme.text }}>{p.nom}</p>
-                  <p className="text-[12px] truncate" style={{ color: theme.muted }}>{p.code} · TVA {((Number.isFinite(Number(p.tva_rate)) ? Number(p.tva_rate) : 0.2) * 100).toFixed(0)}%</p>
+                  <p className="text-[14px] truncate" style={{ color: theme.muted }}>{p.code} · TVA {((Number.isFinite(Number(p.tva_rate)) ? Number(p.tva_rate) : 0.2) * 100).toFixed(0)}%</p>
                 </div>
                 <span className="text-[14px] font-semibold" style={{ color: theme.primary }}>{p.prix_achat.toLocaleString('fr-FR')} Ar</span>
               </button>
@@ -116,7 +116,7 @@ const AchatsProductSelector: React.FC<Props> = ({ produits, selectedProduits, on
               <div className="w-8 h-8 shrink-0 flex items-center justify-center rounded-md" style={{ background: theme.primaryBg, color: theme.primary }}><Package size={15} /></div>
               <div className="min-w-0">
                 <p className="text-[14px] font-bold truncate" style={{ color: theme.text }}>{selectedProduct.nom}</p>
-                <p className="text-[12px] truncate" style={{ color: theme.muted }}>{selectedProduct.code} · TVA {((Number.isFinite(Number(selectedProduct.tva_rate)) ? Number(selectedProduct.tva_rate) : 0.2) * 100).toFixed(0)}%</p>
+                <p className="text-[14px] truncate" style={{ color: theme.muted }}>{selectedProduct.code} · TVA {((Number.isFinite(Number(selectedProduct.tva_rate)) ? Number(selectedProduct.tva_rate) : 0.2) * 100).toFixed(0)}%</p>
               </div>
             </div>
             <div className="text-right shrink-0">
@@ -153,7 +153,7 @@ const AchatsProductSelector: React.FC<Props> = ({ produits, selectedProduits, on
               <div key={item.id} className="flex items-center justify-between gap-3 border rounded-lg px-3.5 py-2.5" style={{ borderColor: theme.border }}>
                 <div className="min-w-0 flex-1">
                   <p className="text-[14px] font-semibold truncate" style={{ color: theme.text }}>{p.nom}</p>
-                  <p className="text-[12px]" style={{ color: theme.muted }}>{p.prix_achat.toLocaleString('fr-FR')} Ar · TVA {(tvaRate * 100).toFixed(0)}%</p>
+                  <p className="text-[14px]" style={{ color: theme.muted }}>{p.prix_achat.toLocaleString('fr-FR')} Ar · TVA {(tvaRate * 100).toFixed(0)}%</p>
                 </div>
                 <div className="flex items-center gap-1">
                   <button type="button" onClick={() => handleDecrement(item)} className="w-8 h-8 flex items-center justify-center rounded-md border hover:bg-slate-100 dark:hover:bg-white/5" style={{ borderColor: theme.border, color: theme.muted }}><Minus size={13} /></button>
@@ -169,7 +169,7 @@ const AchatsProductSelector: React.FC<Props> = ({ produits, selectedProduits, on
             <span className="text-[13px] font-semibold uppercase" style={{ color: theme.muted }}>Total</span>
             <span className="text-[15px] font-bold" style={{ color: theme.primary }}>{total.toLocaleString('fr-FR')} Ar</span>
           </div>
-          {selectedProduits.length > 0 && <button type="button" onClick={onClearPanier} className="w-full text-[12px] text-slate-400 hover:text-danger-500 text-center"><Trash2 size={13} className="inline mr-1" />Vider le panier</button>}
+          {selectedProduits.length > 0 && <button type="button" onClick={onClearPanier} className="w-full text-[14px] text-slate-400 hover:text-danger-500 text-center"><Trash2 size={13} className="inline mr-1" />Vider le panier</button>}
         </div>
       )}
     </div>

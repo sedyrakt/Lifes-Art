@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { AlertCircle, ChevronLeft, ChevronRight, Clock, Eye, Trash2, Layers, CheckSquare } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -46,7 +45,6 @@ export default function PaiementsEcheances({ paiements = [], onRefresh, onViewPa
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-
   const [selectedPaiement, setSelectedPaiement] = useState<PaiementEmploye | null>(null);
 
   const echeances = useMemo(() => {
@@ -70,27 +68,20 @@ export default function PaiementsEcheances({ paiements = [], onRefresh, onViewPa
   const someSelected = selectedIds.size > 0 && !allSelected;
 
   const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(new Set(displayed.map(p => p.id).filter(id => id != null) as number[]));
-    } else {
-      setSelectedIds(new Set());
-    }
+    if (checked) setSelectedIds(new Set(displayed.map(p => p.id).filter(id => id != null) as number[]));
+    else setSelectedIds(new Set());
   };
 
   const handleSelectOne = (id: number, checked: boolean) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (checked) next.add(id);
-      else next.delete(id);
+      if (checked) next.add(id); else next.delete(id);
       return next;
     });
   };
 
   const handleBulkDelete = (ids: number[]) => {
-    if (onRefresh) {
-      console.log('[BulkDelete] ids:', ids);
-      onRefresh();
-    }
+    if (onRefresh) onRefresh();
     setSelectedIds(new Set());
   };
 
@@ -104,33 +95,34 @@ export default function PaiementsEcheances({ paiements = [], onRefresh, onViewPa
     handleBulkDelete(ids);
   };
 
+  // ⭐ Colors Standard
+  const bgColor = isDark ? 'bg-[#0F172A]' : 'bg-white';
+  const borderColor = isDark ? 'border-white/[0.12]' : 'border-slate-200';
+
   return (
     <div className="p-4">
-      {/* Header */}
       <div className="mb-4 flex items-center gap-2">
-        <AlertCircle size={18} className="text-amber-500" />
+        <AlertCircle size={18} className="text-warning-500" />
         <h2 className="text-[15px] font-semibold text-slate-800 dark:text-slate-100">Échéances à encaisser</h2>
         <span className="ml-auto text-[13px] font-medium text-slate-500 dark:text-slate-400">
           Total : <b className="text-[15px] text-slate-800 dark:text-slate-100">{formatAriary(totalEnRetard)}</b>
         </span>
       </div>
 
-   
       {selectedIds.size > 0 && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-900/50 dark:bg-red-950/30">
+        <div className={`mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 ${isDark ? 'border-red-500/20 bg-red-500/10' : 'border-red-200 bg-red-50'}`}>
           <span className="text-[14px] font-semibold text-slate-800 dark:text-slate-100">{selectedIds.size} sélectionné(s)</span>
           <div className="flex flex-wrap gap-2">
-      
             <button onClick={handleBulkDeleteSelected} className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-[14px] font-semibold text-white hover:bg-red-600">
               <Trash2 size={15} className="mr-1" /> Supprimer sélection
             </button>
-            <button onClick={handleBulkDeletePage} className="flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-[14px] font-semibold text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-500/10">
+            <button onClick={handleBulkDeletePage} className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-[14px] font-semibold text-slate-600 hover:bg-slate-50 dark:border-white/[0.12] dark:text-slate-300">
               <Layers size={15} className="mr-1" /> Supprimer page
             </button>
-            <button onClick={handleBulkDeleteAll} className="flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-[14px] font-semibold text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-500/10">
+            <button onClick={handleBulkDeleteAll} className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-[14px] font-semibold text-slate-600 hover:bg-slate-50 dark:border-white/[0.12] dark:text-slate-300">
               <Trash2 size={15} className="mr-1" /> Supprimer tout
             </button>
-            <button onClick={() => setSelectedIds(new Set())} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-[14px] font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+            <button onClick={() => setSelectedIds(new Set())} className="flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-[14px] font-semibold text-slate-600 hover:bg-slate-50 dark:border-white/[0.12] dark:text-slate-300">
               <CheckSquare size={15} className="mr-1" /> Désélectionner
             </button>
           </div>
@@ -141,71 +133,39 @@ export default function PaiementsEcheances({ paiements = [], onRefresh, onViewPa
         <div className="py-10 text-center text-[15px] text-slate-500 dark:text-slate-400">Aucune échéance en retard</div>
       ) : (
         <>
-
-          <div className="mb-2 flex items-center justify-between rounded-t-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/50">
+          <div className={`mb-2 flex items-center justify-between rounded-t-lg border px-3 py-2 ${bgColor} ${borderColor}`}>
             <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                ref={el => { if (el) el.indeterminate = someSelected; }}
-                onChange={e => handleSelectAll(e.target.checked)}
-                className="h-4 w-4 cursor-pointer rounded accent-[#4F46E5]"
-              />
+              <input type="checkbox" checked={allSelected} ref={el => { if (el) el.indeterminate = someSelected; }} onChange={e => handleSelectAll(e.target.checked)} className="h-4 w-4 cursor-pointer rounded accent-brand-500" />
               <span className="text-[13px] font-semibold uppercase text-slate-500 dark:text-slate-400">Tout sélectionner (cette page)</span>
             </div>
             <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">{echeances.length} échéance(s)</span>
           </div>
-
 
           <div className="space-y-2">
             {displayed.map(p => {
               const id = p.id ?? 0;
               const checked = selectedIds.has(id);
               return (
-                <div
-                  key={id || `${p.employe_id}-${p.mois}-${p.annee}`}
-                  className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${
-                    checked ? 'bg-blue-50 dark:bg-blue-500/10' : 'bg-white dark:bg-slate-900'
-                  } hover:bg-slate-50 dark:hover:bg-slate-800/50`}
-                  style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgb(226 232 240)' }} // ⭐ FIX: Gray border dark mode
-                >
+                <div key={id || `${p.employe_id}-${p.mois}-${p.annee}`} className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${checked ? 'bg-brand-50/50 dark:bg-brand-500/10' : bgColor} hover:bg-slate-50 dark:hover:bg-white/[0.02]`} style={{ borderColor }}>
                   <div className="flex items-center gap-3">
-                    {id > 0 && (
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={e => handleSelectOne(id, e.target.checked)}
-                        className="h-4 w-4 cursor-pointer rounded accent-[#4F46E5]"
-                      />
-                    )}
-                    <Clock size={16} className="text-amber-500" />
+                    {id > 0 && <input type="checkbox" checked={checked} onChange={e => handleSelectOne(id, e.target.checked)} className="h-4 w-4 cursor-pointer rounded accent-brand-500" />}
+                    <Clock size={16} className="text-warning-500" />
                     <div>
                       <div className="text-[15px] font-semibold text-slate-800 dark:text-slate-100">{getEmployeeName(p)}</div>
                       <div className="flex flex-wrap items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
                         <span>{p.reference || 'Sans réf'}</span>
                         <span>·</span>
-                        {/* ⭐ FIX: NESORINA NY EMOJI 📅 */}
                         <span>{formatDateFr(p.date_paiement)}</span>
                         {getPeriodLabel(p) && (
-                          <>
-                            <span>·</span>
-                            <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium dark:bg-slate-800">
-                              Période: {getPeriodLabel(p)}
-                            </span>
-                          </>
+                          <><span>·</span><span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium dark:bg-white/[0.05]">Période: {getPeriodLabel(p)}</span></>
                         )}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[15px] font-bold text-slate-800 dark:text-slate-100">{formatAriary(p.montant)}</span>
-            
-                    <button
-                      onClick={() => setSelectedPaiement(p)}
-                      className="flex items-center gap-1.5 rounded-lg bg-[#4F46E5] px-3 py-1.5 text-[13px] font-semibold text-white shadow-sm transition-all hover:bg-[#4338CA]"
-                    >
-                      <Eye size={14} className="mr-1" />
-                      Voir
+                    <button onClick={() => setSelectedPaiement(p)} className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-[13px] font-semibold text-white shadow-sm hover:bg-brand-600">
+                      <Eye size={14} className="mr-1" /> Voir
                     </button>
                   </div>
                 </div>
@@ -213,25 +173,12 @@ export default function PaiementsEcheances({ paiements = [], onRefresh, onViewPa
             })}
           </div>
 
-      
           {totalPages > 1 && (
-            <div className="mt-4 flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+            <div className={`mt-4 flex items-center justify-between rounded-lg border px-3 py-2 ${bgColor} ${borderColor}`}>
               <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Page {currentPage} / {totalPages}</span>
               <div className="flex gap-2">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-40 dark:border-slate-700 dark:text-slate-400"
-                >
-                  <ChevronLeft size={15} />
-                </button>
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-40 dark:border-slate-700 dark:text-slate-400"
-                >
-                  <ChevronRight size={15} />
-                </button>
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-40 dark:border-white/[0.12] dark:text-slate-400"><ChevronLeft size={15} /></button>
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 disabled:opacity-40 dark:border-white/[0.12] dark:text-slate-400"><ChevronRight size={15} /></button>
               </div>
             </div>
           )}
@@ -239,12 +186,7 @@ export default function PaiementsEcheances({ paiements = [], onRefresh, onViewPa
       )}
 
       {selectedPaiement && (
-        <PaiementsViewModal
-          isOpen={!!selectedPaiement}
-          paiement={selectedPaiement}
-          onClose={() => setSelectedPaiement(null)}
-          isDark={isDark}
-        />
+        <PaiementsViewModal isOpen={!!selectedPaiement} paiement={selectedPaiement} onClose={() => setSelectedPaiement(null)} isDark={isDark} />
       )}
     </div>
   );

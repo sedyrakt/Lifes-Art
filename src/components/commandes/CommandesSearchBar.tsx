@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, X, ArrowUpDown, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -43,7 +41,7 @@ const CommandesSearchBar: React.FC<CommandesSearchBarProps> = ({
   const [isFocused, setIsFocused] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
-
+  // ⭐ FIX: Surface = #0F172A FOANA amin'ny dark mode
   const surface = isDark ? 'bg-[#0F172A]' : 'bg-white';
   const border = isDark ? 'border-white/[0.12]' : 'border-slate-200';
   const hoverBorder = isDark ? 'hover:border-white/[0.18]' : 'hover:border-slate-300';
@@ -78,7 +76,8 @@ const CommandesSearchBar: React.FC<CommandesSearchBarProps> = ({
 
   return (
     <div className="w-full" role="search" aria-label="Barre de recherche et filtres des commandes">
-      <div className="flex w-full flex-col gap-2.5 xl:flex-row xl:items-center">
+      {/* ⭐ FIX: Wrapper miaraka amin'ny #0F172A */}
+      <div className={`flex w-full flex-col gap-2.5 xl:flex-row xl:items-center ${isDark ? 'bg-[#0F172A] p-2 rounded-xl' : 'bg-transparent'}`}>
         <div className="relative min-w-[200px] flex-1">
           <div className="pointer-events-none absolute left-0 top-1/2 flex -translate-y-1/2 items-center justify-center pl-3">
             <Search size={18} strokeWidth={2} className={`transition-colors duration-200 ${isFocused ? 'text-brand-500 dark:text-brand-400' : 'text-slate-400 dark:text-slate-500'}`} />
@@ -117,7 +116,6 @@ const CommandesSearchBar: React.FC<CommandesSearchBarProps> = ({
         </div>
 
         <div className="flex w-full flex-wrap items-center gap-2 xl:w-auto xl:shrink-0">
-        
           <div className="relative shrink-0">
             <select
               value={filterStatut}
@@ -132,7 +130,6 @@ const CommandesSearchBar: React.FC<CommandesSearchBarProps> = ({
             <ChevronDown size={14} strokeWidth={2} className={`pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
           </div>
 
-  
           <div className="relative shrink-0">
             <ArrowUpDown size={15} strokeWidth={2} className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-500' : 'text-slate-400'}`} />
             <select

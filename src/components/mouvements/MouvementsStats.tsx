@@ -2,6 +2,7 @@
 // ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
 // ⭐ FIX: NAMPIANA ICON SY COULEUR SAMIDAHAFA (ArrowLeftRight, ArrowDownToLine, ArrowUpFromLine, AlertCircle)
 // ⭐ FIX: BG DARK = #0F172A
+// ⭐ FIX: LABEL EO AMBONIN'NY VALUE (15px)
 
 import React from 'react';
 import { Loader2, ArrowLeftRight, ArrowDownToLine, ArrowUpFromLine, AlertCircle } from 'lucide-react';
@@ -94,17 +95,18 @@ const MouvementsStats: React.FC<MouvementsStatsProps> = ({
                 isSelected && isFilterCard ? 'bg-brand-500 opacity-100' : 'bg-brand-500 opacity-0 group-hover:opacity-100'
               }`} />
               
-              {/* ⭐ ICON + COULEUR SAMIDAHAFA */}
+            
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${stat.colorClass}`}>
                 {stat.icon}
               </div>
-              
+           
               <div className="flex min-w-0 flex-1 flex-col">
-                <div className="text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-                  {stat.value}
-                </div>
-                <div className="mt-0.5 truncate text-[14px] font-medium text-slate-500 dark:text-slate-400">
+              
+                <span className="min-w-0 truncate text-[15px] font-medium text-slate-500 dark:text-slate-400">
                   {stat.label}
+                </span>
+                <div className="mt-0.5 truncate text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+                  {stat.value}
                 </div>
                 {stat.quantiteValue !== null && (
                   <div className="mt-0.5 text-[11px] font-medium text-slate-400 dark:text-slate-500">

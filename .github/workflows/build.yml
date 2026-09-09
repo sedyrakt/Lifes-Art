@@ -1,5 +1,5 @@
 # ============================================================
-# TAHIRYPRO ERP - GitHub Actions - Windows + Linux
+# Lifes-Art ERP - GitHub Actions - Windows + Linux
 # ⭐ FIX: Mampiasa build:electron (build.cjs) - Obfuscation fotsiny (bytenode esorina)
 # ============================================================
 
@@ -145,7 +145,7 @@ jobs:
         run: |
           $files = Get-ChildItem release -File -Filter "*.exe"
           foreach ($file in $files) {
-            $newName = "tahirypro-$env:VERSION-win64-setup.exe"
+            $newName = "Lifes-Art-$env:VERSION-win64-setup.exe"
             Write-Host "Renaming:"
             Write-Host "$($file.Name)"
             Write-Host "to"
@@ -159,7 +159,7 @@ jobs:
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tahirypro-win64-v${{ env.VERSION }}
+          name: Lifes-Art-win64-v${{ env.VERSION }}
           path: release/*.exe
           if-no-files-found: error
 
@@ -300,7 +300,7 @@ jobs:
         run: |
           for file in release/*.deb; do
             if [ -f "$file" ]; then
-              mv "$file" "release/tahirypro-$VERSION-linux-x64.deb"
+              mv "$file" "release/Lifes-Art-$VERSION-linux-x64.deb"
             fi
           done
 
@@ -316,6 +316,6 @@ jobs:
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tahirypro-linux-v${{ env.VERSION }}
+          name: Lifes-Art-linux-v${{ env.VERSION }}
           path: release/*.deb
           if-no-files-found: error

@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { Box, Package, AlertTriangle, TrendingUp } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -70,13 +68,15 @@ const ProduitsStats: React.FC<ProduitsStatsProps> = ({
             {stat.icon}
           </div>
           
-          <div className="flex min-w-0 flex-col">
-            <span className="truncate text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+          {/* ⭐ LABEL EO AMBONIN'NY VALUE */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            {/* ⭐ FIX: Nampitombo ho text-[15px] ny label */}
+            <span className="min-w-0 truncate text-[15px] font-medium text-slate-500 dark:text-slate-400">
+              {stat.label}
+            </span>
+            <span className="mt-0.5 truncate text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
               {stat.value}
             </span>
-            <div className="mt-0.5 truncate text-[14px] font-medium text-slate-600 dark:text-slate-400">
-              {stat.label}
-            </div>
           </div>
         </div>
       ))}

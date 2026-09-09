@@ -1,7 +1,6 @@
 'use strict';
 const { getDb } = require('../../database/connection.cjs');
 const { log, error } = require('../../database/utils.cjs');
-const { buildEmployesQuery, buildEmployesCountQuery } = require('./queries.cjs');
 
 const stmts = {};
 
@@ -46,7 +45,7 @@ function prepareStatements() {
     stmts.stmtGetSalaryHistory = db.prepare(`SELECT * FROM historique_salaires WHERE employe_id = ? ORDER BY date_changement DESC`);
     stmts.stmtAddSalaryHistory = db.prepare(`INSERT INTO historique_salaires (employe_id, ancien_salaire, nouveau_salaire, raison) VALUES (?, ?, ?, ?)`);
 
-    // ---------- ⭐ NEW: PRESENCE JOURNALIERE ----------
+    // ---------- ⭐ PRESENCE JOURNALIERE (Misy kajy) ----------
     stmts.stmtGetPresenceJournaliereByEmployeMois = db.prepare(`
       SELECT * FROM presence_journaliere
       WHERE employe_id = ? AND substr(date, 1, 7) = ?
@@ -57,7 +56,6 @@ function prepareStatements() {
       SELECT * FROM presence_journaliere WHERE date = ?
     `);
 
-    // ⭐ NEW BATCH: Get ALL presence for a month (10 000 employés)
     stmts.stmtGetPresenceJournaliereByMois = db.prepare(`
       SELECT * FROM presence_journaliere
       WHERE substr(date, 1, 7) = ?
@@ -65,20 +63,24 @@ function prepareStatements() {
     `);
 
     stmts.stmtUpsertPresenceJournaliere = db.prepare(`
-      INSERT INTO presence_journaliere (employe_id, date, statut, heure_arrivee, heure_depart, observation, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      INSERT INTO presence_journaliere (employe_id, date, statut, heure_arrivee, heure_depart, heure_debut_planifiee, heure_fin_planifiee, retard, heures_travaillees, heures_sup, observation, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(employe_id, date) DO UPDATE SET
         statut = excluded.statut,
         heure_arrivee = excluded.heure_arrivee,
         heure_depart = excluded.heure_depart,
+        heure_debut_planifiee = excluded.heure_debut_planifiee,
+        heure_fin_planifiee = excluded.heure_fin_planifiee,
+        retard = excluded.retard,
+        heures_travaillees = excluded.heures_travaillees,
+        heures_sup = excluded.heures_sup,
         observation = excluded.observation,
         updated_at = CURRENT_TIMESTAMP
     `);
 
-    // ⭐ NEW BATCH: Bulk Update presence
     stmts.stmtBulkUpsertPresenceJournaliere = db.prepare(`
-      INSERT INTO presence_journaliere (employe_id, date, statut, updated_at)
-      VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+      INSERT INTO presence_journaliere (employe_id, date, statut, heure_debut_planifiee, heure_fin_planifiee, updated_at)
+      VALUES (?, ?, ?, '08:00', '17:00', CURRENT_TIMESTAMP)
       ON CONFLICT(employe_id, date) DO UPDATE SET
         statut = excluded.statut,
         updated_at = CURRENT_TIMESTAMP
@@ -86,6 +88,24 @@ function prepareStatements() {
 
     stmts.stmtDeletePresenceJournaliere = db.prepare(`
       DELETE FROM presence_journaliere WHERE id = ?
+    `);
+
+    // ---------- ⭐ NOVAINA: PLANNING ----------
+    stmts.stmtGetPlanningByEmploye = db.prepare(`
+      SELECT * FROM planning WHERE employe_id = ? ORDER BY jour_semaine ASC
+    `);
+    
+    stmts.stmtUpsertPlanning = db.prepare(`
+      INSERT INTO planning (employe_id, jour_semaine, heure_debut, heure_fin, pause)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(employe_id, jour_semaine) DO UPDATE SET
+        heure_debut = excluded.heure_debut,
+        heure_fin = excluded.heure_fin,
+        pause = excluded.pause
+    `);
+
+    stmts.stmtDeletePlanning = db.prepare(`
+      DELETE FROM planning WHERE id = ?
     `);
 
     return true;
@@ -102,6 +122,4 @@ function getStatements() {
 module.exports = {
   prepareStatements,
   getStatements,
-  buildEmployesQuery,
-  buildEmployesCountQuery
 };

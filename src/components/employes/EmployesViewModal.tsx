@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+// src/components/employes/EmployesViewModal.tsx
+import React from 'react';
 import { X, FileText, Edit, Trash2, CheckCircle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const COLORS = {
   light: {
-    card: '#FFFFFF', border: '#E2E8F0', softBg: '#F8FAFC', text: '#0F172A', muted: '#64748B',
-    primary: '#4F46E5', green: '#059669', red: '#DC2626', amber: '#D97706'
+    card: '#FFFFFF', border: '#E2E8F0', softBg: '#F8FAFC', text: '#0F172A',
+    muted: '#64748B', primary: '#4F46E5', green: '#059669', red: '#DC2626', amber: '#D97706'
   },
   dark: {
     card: '#0F172A', border: 'rgba(255,255,255,0.12)', softBg: '#0F172A', text: '#F8FAFC',
@@ -47,26 +47,10 @@ const formatDate = (date?: string) => {
 };
 
 const EmployesViewModal: React.FC<EmployesViewModalProps> = ({
-  employe, onClose, onEdit, onDelete, isDark: propIsDark
+  employe, onClose, onEdit, onDelete
 }) => {
-  const { isDark: contextIsDark } = useTheme();
-  const isDark = propIsDark ?? contextIsDark;
+  const { isDark } = useTheme();
   const theme = isDark ? COLORS.dark : COLORS.light;
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    if (!employe) { setIsVisible(false); return; }
-    const timer = window.setTimeout(() => setIsVisible(true), 10);
-    return () => window.clearTimeout(timer);
-  }, [employe]);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.preventDefault(); onClose(); }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
   if (!employe) return null;
 
@@ -77,8 +61,15 @@ const EmployesViewModal: React.FC<EmployesViewModalProps> = ({
   const isActive = normalizeStatus(employe.status) === 'actif';
 
   const statusStyle = isActive
-    ? { background: isDark ? 'rgba(16, 185, 129, 0.12)' : '#D1FAE5', text: isDark ? '#34D399' : '#065F46', border: isDark ? 'rgba(16, 185, 129, 0.3)' : '#A7F3D0' }
-    : { background: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEE2E2', text: isDark ? '#F87171' : '#991B1B', border: isDark ? 'rgba(239, 68, 68, 0.3)' : '#FECACA' };
+    ? { background: 'rgba(16, 185, 129, 0.12)', color: theme.green, border: 'rgba(16, 185, 129, 0.3)' }
+    : { background: 'rgba(239, 68, 68, 0.12)', color: theme.red, border: 'rgba(239, 68, 68, 0.3)' };
+
+  const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <div className="flex justify-between py-2 border-b" style={{ borderColor: theme.border }}>
+      <span className="text-[14px] font-medium" style={{ color: theme.muted }}>{label}</span>
+      <span className="text-[14px] font-semibold text-right" style={{ color: theme.text }}>{value}</span>
+    </div>
+  );
 
   return (
     <div 
@@ -93,7 +84,7 @@ const EmployesViewModal: React.FC<EmployesViewModalProps> = ({
         style={{ background: theme.card, borderColor: theme.border }} 
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* HEADER (MITOVY AMIN'NY VENTES) */}
+        {/* HEADER (MITOVY TANTERAKA) */}
         <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: theme.border, background: theme.card }}>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg" style={{ background: 'rgba(79,70,229,0.06)' }}>
@@ -113,8 +104,9 @@ const EmployesViewModal: React.FC<EmployesViewModalProps> = ({
           </button>
         </div>
 
-      
+        {/* BODY */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* STATUS & POSTE */}
           <div className="mb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -123,7 +115,7 @@ const EmployesViewModal: React.FC<EmployesViewModalProps> = ({
                 <p className="text-[13px]" style={{ color: theme.muted }}>{employe.poste || 'Employé'}</p>
               </div>
               <div>
-                <span className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] font-semibold" style={{ background: statusStyle.background, color: statusStyle.text, borderColor: statusStyle.border }}>
+                <span className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] font-semibold" style={{ background: statusStyle.background, color: statusStyle.color, borderColor: statusStyle.border }}>
                   {isActive ? <CheckCircle size={14} /> : <X size={14} />}
                   {isActive ? 'Actif' : 'Inactif'}
                 </span>
@@ -131,49 +123,35 @@ const EmployesViewModal: React.FC<EmployesViewModalProps> = ({
             </div>
           </div>
 
+          {/* INFORMATIONS */}
           <div className="mt-6 flex flex-col">
-            <div className="flex justify-between text-[14px] py-2 border-b" style={{ borderColor: theme.border }}>
-              <span style={{ color: theme.muted }}>Email</span>
-              <span className="font-semibold text-right" style={{ color: theme.text }}>{employe.email || '—'}</span>
-            </div>
-
-            <div className="flex justify-between text-[14px] py-2 border-b" style={{ borderColor: theme.border }}>
-              <span style={{ color: theme.muted }}>Téléphone</span>
-              <span className="font-semibold" style={{ color: theme.text }}>{employe.telephone || '—'}</span>
-            </div>
-
-            <div className="flex justify-between text-[14px] py-2 border-b" style={{ borderColor: theme.border }}>
-              <span style={{ color: theme.muted }}>Département</span>
-              <span className="font-semibold" style={{ color: theme.text }}>{employe.departement || '—'}</span>
-            </div>
-
-            <div className="flex justify-between text-[14px] py-2 border-b" style={{ borderColor: theme.border }}>
-              <span style={{ color: theme.muted }}>Embauché le</span>
-              <span className="font-semibold" style={{ color: theme.text }}>{formatDate(employe.date_embauche)}</span>
-            </div>
+            <InfoRow label="Email" value={employe.email || '—'} />
+            <InfoRow label="Téléphone" value={employe.telephone || '—'} />
+            <InfoRow label="Département" value={employe.departement || '—'} />
+            <InfoRow label="Embauché le" value={formatDate(employe.date_embauche)} />
           </div>
 
-   
+          {/* SALAIRE */}
           <div className="mt-4 flex flex-col">
-            <div className="flex justify-between text-[16px] font-bold py-3 border-b" style={{ borderColor: theme.border }}>
-              <span style={{ color: theme.text }}>Salaire brut mensuel</span>
-              <span style={{ color: theme.primary }}>{formatMoney(salaire)}</span>
+            <div className="flex justify-between py-3 border-b" style={{ borderColor: theme.border }}>
+              <span className="text-[16px] font-bold" style={{ color: theme.text }}>Salaire brut mensuel</span>
+              <span className="text-[16px] font-bold" style={{ color: theme.primary }}>{formatMoney(salaire)}</span>
             </div>
           </div>
         </div>
 
-
+        {/* FOOTER (MITOVY TANTERAKA) */}
         <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: theme.border, background: theme.softBg }}>
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-[14px] font-medium hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>Fermer</button>
           
           {onDelete && (
-            <button onClick={onDelete} className="px-4 py-2 rounded-lg text-[14px] font-semibold text-white" style={{ background: theme.red }}>
-              <Trash2 size={15} className="inline mr-1" />Supprimer
+            <button onClick={onDelete} className="flex items-center px-4 py-2 rounded-lg text-[14px] font-semibold text-white hover:opacity-90" style={{ background: theme.red }}>
+              <Trash2 size={15} className="mr-1" />Supprimer
             </button>
           )}
 
-          <button onClick={onEdit} className="px-4 py-2 rounded-lg text-[14px] font-semibold text-white" style={{ background: theme.primary }}>
-            <Edit size={15} className="inline mr-1" />Modifier
+          <button onClick={onEdit} className="flex items-center px-4 py-2 rounded-lg text-[14px] font-semibold text-white hover:opacity-90" style={{ background: theme.primary }}>
+            <Edit size={15} className="mr-1" />Modifier
           </button>
         </div>
       </div>

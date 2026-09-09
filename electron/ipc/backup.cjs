@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { getDb } = require('../database/connection.cjs');
 const { log, error } = require('../database/utils.cjs');
+const { dialog, app } = require('electron');
 
 const BACKUP_ENABLED = process.env.BACKUP_ENABLED !== 'false';
 const BACKUP_AUTO_INTERVAL_HOURS = parseInt(process.env.BACKUP_AUTO_INTERVAL_HOURS) || 24;
@@ -11,6 +12,7 @@ const BACKUP_RETENTION_DAYS = parseInt(process.env.BACKUP_RETENTION_DAYS) || 30;
 const BACKUP_COMPRESS = process.env.BACKUP_COMPRESS !== 'false';
 const BACKUP_DIR = process.env.DB_BACKUP_PATH || path.join(__dirname, '../../backups');
 
+// ⭐ IZAY NO FONCTION MANOKANA: Maka ny path amin'ny alalan'ny PRAGMA
 function getDbPath() {
   try {
     const db = getDb();
@@ -22,11 +24,14 @@ function getDbPath() {
   }
 }
 
-function logSecurityEventSync(action, entity, ip, userAgent, status, details = '') {
+function logSecurityEventSync(action, entity, details = '', entityName = '') {
   try {
     const db = getDb();
-    const stmt = db.prepare(`INSERT INTO audit_logs (action, entity, entity_id, entity_name, user_id, details, created_at) VALUES (?, ?, 0, ?, 0, ?, datetime('now'))`);
-    stmt.run(action, entity, details);
+    const stmt = db.prepare(
+      `INSERT INTO audit_logs (action, entity, entity_id, entity_name, user_id, details, created_at) 
+       VALUES (?, ?, 0, ?, 0, ?, datetime('now'))`
+    );
+    stmt.run(action, entity, entityName, details);
   } catch (err) {
     error('⚠️ Erreur audit log:', err.message);
   }
@@ -60,19 +65,41 @@ function cleanupOldBackups() {
   }
 }
 
-function backupDatabaseSync() {
+function backupDatabaseSync(destinationPath = null) {
   if (!BACKUP_ENABLED) return { success: false, error: 'Backup désactivé' };
   try {
     const db = getDb();
     if (!db || !db.open) return { success: false, error: 'Base de données non disponible' };
     const dbPath = getDbPath();
     if (!dbPath || !fs.existsSync(dbPath)) return { success: false, error: 'Fichier DB introuvable' };
-    if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    let backupPath = path.join(BACKUP_DIR, `backup_${timestamp}.db`);
-    db.exec(`VACUUM INTO '${backupPath}'`);
-    log(`📦 Backup physique créé: ${backupPath}`);
-    if (BACKUP_COMPRESS) {
+
+    let backupPath;
+    if (!destinationPath) {
+      if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      backupPath = path.join(BACKUP_DIR, `backup_${timestamp}.db`);
+    } else {
+      backupPath = destinationPath;
+    }
+
+    try {
+      db.exec(`VACUUM INTO '${backupPath.replace(/'/g, "''")}'`);
+      log(`📦 Backup physique créé: ${backupPath}`);
+    } catch (vacuumErr) {
+      error('⚠️ VACUUM INTO tsy nahomby, manao fallback copy:', vacuumErr.message);
+      try {
+        db.close();
+        fs.copyFileSync(dbPath, backupPath);
+        const { initDatabase } = require('../database/init.cjs');
+        initDatabase();
+        log(`📦 Backup par copie directe: ${backupPath}`);
+      } catch (copyErr) {
+        error('❌ Fallback copy tsy nahomby:', copyErr.message);
+        return { success: false, error: copyErr.message };
+      }
+    }
+
+    if (BACKUP_COMPRESS && !destinationPath) {
       try {
         const zlib = require('zlib');
         const data = fs.readFileSync(backupPath);
@@ -86,12 +113,13 @@ function backupDatabaseSync() {
         error('⚠️ Erreur compression:', err.message);
       }
     }
-    logSecurityEventSync('backup_created', 'system', '127.0.0.1', 'Electron', 1, `Path: ${backupPath}`);
+
+    logSecurityEventSync('backup_created', 'system', `Path: ${backupPath}`, backupPath);
     cleanupOldBackups();
     return { success: true, path: backupPath };
   } catch (err) {
     error('❌ Erreur backup:', err.message);
-    logSecurityEventSync('backup_failed', 'system', '127.0.0.1', 'Electron', 0, err.message);
+    logSecurityEventSync('backup_failed', 'system', err.message, '');
     return { success: false, error: err.message };
   }
 }
@@ -111,7 +139,7 @@ function exportAllDataSync() {
     if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
     fs.writeFileSync(exportPath, JSON.stringify(data, null, 2));
     log(`📦 Export JSON créé: ${exportPath} (${Object.keys(data).length} tables)`);
-    logSecurityEventSync('export_json', 'system', '127.0.0.1', 'Electron', 1, `Path: ${exportPath}`);
+    logSecurityEventSync('export_json', 'system', `Path: ${exportPath}`, exportPath);
     return { success: true, path: exportPath, tables: Object.keys(data) };
   } catch (err) {
     error('❌ Erreur export JSON:', err.message);
@@ -125,15 +153,30 @@ function registerBackupHandlers(ipcMain) {
   const channels = ['backup:database','backup:restore','backup:vacuum','backup:optimize','backup:list','backup:delete','backup:auto','backup:status','backup:export-json'];
   for (const ch of channels) try { ipcMain.removeHandler(ch); } catch (_) {}
 
-  ipcMain.handle('backup:database', () => {
+  ipcMain.handle('backup:database', async (event) => {
     try {
-      return backupDatabaseSync();
+      const result = await dialog.showSaveDialog({
+        title: 'Enregistrer la sauvegarde',
+        defaultPath: path.join(app.getPath('documents'), `backup_${new Date().toISOString().replace(/[:.]/g, '-')}.db`),
+        filters: [
+          { name: 'Base de données', extensions: ['db'] },
+          { name: 'Tous les fichiers', extensions: ['*'] }
+        ],
+        properties: ['createDirectory', 'showOverwriteConfirmation']
+      });
+
+      if (result.canceled || !result.filePath) {
+        return { success: false, canceled: true };
+      }
+
+      const backupResult = backupDatabaseSync(result.filePath);
+      return backupResult;
     } catch (err) {
       return { success: false, error: err.message };
     }
   });
 
-  ipcMain.handle('backup:restore', (event, backupPath) => {
+  ipcMain.handle('backup:restore', async (event, backupPath) => {
     try {
       const normalizedPath = path.normalize(backupPath);
       if (!fs.existsSync(normalizedPath)) return { success: false, error: 'Fichier backup non trouvé. Vérifiez que le fichier existe toujours.' };
@@ -156,23 +199,23 @@ function registerBackupHandlers(ipcMain) {
       try { db.close(); } catch (_) {}
       fs.copyFileSync(realPath, dbPath);
       log(`✅ Restauration DB: ${realPath} -> ${dbPath}`);
+      
+      const { initDatabase } = require('../database/init.cjs');
+      await initDatabase();
+
       if (normalizedPath.endsWith('.gz') && realPath !== normalizedPath) try { fs.unlinkSync(realPath); } catch (_) {}
-      logSecurityEventSync('restore_success', 'system', '127.0.0.1', 'Electron', 1, `Path: ${backupPath}`);
+      logSecurityEventSync('restore_success', 'system', `Path: ${backupPath}`, backupPath);
       return { success: true, message: 'Base de données restaurée avec succès. Veuillez redémarrer l\'application.' };
     } catch (err) {
       error('❌ Erreur restauration:', err.message);
-      logSecurityEventSync('restore_failed', 'system', '127.0.0.1', 'Electron', 0, err.message);
+      logSecurityEventSync('restore_failed', 'system', err.message, '');
       return { success: false, error: err.message || 'Erreur inattendue lors de la restauration.' };
     }
   });
 
   ipcMain.handle('backup:vacuum', () => {
-    try {
-      getDb().exec('VACUUM');
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
+    try { getDb().exec('VACUUM'); return { success: true }; }
+    catch (err) { return { success: false, error: err.message }; }
   });
 
   ipcMain.handle('backup:optimize', () => {
@@ -182,9 +225,7 @@ function registerBackupHandlers(ipcMain) {
       db.exec('VACUUM');
       db.exec('PRAGMA optimize');
       return { success: true };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
+    } catch (err) { return { success: false, error: err.message }; }
   });
 
   ipcMain.handle('backup:list', (event, limit = 50) => {
@@ -203,9 +244,7 @@ function registerBackupHandlers(ipcMain) {
       }
       backups.sort((a, b) => b.created.getTime() - a.created.getTime());
       return { success: true, data: backups.slice(0, limit), total: backups.length, limit };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
+    } catch (err) { return { success: false, error: err.message }; }
   });
 
   ipcMain.handle('backup:delete', (event, backupPath) => {
@@ -213,19 +252,14 @@ function registerBackupHandlers(ipcMain) {
       if (!backupPath || !backupPath.startsWith(BACKUP_DIR)) return { success: false, error: 'Chemin invalide' };
       if (!fs.existsSync(backupPath)) return { success: false, error: 'Fichier non trouvé' };
       fs.unlinkSync(backupPath);
-      logSecurityEventSync('backup_deleted', 'system', '127.0.0.1', 'Electron', 1, `Path: ${backupPath}`);
+      logSecurityEventSync('backup_deleted', 'system', `Path: ${backupPath}`, backupPath);
       return { success: true };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
+    } catch (err) { return { success: false, error: err.message }; }
   });
 
   ipcMain.handle('backup:auto', () => {
-    try {
-      return backupDatabaseSync();
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
+    try { return backupDatabaseSync(); }
+    catch (err) { return { success: false, error: err.message }; }
   });
 
   ipcMain.handle('backup:status', () => {
@@ -249,21 +283,16 @@ function registerBackupHandlers(ipcMain) {
         stats.lastBackup = lastBackupDate ? lastBackupDate.toISOString() : null;
       }
       return { success: true, data: stats };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
+    } catch (err) { return { success: false, error: err.message }; }
   });
 
   ipcMain.handle('backup:export-json', () => {
-    try {
-      return exportAllDataSync();
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
+    try { return exportAllDataSync(); }
+    catch (err) { return { success: false, error: err.message }; }
   });
 
-  log('✅ Backup handlers enregistrés (synchronous, avec export JSON et restore corrigé)');
-  return true; // ⭐ FIX: Mamerina true!
+  log('✅ Backup handlers enregistrés (avec save dialog et audit log corrigé)');
+  return true;
 }
 
 module.exports = { registerBackupHandlers };

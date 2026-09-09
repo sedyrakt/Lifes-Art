@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { Loader2, ArrowUpRight, ArrowDownRight, FileText, DollarSign, Package, Wallet } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -109,9 +107,14 @@ const CommandesStats: React.FC<CommandesStatsProps> = ({
                 {stat.icon}
               </div>
 
-              <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="min-w-0 truncate text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              {/* ⭐ LABEL EO AMBONIN'NY VALUE */}
+              <div className="flex min-w-0 flex-1 flex-col">
+                {/* ⭐ FIX: Nampitombo ho text-[15px] ny label */}
+                <span className="min-w-0 truncate text-[15px] font-medium text-slate-500 dark:text-slate-400">
+                  {stat.label}
+                </span>
+                <div className="mt-0.5 flex min-w-0 items-center justify-between gap-2">
+                  <span className="truncate text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
                     {stat.value}
                   </span>
 
@@ -133,13 +136,9 @@ const CommandesStats: React.FC<CommandesStatsProps> = ({
                   )}
                 </div>
 
-                <div className="mt-0.5 truncate text-[14px] font-medium text-slate-500 dark:text-slate-400">
-                  {stat.label}
-                </div>
-
                 {stat.badge && (
                   <div
-                    className={`mt-1 inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
+                    className={`mt-1 inline-flex w-fit shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
                       stat.danger
                         ? 'bg-danger-50 text-danger-600 dark:bg-danger-500/10 dark:text-danger-400'
                         : 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400'

@@ -1,4 +1,3 @@
-// electron/ipc/orders/validation.cjs — ORDERS VALIDATION (FIXED)
 'use strict';
 
 const VALID_PAIEMENT_STATUSES = ['Payé', 'Partiel', 'Non payé'];
@@ -8,15 +7,12 @@ function normalizePaiement(value) {
   const normalized = value.trim().toLowerCase();
   switch (normalized) {
     case 'payé': case 'paye': case 'paid': case 'payee':
-    case 'payé complet': case 'paye complet': case 'paiement complet':
-      return 'Payé';
+    case 'payé complet': case 'paye complet': case 'paiement complet': return 'Payé';
     case 'partiel': case 'partial': case 'partielle':
-    case 'partiellement payé': case 'partiellement paye': case 'paiement partiel':
-      return 'Partiel';
+    case 'partiellement payé': case 'partiellement paye': case 'paiement partiel': return 'Partiel';
     case 'non payé': case 'non paye': case 'unpaid':
     case 'non_payé': case 'non_paye': case 'impayé':
-    case 'impaye': case 'en attente':
-      return 'Non payé';
+    case 'impaye': case 'en attente': return 'Non payé';
     default: return null;
   }
 }
@@ -46,7 +42,13 @@ function normalizePaymentValues(totalTTC, montantPaye) {
   };
 }
 
-// ⭐ NAMPIANA NY tva_rate
+// ⭐ FIX: Raha 0 dia 0, raha null/undefined/'' dia 0
+function parseTvaRate(value) {
+  return (value !== undefined && value !== null && value !== '')
+    ? Number(value)
+    : 0;
+}
+
 function validateOrderProduct(product, index) {
   const errors = [];
   if (!product || typeof product !== 'object' || Array.isArray(product)) {
@@ -56,7 +58,7 @@ function validateOrderProduct(product, index) {
   const id = Number(product.id);
   const quantity = Number(product.quantity);
   const price = Number(product.price);
-  const tvaRate = Number(product.tva_rate);
+  const tvaRate = parseTvaRate(product.tva_rate);
   
   if (!Number.isInteger(id) || id <= 0) errors.push(`Produit #${index + 1}: ID invalide`);
   if (!Number.isInteger(quantity) || quantity <= 0) errors.push(`Produit #${index + 1}: quantité invalide`);
@@ -75,14 +77,9 @@ function validateOrder(data = {}) {
   const clientNom = typeof data.client_nom === 'string' ? data.client_nom.trim() : '';
 
   if (clientId !== null) {
-    if (!Number.isInteger(clientId) || clientId <= 0) {
-      errors.push('Client invalide');
-    }
+    if (!Number.isInteger(clientId) || clientId <= 0) errors.push('Client invalide');
   }
-
-  if (!clientNom) {
-    errors.push('Nom client requis');
-  }
+  if (!clientNom) errors.push('Nom client requis');
 
   if (!Array.isArray(data.products) || data.products.length === 0) {
     errors.push('Au moins un produit est requis');
@@ -103,10 +100,7 @@ function validateOrder(data = {}) {
 
   const payment = normalizePaymentValues(totalTTC, montantPaye);
   const requestedStatus = normalizePaiement(data.statut_paiement);
-  
-  if (requestedStatus) {
-    payment.statutPaiement = requestedStatus;
-  }
+  if (requestedStatus) payment.statutPaiement = requestedStatus;
 
   if (errors.length > 0) return { valid: false, errors };
   
@@ -120,8 +114,7 @@ function validateOrder(data = {}) {
         name: typeof product.name === 'string' ? product.name.trim() : '',
         price: Number(product.price),
         quantity: Number(product.quantity),
-        // ⭐ NAMPIANA NY tva_rate
-        tva_rate: Number(product.tva_rate) || 0.20
+        tva_rate: parseTvaRate(product.tva_rate)
       })),
       total_ht: Number(totalHT.toFixed(2)),
       total_ttc: payment.totalTTC,
@@ -132,10 +125,4 @@ function validateOrder(data = {}) {
   };
 }
 
-module.exports = {
-  VALID_PAIEMENT_STATUSES,
-  normalizePaiement,
-  computePaiementStatus,
-  normalizePaymentValues,
-  validateOrder
-};
+module.exports = { VALID_PAIEMENT_STATUSES, normalizePaiement, computePaiementStatus, normalizePaymentValues, validateOrder };

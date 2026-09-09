@@ -151,8 +151,9 @@ export const LicenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refresh();
   }, [refresh]);
 
+  // ⭐ FIX: Novaina ho 15 MINITRA (15 * 60 * 1000 = 900,000 ms) fa tsy 30 segondra
   useEffect(() => {
-    intervalRef.current = setInterval(() => { refresh(); }, 30_000);
+    intervalRef.current = setInterval(() => { refresh(); }, 15 * 60 * 1000);
     const handleFocus = () => refresh();
     const handleVisibility = () => { if (document.visibilityState === 'visible') refresh(); };
     window.addEventListener('focus', handleFocus);

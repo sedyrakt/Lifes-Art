@@ -1,9 +1,8 @@
-
-
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Users, Wallet, UserCheck, Activity, Loader2 } from 'lucide-react';
+// Employes.tsx (feno) - NOVAINA
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'; // ⭐ Nampiana useMemo
+import { Users, Wallet, UserCheck, Activity, Timer, TrendingUp, Loader2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useEmployesData } from '../hooks/useEmployesData';
+import { useEmployesData, ExportPeriod } from '../hooks/useEmployesData';
 import EmployesHeader from '../components/employes/EmployesHeader';
 import EmployesTable from '../components/employes/EmployesTable';
 import EmployesPagination from '../components/employes/EmployesPagination';
@@ -12,6 +11,7 @@ import EmployesViewModal from '../components/employes/EmployesViewModal';
 import EmployesPresenceModal from '../components/employes/EmployesPresenceModal';
 import EmployesSalaryModal from '../components/employes/EmployesSalaryModal';
 import EmployesCalendrier from '../components/employes/EmployesCalendrier';
+import EmployesStats from '../components/employes/EmployesStats'; // ⭐ Nampiana ny import
 import ConfirmModal from '../components/common/ConfirmModal';
 import SuccessModal from '../components/common/SuccessModal';
 import ErrorModal from '../components/common/ErrorModal';
@@ -27,11 +27,13 @@ const Employes: React.FC = () => {
   const {
     employes, loading, refreshing, totalItems, totalPages, currentPage, setCurrentPage,
     searchTerm, setSearchTerm, filterStatus, setFilterStatus, sortOption, setSortOption,
+    exportPeriod, setExportPeriod, exportDate, setExportDate,
     paiementCounts, historiquePaiements,
     loadPaiementsEmploye, deletePaiement,
     loadData, stats, getEmployeById, createEmploye, updateEmploye, deleteEmploye,
     getStatusColor, getStatusIcon, ITEMS_PER_PAGE, refreshPaiementCounts, bulkUpdateStatus, bulkDelete,
     loadPresence, savePresence, updateSalary,
+    exportToExcel, exportToPDF, exportToCSV,
   } = useEmployesData();
 
   const [viewMode, setViewMode] = useState<ViewMode>('liste');
@@ -67,6 +69,11 @@ const Employes: React.FC = () => {
   const showError = useCallback((title: string, message: string) => {
     setErrorTitle(title); setErrorMessage(message); setShowErrorModal(true);
   }, []);
+
+  // ⭐ Kajy ny salaire total avy amin'ny employes
+  const totalSalaire = useMemo(() => {
+    return employes.reduce((sum, e) => sum + (Number(e.salaire) || 0), 0);
+  }, [employes]);
 
   const fetchDerniersPaiements = useCallback(async (employesList: any[]) => {
     if (!employesList.length) return;
@@ -236,6 +243,26 @@ const Employes: React.FC = () => {
     return moisList;
   }, []);
 
+  // ⭐ Handle Export misy période + date
+  const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
+    try {
+      let result;
+      if (format === 'excel') result = await exportToExcel(period, customDate);
+      else if (format === 'pdf') result = await exportToPDF(period, customDate);
+      else result = await exportToCSV(period, customDate);
+
+      if (result?.canceled) return;
+      if (result?.success === false) {
+        showError('Erreur export', result.error || 'Impossible d\'exporter les données.');
+        return;
+      }
+
+      showSuccess('Export réussi', `Les employés ont été exportés en ${format.toUpperCase()} (${period}).`);
+    } catch (error: any) {
+      showError('Erreur export', error?.message || 'Impossible d\'exporter les données.');
+    }
+  }, [exportToExcel, exportToPDF, exportToCSV, showSuccess, showError]);
+
   const renderSkeleton = () => {
     const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
     const border = isDark ? 'border-white/[0.08]' : 'border-slate-200';
@@ -268,30 +295,24 @@ const Employes: React.FC = () => {
   return (
     <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
-        <EmployesHeader onAddEmploye={handleOpenAddModal} refreshing={refreshing} onRefresh={loadData} totalItems={totalItems} />
+        <EmployesHeader onAddEmploye={handleOpenAddModal} onExport={handleExport} refreshing={refreshing} onRefresh={loadData} totalItems={totalItems} />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard icon={<Users size={16} />} label="Total employés" value={stats.total ?? totalItems} colorClass="bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400" />
-          <StatCard icon={<Wallet size={16} />} label="Masse salariale" value={`${stats.totalSalaire?.toLocaleString('fr-FR') ?? '0'} Ar`} colorClass="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" />
-          <StatCard icon={<UserCheck size={16} />} label="Employés actifs" value={stats.actifs ?? 0} colorClass="bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400" />
-          <StatCard icon={<Activity size={16} />} label="Taux d'activité" value={`${stats.tauxActif ?? 0}%`} colorClass="bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400" />
-        </div>
-
-        <EmployesSearchBar
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          filterStatus={filterStatus}
-          onFilterStatusChange={setFilterStatus}
-          sortOption={sortOption}
-          onSortChange={setSortOption}
-          filterDepartement=""
-          onFilterDepartementChange={() => {}}
-          isLoading={loading}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
+        {/* ⭐ Nampiasa ny component EmployesStats */}
+        <EmployesStats 
+          totalItems={totalItems}
+          totalSalaire={totalSalaire}
+          actifs={stats.actifs ?? 0}
+          tauxActif={stats.tauxActif ?? stats.tauxPresence ?? 0}
         />
 
-  
+        <EmployesSearchBar
+          searchTerm={searchTerm} onSearchChange={setSearchTerm}
+          filterStatus={filterStatus} onFilterStatusChange={setFilterStatus}
+          sortOption={sortOption} onSortChange={setSortOption}
+          filterDepartement="" onFilterDepartementChange={() => {}}
+          isLoading={loading} viewMode={viewMode} onViewModeChange={setViewMode}
+        />
+
         <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_4px_20px_-4px_rgba(79,70,229,0.08)] transition-all duration-300 dark:border-white/[0.1] dark:bg-[#0F172A] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.35)]">
           {refreshing && (<div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent"><div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" /></div>)}
 
@@ -299,11 +320,8 @@ const Employes: React.FC = () => {
             renderSkeleton()
           ) : viewMode === 'calendrier' ? (
             <EmployesCalendrier
-              employes={employes}
-              mois={selectedMonth}
-              annee={selectedYear}
-              onMoisChange={setSelectedMonth}
-              onAnneeChange={setSelectedYear}
+              employes={employes} mois={selectedMonth} annee={selectedYear}
+              onMoisChange={setSelectedMonth} onAnneeChange={setSelectedYear}
               onJourClick={(employeId, date) => {
                 const emp = employes.find(e => e.id === employeId);
                 if (emp) handleOpenPresence(emp);
@@ -312,12 +330,12 @@ const Employes: React.FC = () => {
           ) : (
             <>
               <EmployesTable
-                employes={employes}
-                paiementCounts={paiementCounts}
-                derniersPaiements={derniersPaiements}
-                onView={handleViewEmploye} onEdit={handleEditEmploye} onDelete={handleDeleteClick} onHistorique={handleHistorique} onAdd={handleOpenAddModal}
+                employes={employes} paiementCounts={paiementCounts} derniersPaiements={derniersPaiements}
+                onView={handleViewEmploye} onEdit={handleEditEmploye} onDelete={handleDeleteClick}
+                onHistorique={handleHistorique} onAdd={handleOpenAddModal}
                 getStatusColor={getStatusColor} getStatusIcon={getStatusIcon}
-                selectedIds={selectedIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne} onBulkUpdateStatus={handleBulkUpdateStatus} onBulkDelete={handleBulkDelete}
+                selectedIds={selectedIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne}
+                onBulkUpdateStatus={handleBulkUpdateStatus} onBulkDelete={handleBulkDelete}
                 onGererPresence={handleOpenPresence} onFisondrotana={handleOpenSalary}
               />
 
@@ -369,21 +387,6 @@ const Employes: React.FC = () => {
       <SuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} title={successTitle} message={successMessage} buttonText="OK" autoCloseDelay={3000} />
       <ErrorModal isOpen={showErrorModal} onClose={() => setShowErrorModal(false)} title={errorTitle} message={errorMessage} buttonText="OK" autoCloseDelay={4000} />
     </main>
-  );
-};
-
-const StatCard = ({ icon, label, value, colorClass }: { icon: React.ReactNode; label: string; value: React.ReactNode; colorClass?: string }) => {
-  const { isDark } = useTheme();
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md dark:border-white/[0.1] dark:bg-[#0F172A]">
-      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${colorClass || 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400'}`}>
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-[13px] text-slate-500 dark:text-slate-400">{label}</p>
-        <p className="mt-0.5 truncate text-[17px] font-bold text-slate-900 dark:text-slate-100">{value}</p>
-      </div>
-    </div>
   );
 };
 

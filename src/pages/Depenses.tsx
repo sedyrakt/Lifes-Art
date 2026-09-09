@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Package, Truck, Wrench, Zap, Users, Megaphone, Home, Tag, Plus, Search, ArrowUpDown, CreditCard, X, SlidersHorizontal } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useDepensesData } from '../hooks/useDepensesData';
+import { useDepensesData, ExportPeriod } from '../hooks/useDepensesData';
 import DepensesHeader from '../components/depenses/DepensesHeader';
 import DepensesStats from '../components/depenses/DepensesStats';
 import { DepensesTable, DepensesPagination, DepensesModalForm, DepensesViewModal } from '../components/depenses';
@@ -54,6 +54,9 @@ const Depenses: React.FC = () => {
   const {
     depenses, fournisseurs, loading, refreshing, setRefreshing, totalItems, currentPage, setCurrentPage,
     filters, setFilters, loadDepenses, stats, createDepense, updateDepense, deleteDepense, bulkDelete, ITEMS_PER_PAGE,
+    // ⭐ Vaovao avy amin'ny hook
+    exportPeriod, setExportPeriod, exportCustomDate, setExportCustomDate,
+    exportToExcel, exportToPDF, exportToCSV,
   } = useDepensesData();
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -82,6 +85,26 @@ const Depenses: React.FC = () => {
   const showError = useCallback((title: string, message: string) => {
     setErrorTitle(title); setErrorMessage(message); setShowErrorModal(true);
   }, []);
+
+  // ⭐ Handle Export – mijery ny result
+  const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
+    try {
+      let result;
+      if (format === 'excel') result = await exportToExcel(period, customDate);
+      else if (format === 'pdf') result = await exportToPDF(period, customDate);
+      else result = await exportToCSV(period, customDate);
+
+      if (result?.canceled) return;
+      if (result?.success === false) {
+        showError('Erreur export', result.error || 'Impossible d\'exporter les données.');
+        return;
+      }
+
+      showSuccess('Export réussi', `Les dépenses ont été exportées en ${format.toUpperCase()} (${period}${period === 'custom' ? ' - ' + customDate : ''}).`);
+    } catch (error: any) {
+      showError('Erreur export', error?.message || 'Impossible d\'exporter les données.');
+    }
+  }, [exportToExcel, exportToPDF, exportToCSV, showSuccess, showError]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     setSelectedIds(checked ? new Set(safeDepenses.map(d => d.id)) : new Set());
@@ -203,21 +226,16 @@ const Depenses: React.FC = () => {
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
-
-    <main
-      className="min-h-full w-full transition-colors duration-300"
-      style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}
-    >
+    <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
-
         <DepensesHeader
           onAddDepense={handleOpenAddModal}
           onOpenStats={() => {}}
+          onExport={handleExport}
           refreshing={refreshing}
           onRefresh={handleRefresh}
           totalItems={reelStats.nb || totalItems}
         />
-
         <DepensesStats
           total={reelStats.total}
           nb={reelStats.nb}
@@ -230,7 +248,6 @@ const Depenses: React.FC = () => {
           evolutionMoyenne={0}
           evolutionFournisseurs={0}
         />
-
         <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center">
           <div className="relative min-w-0 flex-1">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -244,11 +261,7 @@ const Depenses: React.FC = () => {
               className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-9 text-[13px] text-slate-900 outline-none transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-white/[0.18] dark:focus:bg-[#0F172A]"
             />
             {filters.searchTerm && (
-              <button
-                type="button"
-                onClick={() => setFilters({ searchTerm: '' })}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-600 dark:hover:bg-white/[0.06] dark:hover:text-slate-200"
-              >
+              <button type="button" onClick={() => setFilters({ searchTerm: '' })} className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-600 dark:hover:bg-white/[0.06] dark:hover:text-slate-200">
                 <X size={14} />
               </button>
             )}
@@ -256,33 +269,21 @@ const Depenses: React.FC = () => {
           <div className="flex items-center gap-2 overflow-x-auto pb-0.5 xl:shrink-0">
             <div className="relative shrink-0">
               <SlidersHorizontal size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-brand-500" />
-              <select
-                value={filters.filterCategorie}
-                onChange={e => setFilters({ filterCategorie: e.target.value })}
-                className="h-10 min-w-[125px] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-8 pr-7 text-[13px] text-slate-700 outline-none transition hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-200"
-              >
+              <select value={filters.filterCategorie} onChange={e => setFilters({ filterCategorie: e.target.value })} className="h-10 min-w-[125px] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-8 pr-7 text-[13px] text-slate-700 outline-none transition hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-200">
                 <option value="">Catégorie</option>
                 {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
             <div className="relative shrink-0">
               <CreditCard size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-brand-500" />
-              <select
-                value={filters.filterMode}
-                onChange={e => setFilters({ filterMode: e.target.value })}
-                className="h-10 min-w-[155px] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-[13px] text-slate-700 outline-none transition hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-200"
-              >
+              <select value={filters.filterMode} onChange={e => setFilters({ filterMode: e.target.value })} className="h-10 min-w-[155px] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-[13px] text-slate-700 outline-none transition hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-200">
                 <option value="">Mode de paiement</option>
                 {MODES_PAIEMENT.map(mode => <option key={mode} value={mode}>{mode}</option>)}
               </select>
             </div>
             <div className="relative shrink-0">
               <ArrowUpDown size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-brand-500" />
-              <select
-                value={filters.sortOption}
-                onChange={e => setFilters({ sortOption: e.target.value })}
-                className="h-10 min-w-[135px] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-[13px] text-slate-700 outline-none transition hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-200"
-              >
+              <select value={filters.sortOption} onChange={e => setFilters({ sortOption: e.target.value })} className="h-10 min-w-[135px] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-[13px] text-slate-700 outline-none transition hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-200">
                 <option value="Date (Récent)">Date (Récent)</option>
                 <option value="Date (Ancien)">Date (Ancien)</option>
                 <option value="Montant (Croissant)">Montant ↑</option>
@@ -291,14 +292,12 @@ const Depenses: React.FC = () => {
             </div>
           </div>
         </div>
-
         <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_4px_20px_-4px_rgba(79,70,229,0.08)] transition-all duration-300 dark:border-white/[0.1] dark:bg-[#0F172A] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.35)]">
           {refreshing && (
             <div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent">
               <div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" />
             </div>
           )}
-
           {loading && safeDepenses.length === 0 ? (
             <DepensesSkeleton isDark={isDark} />
           ) : (
@@ -318,7 +317,6 @@ const Depenses: React.FC = () => {
             />
           )}
         </section>
-
         {!loading && totalPages > 0 && (
           <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_2px_10px_-2px_rgba(79,70,229,0.06)] transition-all duration-300 dark:border-white/[0.1] dark:bg-[#0F172A] dark:shadow-[0_2px_12px_-2px_rgba(0,0,0,0.25)]">
             <DepensesPagination
@@ -329,7 +327,6 @@ const Depenses: React.FC = () => {
             />
           </div>
         )}
-
         <DepensesModalForm
           isOpen={showModal}
           onClose={handleCloseModal}
@@ -340,7 +337,6 @@ const Depenses: React.FC = () => {
           modesPaiement={MODES_PAIEMENT}
           isDark={isDark}
         />
-
         {showViewModal && selectedDepense && (
           <DepensesViewModal
             depense={selectedDepense}
@@ -351,7 +347,6 @@ const Depenses: React.FC = () => {
             isDark={isDark}
           />
         )}
-
         <ConfirmModal
           isOpen={showDeleteModal}
           onClose={() => { setShowDeleteModal(false); setDeleteTarget(null); }}
@@ -363,7 +358,6 @@ const Depenses: React.FC = () => {
           confirmColor="red"
           isDark={isDark}
         />
-
         <ConfirmModal
           isOpen={showBulkDeleteModal}
           onClose={() => { setShowBulkDeleteModal(false); setBulkDeleteTargetIds([]); }}
@@ -375,7 +369,6 @@ const Depenses: React.FC = () => {
           confirmColor="red"
           isDark={isDark}
         />
-
         <SuccessModal
           isOpen={showSuccessModal}
           onClose={() => setShowSuccessModal(false)}
@@ -384,7 +377,6 @@ const Depenses: React.FC = () => {
           buttonText="OK"
           autoCloseDelay={3000}
         />
-
         <ErrorModal
           isOpen={showErrorModal}
           onClose={() => setShowErrorModal(false)}

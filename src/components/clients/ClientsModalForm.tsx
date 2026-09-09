@@ -1,31 +1,18 @@
-import React, { useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { X, Plus } from 'lucide-react';
+// src/components/clients/ClientsModalForm.tsx
+import React from 'react';
+import { X, Plus, Pencil } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const COLORS = {
   light: {
-    card: '#FFFFFF', border: '#E2E8F0', headerBg: '#FFFFFF', formBg: '#FFFFFF', inputBg: '#FFFFFF',
-    softBg: '#F8FAFC', text: '#264653', muted: '#64748B', subMuted: '#94A3B8',
-    primary: '#4F46E5',
-    primaryHover: '#4338CA',
-    primaryBg: 'rgba(79,70,229,0.08)',
-    primaryBorder: 'rgba(79,70,229,0.20)'
+    card: '#FFFFFF', border: '#E2E8F0', softBg: '#F8FAFC', text: '#0F172A',
+    muted: '#64748B', primary: '#4F46E5', primaryHover: '#4338CA',
+    primaryBg: 'rgba(79,70,229,0.08)', inputBg: '#FFFFFF'
   },
   dark: {
-    card: '#0F172A',
-    border: 'rgba(255,255,255,0.12)',
-    headerBg: '#0F172A',
-    formBg: '#0F172A',
-    inputBg: '#0F172A',
-    softBg: '#1E293B',
-    text: '#F8FAFC',
-    muted: '#94A3B8',
-    subMuted: '#94A3B8',
-    primary: '#4F46E5',
-    primaryHover: '#4338CA',
-    primaryBg: 'rgba(79,70,229,0.12)',
-    primaryBorder: 'rgba(79,70,229,0.28)'
+    card: '#0F172A', border: 'rgba(255,255,255,0.12)', softBg: '#0F172A', text: '#F8FAFC',
+    muted: '#94A3B8', primary: '#4F46E5', primaryHover: '#4338CA',
+    primaryBg: 'rgba(79,70,229,0.12)', inputBg: '#0F172A'
   }
 };
 
@@ -38,9 +25,7 @@ interface Client {
   ville: string;
   code_postal: string;
   pays: string;
-  image?: string;
   type: 'Particulier' | 'Entreprise';
-  created_at: string;
 }
 
 interface Props {
@@ -48,7 +33,6 @@ interface Props {
   onClose: () => void;
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   editingClient: Client | null;
-  isDark?: boolean;
 }
 
 const FormField: React.FC<{ label: string; children: React.ReactNode; required?: boolean; fullWidth?: boolean; }> = ({ label, children, required = false, fullWidth = false }) => {
@@ -56,7 +40,7 @@ const FormField: React.FC<{ label: string; children: React.ReactNode; required?:
   const theme = isDark ? COLORS.dark : COLORS.light;
   return (
     <div className={`min-w-0 ${fullWidth ? 'w-full' : ''}`}>
-      <label className="mb-1.5 block text-[15px] font-medium" style={{ color: theme.text }}>
+      <label className="mb-1.5 block text-[14px] font-semibold" style={{ color: theme.text }}>
         {label}{required && <span className="ml-1 text-brand-500">*</span>}
       </label>
       {children}
@@ -64,28 +48,9 @@ const FormField: React.FC<{ label: string; children: React.ReactNode; required?:
   );
 };
 
-const ClientsModalForm: React.FC<Props> = ({ isOpen, onClose, onSubmit, editingClient, isDark: propDark }) => {
-  const { isDark: contextDark } = useTheme();
-  const isDark = propDark !== undefined ? propDark : contextDark;
+const ClientsModalForm: React.FC<Props> = ({ isOpen, onClose, onSubmit, editingClient }) => {
+  const { isDark } = useTheme();
   const theme = isDark ? COLORS.dark : COLORS.light;
-  const formRef = useRef<HTMLFormElement>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
-      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); formRef.current?.requestSubmit(); }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = previousOverflow; };
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -100,7 +65,7 @@ const ClientsModalForm: React.FC<Props> = ({ isOpen, onClose, onSubmit, editingC
     e.currentTarget.style.boxShadow = 'none';
   };
 
-  const modal = (
+  return (
     <div
       className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
       style={{ background: isDark ? 'rgba(0,0,0,0.80)' : 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}
@@ -110,22 +75,29 @@ const ClientsModalForm: React.FC<Props> = ({ isOpen, onClose, onSubmit, editingC
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
       <div
-        className="relative z-[100000] flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border shadow-[0_24px_70px_rgba(0,0,0,0.25)]"
+        className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border shadow-2xl"
         style={{ background: theme.card, borderColor: theme.border }}
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="absolute left-0 right-0 top-0 h-[2px]" style={{ background: theme.primary }} />
-        <header className="flex h-14 shrink-0 items-center justify-between border-b px-6" style={{ background: theme.headerBg, borderColor: theme.border }}>
-          <h2 id="client-modal-title" className="truncate text-[16px] font-semibold tracking-tight" style={{ color: theme.text }}>
-            {editingClient ? 'Modifier le client' : 'Nouveau client'}
-          </h2>
-          <button type="button" onClick={onClose} aria-label="Fermer" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.06]" style={{ color: theme.muted }}>
-            <X size={17} strokeWidth={2} />
+        {/* ⭐ STANDARD HEADER */}
+        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: theme.border, background: theme.card }}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg" style={{ background: theme.primaryBg }}>
+              <Plus size={19} style={{ color: theme.primary }} />
+            </div>
+            <h2 id="client-modal-title" className="text-[17px] font-bold" style={{ color: theme.text }}>
+              {editingClient ? 'Modifier le client' : 'Nouveau client'}
+            </h2>
+          </div>
+          <button type="button" onClick={onClose} className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>
+            <X size={19} />
           </button>
-        </header>
+        </div>
 
-        <form ref={formRef} onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        {/* ⭐ FIX LEHIBE: NAMPIANA <form onSubmit={onSubmit}> IZAO! */}
+        <form onSubmit={onSubmit}>
+          {/* STANDARD BODY */}
+          <div className="flex-1 overflow-y-auto p-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <FormField label="Nom complet" required fullWidth>
                 <input type="text" name="nom" defaultValue={editingClient?.nom || ''} required autoFocus={!editingClient} autoComplete="off" placeholder="Nom complet du client" className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
@@ -157,21 +129,26 @@ const ClientsModalForm: React.FC<Props> = ({ isOpen, onClose, onSubmit, editingC
             </div>
           </div>
 
-          <footer className="flex h-[64px] shrink-0 items-center justify-end gap-2 border-t px-6" style={{ background: theme.softBg, borderColor: theme.border }}>
-            <button type="button" onClick={onClose} className="h-10 rounded-lg px-5 text-[14px] font-medium transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.06]" style={{ color: theme.muted }}>
+          {/* ⭐ STANDARD FOOTER (submis ao anaty form) */}
+          <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: theme.border, background: theme.softBg }}>
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-[14px] font-medium hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>
               Annuler
             </button>
-            <button type="submit" className="flex h-10 items-center gap-1.5 rounded-lg px-5 text-[14px] font-semibold text-white shadow-sm transition-all hover:shadow-md active:scale-[0.98]" style={{ background: theme.primary }} onMouseEnter={(event) => { event.currentTarget.style.background = theme.primaryHover; }} onMouseLeave={(event) => { event.currentTarget.style.background = theme.primary; }}>
-              <Plus size={15} strokeWidth={2} />
+            <button
+              type="submit"
+              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[14px] font-semibold text-white shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+              style={{ background: theme.primary }}
+              onMouseEnter={(event) => { event.currentTarget.style.background = theme.primaryHover; }}
+              onMouseLeave={(event) => { event.currentTarget.style.background = theme.primary; }}
+            >
+              {editingClient ? <Pencil size={15} /> : <Plus size={15} />}
               {editingClient ? 'Enregistrer' : 'Ajouter'}
             </button>
-          </footer>
+          </div>
         </form>
       </div>
     </div>
   );
-
-  return createPortal(modal, document.body);
 };
 
 export default ClientsModalForm;

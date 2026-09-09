@@ -25,6 +25,8 @@ export const useCompanySettings = (
 ) => {
   const { company, updateCompany } = useCompany();
   
+  // ⭐ FIX: Raha tsy misy initialData, dia mampiasa ny company mivantana.
+  // Raha misy initialData (avy amin'ny Achats/Commandes), dia izay no ampiasaina.
   const [formData, setFormData] = useState<CompanyData>({
     name: cleanText(initialData?.name || company?.name || ''),
     address: cleanText(initialData?.address || company?.address || ''),
@@ -56,27 +58,30 @@ export const useCompanySettings = (
   }, []);
 
   useEffect(() => {
+    // ⭐ FIX LEHIBE: Raha miova ny initialData na company, dia avereno feno ny formData.
+    // Raha initialData dia null/undefined, dia ampiasao ny company.
     const load = async () => {
       await new Promise(r => setTimeout(r, 50));
       
-      if (initialData) {
+      const dataSource = initialData || company;
+      if (dataSource) {
         setFormData({
-          name: cleanText(initialData.name || ''),
-          address: cleanText(initialData.address || ''),
-          phone: cleanText(initialData.phone || ''),
-          email: cleanText(initialData.email || ''),
-          siret: cleanText(initialData.siret || ''),
-          website: cleanText(initialData.website || ''),
-          taxId: cleanText(initialData.taxId || ''),
-          rcs: cleanText(initialData.rcs || ''),
-          vatNumber: cleanText(initialData.vatNumber || ''),
-          paymentMethod: cleanText(initialData.paymentMethod || 'Espèces'),
-          paymentTerms: cleanText(initialData.paymentTerms || 'Sous 30 jours')
+          name: cleanText(dataSource.name || ''),
+          address: cleanText(dataSource.address || ''),
+          phone: cleanText(dataSource.phone || ''),
+          email: cleanText(dataSource.email || ''),
+          siret: cleanText(dataSource.siret || ''),
+          website: cleanText(dataSource.website || ''),
+          taxId: cleanText(dataSource.taxId || ''),
+          rcs: cleanText(dataSource.rcs || ''),
+          vatNumber: cleanText(dataSource.vatNumber || ''),
+          paymentMethod: cleanText(dataSource.paymentMethod || 'Espèces'),
+          paymentTerms: cleanText(dataSource.paymentTerms || 'Sous 30 jours')
         });
       }
     };
     load();
-  }, [initialData]);
+  }, [initialData, company]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

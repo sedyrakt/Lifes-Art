@@ -1,4 +1,3 @@
-// electron/ipc/ventes/statements.cjs
 'use strict';
 
 const { getDb } = require('../../database/connection.cjs');
@@ -18,13 +17,11 @@ function prepareStatements() {
       stmtGetDevisById: db.prepare('SELECT * FROM devis WHERE id = ?'),
       stmtGetDevisDetails: db.prepare('SELECT * FROM details_devis WHERE devis_id = ?'),
       stmtCreateDevis: db.prepare(`INSERT INTO devis (client_id, client_nom, reference, total_ht, total_ttc, statut_paiement, montant_paye, montant_restant, validite_jours, observation) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
-      // ⭐ NAMPIANA NY tva_rate
       stmtInsertDevisDetail: db.prepare(`INSERT INTO details_devis (devis_id, produit_id, quantite, prix_unitaire, total, tva_rate) VALUES (?, ?, ?, ?, ?, ?)`),
 
       stmtGetFactureById: db.prepare('SELECT * FROM factures WHERE id = ?'),
       stmtGetFactureDetails: db.prepare('SELECT * FROM details_factures WHERE facture_id = ?'),
       stmtCreateFacture: db.prepare(`INSERT INTO factures (client_id, client_nom, reference, total_ht, total_ttc, statut_paiement, montant_paye, montant_restant, observation) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`),
-      // ⭐ NAMPIANA NY tva_rate
       stmtInsertFactureDetail: db.prepare(`INSERT INTO details_factures (facture_id, produit_id, quantite, prix_unitaire, total, tva_rate) VALUES (?, ?, ?, ?, ?, ?)`),
 
       stmtUpdateDevis: db.prepare(`UPDATE devis SET client_id = ?, client_nom = ?, reference = ?, total_ht = ?, total_ttc = ?, statut_paiement = ?, montant_paye = ?, montant_restant = ?, validite_jours = ?, observation = ? WHERE id = ?`),

@@ -104,7 +104,7 @@ const EntreesTable: React.FC<EntreesTableProps> = ({
         <table className={`w-full min-w-[850px] table-fixed border-collapse text-left ${borderColor}`}>
  
           <thead className={`sticky top-0 z-20 backdrop-blur-xl ${isDark ? 'bg-[#0F172A]/97' : 'bg-slate-50'}`}>
-            <tr className="text-[12.5px] font-semibold uppercase tracking-[0.055em] text-slate-500 dark:text-slate-400">
+            <tr className="text-[13px] font-semibold uppercase tracking-[0.055em] text-slate-500 dark:text-slate-400">
               <th className={`w-[40px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>
                 <input type="checkbox" checked={allSelected} ref={(el) => { if (el) el.indeterminate = someSelected; }} onChange={(e) => onSelectAll(e.target.checked)} className="h-[15px] w-[15px] cursor-pointer accent-brand-500" aria-label="Sélectionner toutes les entrées" />
               </th>
@@ -132,13 +132,13 @@ const EntreesTable: React.FC<EntreesTableProps> = ({
                     <input type="checkbox" checked={isSelected} onChange={(e) => onSelectOne(entree.id, e.target.checked)} className="h-[15px] w-[15px] cursor-pointer accent-brand-500" aria-label={`Sélectionner ${reference}`} />
                   </td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>
-                    <span className="inline-flex max-w-[110px] truncate rounded-md border border-brand-100 bg-brand-50 px-2 py-1 font-mono text-[12.5px] font-semibold leading-tight text-brand-600 dark:border-brand-500/15 dark:bg-brand-500/10 dark:text-brand-400">{reference}</span>
+                    <span className="inline-flex max-w-[110px] truncate rounded-md border border-brand-100 bg-brand-50 px-2 py-1 font-mono text-[13px] font-semibold leading-tight text-brand-600 dark:border-brand-500/15 dark:bg-brand-500/10 dark:text-brand-400">{reference}</span>
                   </td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>
                     <div className="min-w-0 leading-tight">
                       <div className="max-w-[200px] truncate text-[14.5px] font-semibold text-slate-900 group-hover:text-brand-600 dark:text-slate-100 dark:group-hover:text-brand-400">{entree.produit_nom || 'Produit inconnu'}</div>
                       {entree.produit_code && (
-                        <div className="mt-0.5 font-mono text-[12.5px] text-slate-500 dark:text-slate-400">Code : {entree.produit_code}</div>
+                        <div className="mt-0.5 font-mono text-[13px] text-slate-500 dark:text-slate-400">Code : {entree.produit_code}</div>
                       )}
                     </div>
                   </td>
@@ -183,7 +183,7 @@ const EntreesTable: React.FC<EntreesTableProps> = ({
           <span className="hidden h-3.5 w-px bg-slate-300 sm:block dark:bg-white/[0.12]" />
           <span><span className="font-semibold text-slate-900 dark:text-slate-100">{totalValeur.toLocaleString('fr-FR')} Ar</span> Valeur totale</span>
         </div>
-        <span className="text-[12.5px] font-medium text-slate-400 dark:text-slate-500">Stock synchronisé</span>
+        <span className="text-[13px] font-medium text-slate-400 dark:text-slate-500">Stock synchronisé</span>
       </div>
 
       <style>{`

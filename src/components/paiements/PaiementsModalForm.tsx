@@ -1,5 +1,5 @@
 import React, { FormEvent, useEffect, useMemo, useState, useCallback } from 'react';
-import { Loader2, Save, X, ChevronDown } from 'lucide-react';
+import { Loader2, Save, X, ChevronDown, Clock, TrendingUp } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 export type PaiementStatut = 'Brouillon' | 'Payé' | 'Partiel' | 'Non payé';
@@ -8,6 +8,7 @@ export interface PaiementEmploye {
   id?: number; employe_id: number; mois: number; annee: number; montant: number;
   mode_paiement?: string; statut?: string; reference?: string | null; observation?: string | null;
   salaire_brut?: number; cnaps?: number; ostie?: number; irsa?: number; avance?: number;
+  absences_deduction?: number;
   date_paiement?: string | null; created_at?: string | null;
   employe_nom?: string | null; employe_prenom?: string | null; employe_poste?: string | null; salaire_base?: number | null;
 }
@@ -16,6 +17,8 @@ interface PaiementsModalFormProps {
   isOpen: boolean; onClose: () => void; employes?: EmployePaiement[];
   paiement?: PaiementEmploye | null; employeId?: number | null;
   onSuccess?: (paiement: PaiementEmploye) => void | Promise<void>;
+  presenceData?: { jours_absences?: number; jours_conges?: number; heures_sup?: number; retards?: number; } | null;
+  allPaiements?: PaiementEmploye[]; // ⭐ NOVAINA: Mba hanaovana fisafoana eo an-toerana
 }
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
@@ -28,21 +31,13 @@ const STATUT_STYLES: Record<string, { light: { bg: string; text: string; border:
   'Non payé': { light: { bg: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' }, dark: { bg: 'rgba(239, 68, 68, 0.15)', text: '#F87171', border: 'rgba(239, 68, 68, 0.3)' } }
 };
 
-function getLocalDateISO(date = new Date()): string {
-  const year = date.getFullYear(), month = String(date.getMonth()+1).padStart(2,'0'), day = String(date.getDate()).padStart(2,'0');
-  return `${year}-${month}-${day}`;
-}
-function normalizeDateISO(value?: string | null): string {
-  if (!value) return getLocalDateISO();
-  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (match) return `${match[1]}-${match[2]}-${match[3]}`;
-  return getLocalDateISO();
-}
+function getLocalDateISO(date = new Date()): string { const y = date.getFullYear(), m = String(date.getMonth()+1).padStart(2,'0'), d = String(date.getDate()).padStart(2,'0'); return `${y}-${m}-${d}`; }
+function normalizeDateISO(value?: string | null): string { if (!value) return getLocalDateISO(); const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/); if (match) return `${match[1]}-${match[2]}-${match[3]}`; return getLocalDateISO(); }
 function toNumber(value: unknown, fallback = 0): number { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
 function formatAriary(value: unknown): string { return `${Math.round(toNumber(value)).toLocaleString('fr-FR')} Ar`; }
 function getEmployeeName(employee?: EmployePaiement): string { if (!employee) return ''; return `${employee.prenom ?? ''} ${employee.nom ?? ''}`.trim(); }
 
-export default function PaiementsModalForm({ isOpen, onClose, employes = [], paiement = null, employeId = null, onSuccess }: PaiementsModalFormProps) {
+export default function PaiementsModalForm({ isOpen, onClose, employes = [], paiement = null, employeId = null, onSuccess, presenceData = null, allPaiements = [] }: PaiementsModalFormProps) {
   const { isDark } = useTheme(); 
   const isEdit = Boolean(paiement?.id);
   const today = useMemo(() => getLocalDateISO(), []);
@@ -65,43 +60,47 @@ export default function PaiementsModalForm({ isOpen, onClose, employes = [], pai
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const [workflowStatus, setWorkflowStatus] = useState<'Brouillon' | 'Validé'>('Brouillon');
+  
+  // ⭐ NOVAINA: Tsy misy absencesDeduction state intsony, kajy lokal amin'ny useMemo
   const [absencesCount, setAbsencesCount] = useState(0);
-  const [absencesDeduction, setAbsencesDeduction] = useState(0);
+  const [retards, setRetards] = useState(0);
+  const [heuresSup, setHeuresSup] = useState(0);
+
   const [isEmployeDropdownOpen, setIsEmployeDropdownOpen] = useState(false);
   const [isMoisDropdownOpen, setIsMoisDropdownOpen] = useState(false);
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
 
-  const selectedEmploye = useMemo(() => {
-    if (!selectedEmployeId) return undefined;
-    return employes.find(employee => Number(employee.id) === Number(selectedEmployeId));
-  }, [employes, selectedEmployeId]);
+  const selectedEmploye = useMemo(() => { if (!selectedEmployeId) return undefined; return employes.find(employee => Number(employee.id) === Number(selectedEmployeId)); }, [employes, selectedEmployeId]);
 
-  const retenues = useMemo(() => toNumber(cnaps)+toNumber(ostie)+toNumber(irsa), [cnaps, ostie, irsa]);
-  const netAvantAvance = useMemo(() => Math.max(0, toNumber(salaireBrut)-retenues), [salaireBrut, retenues]);
+  const hsMontant = useMemo(() => { if (heuresSup <= 0) return 0; return Math.round((toNumber(salaireBrut) / 173.33) * 1.25 * heuresSup); }, [salaireBrut, heuresSup]);
+
+  // ⭐ KAJY LOKALY (Tsy miandry API intsony)
+  const absencesDeduction = useMemo(() => {
+    if (absencesCount > 0 && salaireBrut > 0) return Math.round((salaireBrut / 26) * absencesCount);
+    return 0;
+  }, [absencesCount, salaireBrut]);
+
+  const bruteAvecHS = useMemo(() => toNumber(salaireBrut) + hsMontant, [salaireBrut, hsMontant]);
+  const retenues = useMemo(() => toNumber(cnaps)+toNumber(ostie)+toNumber(irsa)+absencesDeduction, [cnaps, ostie, irsa, absencesDeduction]);
+  const netAvantAvance = useMemo(() => Math.max(0, bruteAvecHS - retenues), [bruteAvecHS, retenues]);
   const netApresAvance = useMemo(() => Math.max(0, netAvantAvance - toNumber(avance)), [netAvantAvance, avance]);
 
+  // ⭐ FAHAINGANANA: fetch Absences tsy misy dependency an'ny salaire
   const fetchAbsences = useCallback(async (empId: number, m: number, a: number) => {
-    if (!empId || !m || !a) return;
     try {
       if (window.api?.payments?.getAbsencesCount) {
         const res = await window.api.payments.getAbsencesCount(empId, m, a);
         if (res?.success) {
-          const count = Number(res.data.count || 0);
-          setAbsencesCount(count);
-          if (count > 0 && Number(salaireBrut) > 0) {
-            const deduction = Math.round((Number(salaireBrut) / 26) * count);
-            setAbsencesDeduction(deduction);
-            setAvance((prev) => Number(prev) + deduction);
-          } else { setAbsencesDeduction(0); }
+          setAbsencesCount(Number(res.data.count || 0));
+          setRetards(Number(res.data.retards || 0));
+          setHeuresSup(Number(res.data.heures_sup || 0));
         }
-      } else {
-        setAbsencesCount(0); setAbsencesDeduction(0);
       }
     } catch (e) {
       console.error('Erreur fetchAbsences:', e);
-      setAbsencesCount(0); setAbsencesDeduction(0);
+      setAbsencesCount(0); setRetards(0); setHeuresSup(0);
     }
-  }, [salaireBrut]);
+  }, []); // ⭐ TENA ZAVA-DEHIBE: TSY MISY FETCH MIREPETRA!
 
   useEffect(() => {
     if (selectedEmployeId && mois && annee) fetchAbsences(Number(selectedEmployeId), mois, annee);
@@ -110,6 +109,7 @@ export default function PaiementsModalForm({ isOpen, onClose, employes = [], pai
   useEffect(() => {
     if (!isOpen) return;
     setErrorMessage('');
+    
     if (paiement) {
       setSelectedEmployeId(Number(paiement.employe_id));
       setMois(Math.min(12, Math.max(1, Number(paiement.mois) || new Date().getMonth()+1)));
@@ -125,8 +125,10 @@ export default function PaiementsModalForm({ isOpen, onClose, employes = [], pai
       setStatut((paiement.statut as PaiementStatut) || 'Payé');
       setReference(paiement.reference || '');
       setObservation(paiement.observation || '');
+      if (paiement.employe_id && paiement.mois && paiement.annee) fetchAbsences(paiement.employe_id, paiement.mois, paiement.annee);
       return;
     }
+
     setSelectedEmployeId(employeId ? Number(employeId) : '');
     const now = new Date();
     setMois(now.getMonth()+1);
@@ -135,31 +137,42 @@ export default function PaiementsModalForm({ isOpen, onClose, employes = [], pai
     setSalaireBrut(0); setCnaps(0); setOstie(0); setIrsa(0); setAvance(0); setMontant(0);
     setModePaiement('Espèces'); setStatut('Payé'); setReference(''); setObservation('');
     setWorkflowStatus('Brouillon');
-    setAbsencesCount(0); setAbsencesDeduction(0);
+    setAbsencesCount(0); setRetards(0); setHeuresSup(0);
+
+    if (employeId) {
+      const emp = employes.find(e => Number(e.id) === Number(employeId));
+      if (emp) handleSelectEmploye(emp);
+    }
   }, [isOpen, paiement, employeId, currentYear]);
 
-  useEffect(() => {
-    if (!selectedEmploye || isEdit) return;
-    const salary = toNumber(selectedEmploye.salaire_base ?? selectedEmploye.salaire);
-    if (salary <= 0) return;
-    setSalaireBrut(salary);
-    const cnapsValue = salary * 0.01, ostieValue = salary * 0.05;
-    let irsaValue = 0;
-    if (salary <= 400_000) irsaValue = 0;
-    else if (salary <= 500_000) irsaValue = (salary - 400_000) * 0.05;
-    else if (salary <= 600_000) irsaValue = 100_000*0.05 + (salary - 500_000)*0.10;
-    else if (salary <= 700_000) irsaValue = 100_000*0.05 + 100_000*0.10 + (salary - 600_000)*0.15;
-    else irsaValue = 100_000*0.05 + 100_000*0.10 + 100_000*0.15 + (salary - 700_000)*0.20;
-    setCnaps(Math.round(cnapsValue));
-    setOstie(Math.round(ostieValue));
-    setIrsa(Math.round(irsaValue));
-    setMontant(Math.max(0, Math.round(salary - cnapsValue - ostieValue - irsaValue)));
-  }, [selectedEmploye, isEdit]);
+  const handleSelectEmploye = (employee: EmployePaiement) => {
+    setSelectedEmployeId(employee.id);
+    setIsEmployeDropdownOpen(false);
+    
+    const salary = toNumber(employee.salaire_base ?? employee.salaire);
+    if (salary > 0) {
+      setSalaireBrut(salary);
+      const cnapsValue = salary * 0.01, ostieValue = salary * 0.05;
+      let irsaValue = 0;
+      if (salary <= 400_000) irsaValue = 0;
+      else if (salary <= 500_000) irsaValue = (salary - 400_000) * 0.05;
+      else if (salary <= 600_000) irsaValue = 100_000*0.05 + (salary - 500_000)*0.10;
+      else if (salary <= 700_000) irsaValue = 100_000*0.05 + 100_000*0.10 + (salary - 600_000)*0.15;
+      else irsaValue = 100_000*0.05 + 100_000*0.10 + 100_000*0.15 + (salary - 700_000)*0.20;
+      setCnaps(Math.round(cnapsValue));
+      setOstie(Math.round(ostieValue));
+      setIrsa(Math.round(irsaValue));
+      setMontant(Math.max(0, Math.round(salary - cnapsValue - ostieValue - irsaValue)));
+    } else {
+      setSalaireBrut(0); setCnaps(0); setOstie(0); setIrsa(0); setMontant(0);
+      setErrorMessage("⚠️ Tsy misy salaire voafaritra ho an'ity employé ity.");
+    }
+  };
 
   useEffect(() => {
     if (isEdit || (salaireBrut <= 0 && retenues <= 0)) return;
-    setMontant(Math.max(0, Math.round(salaireBrut - retenues - toNumber(avance))));
-  }, [salaireBrut, retenues, avance, isEdit]);
+    setMontant(Math.max(0, Math.round(bruteAvecHS - retenues - toNumber(avance))));
+  }, [bruteAvecHS, retenues, avance, isEdit]);
 
   useEffect(() => {
     if (workflowStatus === 'Brouillon') { setStatut('Brouillon'); return; }
@@ -179,17 +192,11 @@ export default function PaiementsModalForm({ isOpen, onClose, employes = [], pai
     if (!datePaiement) { setErrorMessage('La date réelle de paiement est obligatoire.'); return; }
     if (montant < 0) { setErrorMessage('Le montant ne peut pas être négatif.'); return; }
 
-    // ⭐ VAOVAO: FANAMARINANA ALOHAN'NY FAMORONANA
-    if (!isEdit && window.api?.payments?.getSalaireMensuel) {
-      try {
-        const checkRes = await window.api.payments.getSalaireMensuel(Number(selectedEmployeId), Number(mois), Number(annee));
-        if (checkRes?.success && Number(checkRes.data?.nombre_paiements) > 0) {
-          setErrorMessage(`Un paiement existe déjà pour ${getEmployeeName(selectedEmploye) || 'cet employé'} pour ${MONTHS[mois-1]} ${annee}.`);
-          return;
-        }
-      } catch (checkErr) {
-        console.warn('Check paiement existant échoué:', checkErr);
-      }
+    // ⭐ FISAFOANA LOKALY (FAINGANA) fa tsy miantso API
+    const existingPayment = allPaiements.find(p => p.employe_id === Number(selectedEmployeId) && p.mois === Number(mois) && p.annee === Number(annee));
+    if (!isEdit && existingPayment) {
+      setErrorMessage(`Un paiement existe déjà pour ${getEmployeeName(selectedEmploye) || 'cet employé'} pour ${MONTHS[mois-1]} ${annee}.`);
+      return;
     }
 
     const payload = {
@@ -199,12 +206,15 @@ export default function PaiementsModalForm({ isOpen, onClose, employes = [], pai
       salaire_brut: Math.round(toNumber(salaireBrut)),
       cnaps: Math.round(toNumber(cnaps)), ostie: Math.round(toNumber(ostie)),
       irsa: Math.round(toNumber(irsa)), avance: Math.round(toNumber(avance)),
+      absences_deduction: Math.round(absencesDeduction),
       montant: Math.round(toNumber(montant)),
       mode_paiement: modePaiement || 'Espèces',
       statut: statut || 'Payé',
       reference: reference.trim() || null,
       observation: observation.trim() || null,
       absences_count: absencesCount,
+      retards: retards,
+      heures_sup: heuresSup
     };
     try {
       setSaving(true);
@@ -261,7 +271,7 @@ export default function PaiementsModalForm({ isOpen, onClose, employes = [], pai
                     <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] shadow-lg">
                       <button type="button" onClick={() => { setSelectedEmployeId(''); setIsEmployeDropdownOpen(false); }} className="w-full px-3 py-2 text-left text-[14px] hover:bg-slate-100 dark:hover:bg-white/[0.06]">Sélectionner</button>
                       {employes.map(employee => (
-                        <button key={employee.id} type="button" onClick={() => { setSelectedEmployeId(employee.id); setIsEmployeDropdownOpen(false); }} className={`w-full px-3 py-2 text-left text-[14px] hover:bg-slate-100 dark:hover:bg-white/[0.06] ${selectedEmployeId === employee.id ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400' : ''}`}>
+                        <button key={employee.id} type="button" onClick={() => handleSelectEmploye(employee)} className={`w-full px-3 py-2 text-left text-[14px] hover:bg-slate-100 dark:hover:bg-white/[0.06] ${selectedEmployeId === employee.id ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400' : ''}`}>
                           {getEmployeeName(employee)}{employee.poste ? ` — ${employee.poste}` : ''}
                         </button>
                       ))}
@@ -307,7 +317,15 @@ export default function PaiementsModalForm({ isOpen, onClose, employes = [], pai
             </div>
 
             <div className="space-y-3">
-              <MoneyField label="Salaire brut" value={salaireBrut} onChange={setSalaireBrut} />
+              <MoneyField label="Salaire Brut (Base)" value={salaireBrut} onChange={setSalaireBrut} />
+              
+              {hsMontant > 0 && (
+                <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[13px] text-blue-800 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300">
+                  <span className="flex items-center gap-1"><TrendingUp size={14} /> Heures Supp. ({heuresSup}h)</span>
+                  <span className="font-bold">+ {formatAriary(hsMontant)}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <MoneyField label="CNaPS" value={cnaps} onChange={setCnaps} />
                 <MoneyField label="OSTIE" value={ostie} onChange={setOstie} />
@@ -316,16 +334,20 @@ export default function PaiementsModalForm({ isOpen, onClose, employes = [], pai
                 <MoneyField label="IRSA" value={irsa} onChange={setIrsa} />
                 <MoneyField label="Avance" value={avance} onChange={setAvance} />
               </div>
+              
+              {(absencesDeduction > 0 || retards > 0) && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
+                  <p className="font-bold">Détections RH:</p>
+                  {absencesCount > 0 && <p>⚠️ {absencesCount} jour(s) d'absence(s) — Déduction : {formatAriary(absencesDeduction)}</p>}
+                  {retards > 0 && <p className="flex items-center gap-1"><Clock size={12} /> {retards} retard(s) enregistré(s)</p>}
+                </div>
+              )}
+
               <MoneyField label="Montant payé" value={montant} onChange={setMontant} emphasized />
               <div className="grid grid-cols-2 gap-3 mt-1">
                 <SummaryCard label="Retenues" value={retenues} />
                 <SummaryCard label="Net après avance" value={netApresAvance} emphasized />
               </div>
-              {absencesCount > 0 && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300">
-                  ⚠️ {absencesCount} jour(s) d'absence(s) détecté(s) — Déduction : {formatAriary(absencesDeduction)}
-                </div>
-              )}
             </div>
 
             <div className="space-y-3">

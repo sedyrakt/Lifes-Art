@@ -39,7 +39,7 @@ export default function Layout({ children }: LayoutProps) {
       case '/rapports': return 'Rapports & analyses';
       case '/parametres': return 'Paramètres système';
       case '/profile': return 'Profil utilisateur';
-      default: return "TahiryPro";
+      default: return "Lifes-Art";
     }
   };
 
@@ -81,13 +81,16 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   return (
-
     <div className="min-h-screen bg-white text-slate-900 dark:bg-[#0F172A] dark:text-slate-100">
-      <Sidebar user={user} onLogout={handleLogout} isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+      {/* ⭐ Sidebar wrapper: z-[9999] - ambany noho ny header */}
+      <div className="fixed inset-y-0 left-0 z-[9999]">
+        <Sidebar user={user} onLogout={handleLogout} isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
+      </div>
       
       <div className={`flex min-h-screen flex-col transition-all duration-300 ${isCollapsed ? 'ml-[72px] pl-3' : 'ml-[260px] pl-0'}`}>
         
-        <header className="fixed top-0 right-0 z-40 flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 py-3 backdrop-blur-xl transition-colors dark:border-white/[0.08] dark:bg-[#0F172A]"
+        {/* ⭐ Header: z-[99999] - avo indrindra */}
+        <header className="fixed top-0 right-0 z-[1000] flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 py-3 backdrop-blur-xl transition-colors dark:border-white/[0.08] dark:bg-[#0F172A]"
           style={{ left: isCollapsed ? '92px' : '260px' }}
         >
           <div className="min-w-0">

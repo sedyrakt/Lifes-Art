@@ -14,6 +14,7 @@ interface PaiementsModalsProps {
   modalEmployeId: number | null;
   setModalEmployeId: (id: number | null) => void;
   employes: EmployePaiement[];
+  allPaiements?: PaiementEmploye[]; // ⭐ NOVAINA
   onModalSuccess: (p: PaiementEmploye) => void;
   showCompanyModal: boolean;
   setShowCompanyModal: (value: boolean) => void;
@@ -32,18 +33,30 @@ interface PaiementsModalsProps {
   setErrorModal: (value: any) => void;
   warningModal: any;
   setWarningModal: (value: any) => void;
+  presenceData?: { jours_absences?: number; jours_conges?: number; heures_sup?: number; retards?: number; } | null;
+  setPresenceData?: (value: any) => void;
 }
 
 export function PaiementsModals({
   isModalOpen, setIsModalOpen, editingPaiement, setEditingPaiement, modalEmployeId, setModalEmployeId,
-  employes, onModalSuccess, showCompanyModal, setShowCompanyModal, onCompanySave, onCompanyGenerate,
+  employes, allPaiements, onModalSuccess, showCompanyModal, setShowCompanyModal, onCompanySave, onCompanyGenerate,
   isDark, company, buttonLabel, bulletinTargetPaiement, setBulletinTargetPaiement,
   confirmModal, setConfirmModal, successModal, setSuccessModal, errorModal, setErrorModal,
-  warningModal, setWarningModal,
+  warningModal, setWarningModal, presenceData, setPresenceData,
 }: PaiementsModalsProps) {
   return (
     <>
-      <PaiementsModalForm isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingPaiement(null); setModalEmployeId(null); }} employes={employes} paiement={editingPaiement} employeId={modalEmployeId} onSuccess={onModalSuccess} />
+      {/* ⭐ Nampiana ny allPaiements mba hanaovana fisafoana eo an-toerana! */}
+      <PaiementsModalForm 
+        isOpen={isModalOpen} 
+        onClose={() => { setIsModalOpen(false); setEditingPaiement(null); setModalEmployeId(null); setPresenceData?.(null); }} 
+        employes={employes} 
+        allPaiements={allPaiements} 
+        paiement={editingPaiement} 
+        employeId={modalEmployeId} 
+        onSuccess={onModalSuccess} 
+        presenceData={presenceData} 
+      />
       
       <CompanySettingsModal isOpen={showCompanyModal} onClose={() => { setShowCompanyModal(false); setBulletinTargetPaiement(null); }} onSave={onCompanySave} onGenerate={onCompanyGenerate} mode="generate" isDark={isDark} initialData={company} buttonLabel={buttonLabel} />
 

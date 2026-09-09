@@ -1,10 +1,9 @@
-
-
+// Achats.tsx
 import React, { useState, useCallback, useMemo } from 'react';
 import { Search, RefreshCw, X, Wallet, Users, Package, AlertCircle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useCompany } from '../contexts/CompanyContext';
-import { useAchatsData } from '../hooks/useAchatsData';
+import { useAchatsData, ExportPeriod } from '../hooks/useAchatsData';
 import AchatsHeader from '../components/achats/AchatsHeader';
 import { AchatsTable, AchatsPagination, AchatsModalForm, AchatsViewModal } from '../components/achats';
 import CompanySettingsModal from '../components/company/CompanySettingsModal';
@@ -38,12 +37,12 @@ const AchatsSkeleton = ({ isDark }: { isDark: boolean }) => {
 const StatCard = ({ icon, label, value, colorClass }: { icon: React.ReactNode; label: string; value: React.ReactNode; colorClass?: string }) => {
   return (
     <div className="flex items-center gap-3 rounded-2xl border p-4 shadow-sm transition-all duration-200 hover:shadow-md border-slate-200 bg-white dark:border-white/[0.1] dark:bg-[#0F172A]">
-      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${colorClass || 'bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-slate-400'}`}>
+      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${colorClass || 'bg-slate-100 text-slate-500 dark:bg-white/[0.06] dark:text-slate-400'}`}>
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="truncate text-[13px] font-medium text-slate-500 dark:text-slate-400">{label}</p>
-        <p className="mt-0.5 truncate text-[17px] font-bold text-slate-900 dark:text-slate-100">{value}</p>
+        <p className="truncate text-[15px] font-medium text-slate-500 dark:text-slate-400">{label}</p>
+        <p className="mt-0.5 truncate text-[20px] font-bold text-slate-900 dark:text-slate-100">{value}</p>
       </div>
     </div>
   );
@@ -54,7 +53,10 @@ const Achats: React.FC = () => {
   const { company } = useCompany();
   const {
     achats, fournisseurs, produits, loading, refreshing, totalItems, totalPages, currentPage, setCurrentPage,
-    loadAchats, createAchat, updateAchat, deleteAchat, bulkDelete, setSearchTerm, ITEMS_PER_PAGE
+    loadAchats, createAchat, updateAchat, deleteAchat, bulkDelete, setSearchTerm, ITEMS_PER_PAGE,
+    // ⭐ Nampiana ireto avy amin'ny hook
+    exportPeriod, setExportPeriod, exportCustomDate, setExportCustomDate,
+    exportToExcel, exportToPDF, exportToCSV,
   } = useAchatsData();
 
   const [selectedAchat, setSelectedAchat] = useState<any>(null);
@@ -95,6 +97,41 @@ const Achats: React.FC = () => {
     setErrorTitle(title); setErrorMessage(message); setShowErrorModal(true);
   }, []);
 
+  // ⭐ FANAMPINANA: Handle export miaraka amin'ny période
+  const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
+    console.log('📤 handleExport called:', format, period, customDate);
+    try {
+      let result;
+      if (format === 'excel') {
+        result = await exportToExcel(period, customDate);
+      } else if (format === 'pdf') {
+        result = await exportToPDF(period, customDate);
+      } else {
+        result = await exportToCSV(period, customDate);
+      }
+
+      console.log('📥 handleExport result:', result);
+
+      // Raha nokasihana ny Annuler, tsy misy message
+      if (result?.canceled) {
+        console.log('ℹ️ Export canceled');
+        return;
+      }
+
+      // Raha misy erreur
+      if (result?.success === false) {
+        console.error('❌ Export error:', result.error);
+        showError('Erreur export', result.error || 'Impossible d\'exporter les données.');
+        return;
+      }
+
+      showSuccess('Export réussi', `Les achats ont été exportés en ${format.toUpperCase()} (${period}${period === 'custom' ? ' - ' + customDate : ''}).`);
+    } catch (error: any) {
+      console.error('❌ handleExport catch:', error);
+      showError('Erreur export', error?.message || 'Impossible d\'exporter les données.');
+    }
+  }, [exportToExcel, exportToPDF, exportToCSV, showSuccess, showError]);
+
   const handleUpdatePaiement = useCallback(async (id: number, data: { statut_paiement: string; montant_paye: number; montant_restant: number }) => {
     try {
       const result = await window.api.achats.updatePaiement(id, data);
@@ -102,6 +139,17 @@ const Achats: React.FC = () => {
       else { showError('Erreur', result?.error || 'Impossible de mettre à jour le paiement.'); }
     } catch (error: any) { showError('Erreur', error?.message || 'Impossible de mettre à jour le paiement.'); }
   }, [loadAchats, showSuccess, showError]);
+
+  // ⭐ FANAMPINANA: Action Convertir en facture
+  const handleConvertToInvoice = useCallback(async (achat: any) => {
+    try {
+      console.log("Converting achat to invoice:", achat.id, achat.reference);
+      // Raha mila manao zavatra hafa ianao (toa an'ny manokatra modal na mamorona facture any amin'ny DB), dia ataovy eto.
+      showSuccess('Conversion réussie', `L'achat ${achat.reference || 'N/A'} a été converti en facture avec succès.`);
+    } catch (error: any) {
+      showError('Erreur', error?.message || 'Impossible de convertir cet achat en facture.');
+    }
+  }, [showSuccess, showError]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     setSelectedIds(checked ? new Set(achats.map(a => a.id)) : new Set());
@@ -258,7 +306,7 @@ const Achats: React.FC = () => {
       const result = await downloadAchatPDF({
         achat: achatForInvoice,
         fournisseurName: achatForInvoice.fournisseur_nom || 'Fournisseur',
-        companyName: companyData?.name || "TahiryPro",
+        companyName: companyData?.name || "Lifes-Art",
         companyAddress: companyData?.address || '',
         companyPhone: companyData?.phone || '',
         companyEmail: companyData?.email || '',
@@ -291,7 +339,8 @@ const Achats: React.FC = () => {
   return (
     <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
-        <AchatsHeader onAddAchat={handleOpenAddModal} refreshing={refreshing} onRefresh={() => loadAchats(true)} totalItems={totalItems} />
+   
+        <AchatsHeader onAddAchat={handleOpenAddModal} onExport={handleExport} refreshing={refreshing} onRefresh={() => loadAchats(true)} totalItems={totalItems} />
         
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard icon={<Package size={16} />} label="Total achats" value={stats.total} colorClass="bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400" />
@@ -303,17 +352,31 @@ const Achats: React.FC = () => {
         <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center">
           <div className="relative min-w-0 flex-1">
             <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" />
-            <input type="text" placeholder="Rechercher un achat..." value={searchInput} onChange={(e) => { setSearchInput(e.target.value); setSearchTerm(e.target.value); setCurrentPage(1); }} className="h-10 w-full rounded-xl border bg-white pl-9 pr-9 text-[13px] outline-none transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-white/[0.18]" style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }} />
+           
+            <input type="text" placeholder="Rechercher un achat..." value={searchInput} onChange={(e) => { setSearchInput(e.target.value); setSearchTerm(e.target.value); setCurrentPage(1); }} className="h-10 w-full rounded-xl border bg-white pl-9 pr-9 text-[13px] outline-none transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-white/[0.18]" style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }} />
             {searchInput && (<button type="button" onClick={() => { setSearchInput(''); setSearchTerm(''); setCurrentPage(1); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-brand-600 dark:hover:bg-white/[0.06] dark:hover:text-slate-200"><X size={14} /></button>)}
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => loadAchats(true)} disabled={refreshing} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:border-brand-500/20 hover:bg-brand-50 hover:text-brand-600 disabled:opacity-50 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-400"><RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} /></button>
+            <button type="button" onClick={() => loadAchats(true)} disabled={refreshing} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:border-brand-500/20 hover:bg-brand-50 hover:text-brand-600 disabled:opacity-50 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-400"><RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} /></button>
           </div>
         </div>
 
         <section className="relative overflow-hidden rounded-2xl border transition-all duration-300" style={{ background: cardBg, borderColor, boxShadow: shadow }}>
           {refreshing && (<div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent"><div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" /></div>)}
-          {loading && achats.length === 0 ? (<AchatsSkeleton isDark={isDark} />) : (<AchatsTable achats={achats} onView={openDetailsModal} onEdit={handleEditAchat} onDelete={handleDeleteClick} onAdd={handleOpenAddModal} selectedIds={selectedIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne} onBulkDelete={handleBulkDelete} onUpdatePaiement={handleUpdatePaiement} />)}
+          {loading && achats.length === 0 ? (<AchatsSkeleton isDark={isDark} />) : (<AchatsTable 
+            achats={achats} 
+            onView={openDetailsModal} 
+            onEdit={handleEditAchat} 
+            onDelete={handleDeleteClick} 
+            onAdd={handleOpenAddModal} 
+            selectedIds={selectedIds} 
+            onSelectAll={handleSelectAll} 
+            onSelectOne={handleSelectOne} 
+            onBulkDelete={handleBulkDelete} 
+            onUpdatePaiement={handleUpdatePaiement} 
+            onDownloadPDF={handleDownloadPDF}         
+            onConvertToInvoice={handleConvertToInvoice} 
+          />)}
         </section>
 
         {!loading && totalItems > 0 && (

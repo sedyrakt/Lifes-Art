@@ -27,7 +27,7 @@ const SelectControl: React.FC<{ value: string; onChange: (value: string) => void
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label={ariaLabel}
-      className="w-full h-10 appearance-none cursor-pointer rounded-xl border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-slate-800 pl-9 pr-8 text-[13px] font-medium text-slate-700 dark:text-slate-200 outline-none transition-all duration-200 hover:border-slate-300 dark:hover:border-white/[0.18] focus:border-brand-500 dark:focus:border-brand-400 focus:ring-2 focus:ring-brand-500/10 dark:focus:ring-brand-400/10"
+      className="w-full h-10 appearance-none cursor-pointer rounded-xl border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] pl-9 pr-8 text-[14px] font-medium text-slate-700 dark:text-slate-200 outline-none transition-all duration-200 hover:border-slate-300 dark:hover:border-white/[0.18] focus:border-brand-500 dark:focus:border-brand-400 focus:ring-2 focus:ring-brand-500/10 dark:focus:ring-brand-400/10"
     >
       {options.map((option) => <option key={option} value={option}>{option}</option>)}
     </select>
@@ -69,16 +69,16 @@ const EmployesSearchBar: React.FC<EmployesSearchBarProps> = ({
             onChange={(e) => onSearchChange(e.target.value)}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            className="w-full h-10 rounded-xl border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-slate-800 pl-9 pr-9 text-[13px] font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all duration-200 hover:border-slate-300 dark:hover:border-white/[0.18] focus:border-brand-500 dark:focus:border-brand-400 focus:ring-2 focus:ring-brand-500/10 dark:focus:ring-brand-400/10"
+            className="w-full h-10 rounded-xl border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] pl-9 pr-9 text-[14px] font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all duration-200 hover:border-slate-300 dark:hover:border-white/[0.18] focus:border-brand-500 dark:focus:border-brand-400 focus:ring-2 focus:ring-brand-500/10 dark:focus:ring-brand-400/10"
           />
           {searchTerm && <button type="button" onClick={() => onSearchChange('')} aria-label="Effacer la recherche" className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-full text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-brand-600 dark:hover:text-slate-200 transition-colors cursor-pointer"><X size={13} /></button>}
         </div>
 
-        <div className="flex shrink-0 items-center rounded-xl border border-slate-200 bg-white p-1 dark:border-white/[0.12] dark:bg-slate-800">
+        <div className="flex shrink-0 items-center rounded-xl border border-slate-200 bg-white p-1 dark:border-white/[0.12] dark:bg-[#0F172A]">
           <button
             type="button"
             onClick={() => onViewModeChange('liste')}
-            className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold transition-all ${
+            className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-[14px] font-semibold transition-all ${
               viewMode === 'liste'
                 ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400'
                 : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200'
@@ -89,7 +89,7 @@ const EmployesSearchBar: React.FC<EmployesSearchBarProps> = ({
           <button
             type="button"
             onClick={() => onViewModeChange('calendrier')}
-            className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold transition-all ${
+            className={`flex h-8 items-center gap-1.5 rounded-lg px-3 text-[14px] font-semibold transition-all ${
               viewMode === 'calendrier'
                 ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400'
                 : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-slate-200'
@@ -102,10 +102,10 @@ const EmployesSearchBar: React.FC<EmployesSearchBarProps> = ({
         <button
           type="button"
           onClick={() => setShowFilters(v => !v)}
-          className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border px-3 text-[13px] font-semibold transition-all ${
+          className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border px-3 text-[14px] font-semibold transition-all ${
             hasActiveFilters
               ? 'border-brand-200 bg-brand-50 text-brand-600 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-400'
-              : 'border-slate-200 bg-white text-slate-600 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-300'
+              : 'border-slate-200 bg-white text-slate-600 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-300'
           }`}
         >
           <SlidersHorizontal size={14} />
@@ -115,7 +115,7 @@ const EmployesSearchBar: React.FC<EmployesSearchBarProps> = ({
       </div>
 
       {showFilters && (
-        <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-white/[0.12] dark:bg-slate-800 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-white p-3 dark:border-white/[0.12] dark:bg-[#0F172A] sm:grid-cols-2 lg:grid-cols-3">
           <SelectControl value={filterStatus} onChange={onFilterStatusChange} options={STATUS_OPTIONS} icon={<SlidersHorizontal size={15} strokeWidth={1.8} />} minWidth="100%" ariaLabel="Filtrer par statut" />
           <div className="relative">
             <Briefcase size={15} strokeWidth={1.8} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500 dark:text-brand-400" />
@@ -124,7 +124,7 @@ const EmployesSearchBar: React.FC<EmployesSearchBarProps> = ({
               value={filterDepartement}
               placeholder="Département"
               onChange={(e) => onFilterDepartementChange(e.target.value)}
-              className="w-full h-10 rounded-xl border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-slate-800 pl-9 pr-3 text-[13px] font-medium text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all duration-200 hover:border-slate-300 dark:hover:border-white/[0.18] focus:border-brand-500 dark:focus:border-brand-400 focus:ring-2 focus:ring-brand-500/10 dark:focus:ring-brand-400/10"
+              className="w-full h-10 rounded-xl border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] pl-9 pr-3 text-[14px] font-medium text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all duration-200 hover:border-slate-300 dark:hover:border-white/[0.18] focus:border-brand-500 dark:focus:border-brand-400 focus:ring-2 focus:ring-brand-500/10 dark:focus:ring-brand-400/10"
             />
           </div>
           <SelectControl value={sortOption} onChange={onSortChange} options={['Nom (A-Z)', 'Nom (Z-A)', 'Salaire (Croissant)', 'Salaire (Décroissant)', 'Date (Récent)', 'Date (Ancien)']} icon={<ArrowUpDown size={15} strokeWidth={1.8} />} minWidth="100%" ariaLabel="Trier les employés" />
@@ -139,7 +139,7 @@ const EmployesSearchBar: React.FC<EmployesSearchBarProps> = ({
                 setShowFilters(false);
               }}
               disabled={!hasActiveFilters}
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-slate-500 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-white/[0.06]"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[14px] font-semibold text-slate-500 hover:bg-slate-100 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-white/[0.06]"
             >
               <X size={13} /> Réinitialiser
             </button>

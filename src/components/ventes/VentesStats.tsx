@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileText, DollarSign, Package, AlertCircle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -41,7 +40,6 @@ const VentesStats: React.FC<VentesStatsProps> = ({
   const formattedDette = `${safeNumber(totalDette).toLocaleString('fr-FR')} Ar`;
   const totalNonPayees = safeNumber(nbFacturesNonPayees).toLocaleString('fr-FR');
 
-  // ⭐ NAMPIANA ICON SY COULEUR SAMIDAHAFA
   const stats = [
     {
       label: 'Total devis',
@@ -105,14 +103,18 @@ const VentesStats: React.FC<VentesStatsProps> = ({
             >
               <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full bg-brand-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
 
-              {/* ⭐ ICON + COULEUR SAMIDAHAFA */}
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${stat.colorClass}`}>
                 {stat.icon}
               </div>
 
+              {/* ⭐ LABEL EO AMBONIN'NY VALEUR */}
               <div className="flex min-w-0 flex-1 flex-col">
-                <div className="flex min-w-0 items-center justify-between gap-2">
-                  <span className="min-w-0 truncate text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+                {/* ⭐ FIX: Nampitombo ho text-[15px] ny label */}
+                <span className="min-w-0 truncate text-[15px] font-medium text-slate-500 dark:text-slate-400">
+                  {stat.label}
+                </span>
+                <div className="mt-0.5 flex min-w-0 items-center justify-between gap-2">
+                  <span className="truncate text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
                     {stat.value}
                   </span>
                   {hasEvolution && (
@@ -125,11 +127,7 @@ const VentesStats: React.FC<VentesStatsProps> = ({
                     </span>
                   )}
                 </div>
-                <div className="mt-0.5 truncate text-[14px] font-medium text-slate-500 dark:text-slate-400">
-                  {stat.label}
-                </div>
                 {stat.badge && (
-                  // ⭐ FIX: NAMPIANA W-FIT SY SELF-START MBA TSY HIVELATRA 100%
                   <div className="mt-1 inline-flex w-fit shrink-0 items-center gap-1 self-start rounded-md bg-danger-500 px-1.5 py-0.5 text-[11px] font-semibold text-white dark:bg-danger-500/10 dark:text-danger-400">
                     {stat.badge}
                   </div>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Users, Wallet, UserCheck, TrendingUp } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -41,28 +40,28 @@ const EmployesStats: React.FC<EmployesStatsProps> = ({
     { 
       label: 'Total employés', 
       value: safeTotalItems.toLocaleString('fr-FR'), 
-      icon: <Users size={18} />,
+      icon: <Users size={16} />,
       iconBg: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400',
       accentClass: 'bg-indigo-500'
     },
     { 
       label: 'Masse salariale', 
       value: formattedSalaire, 
-      icon: <Wallet size={18} />,
+      icon: <Wallet size={16} />,
       iconBg: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
       accentClass: 'bg-emerald-500'
     },
     { 
       label: 'Employés actifs', 
       value: safeActifs.toLocaleString('fr-FR'), 
-      icon: <UserCheck size={18} />,
+      icon: <UserCheck size={16} />,
       iconBg: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
       accentClass: 'bg-blue-500'
     },
     { 
       label: "Taux d'activité", 
       value: `${safeTauxActif.toFixed(2)}%`, 
-      icon: <TrendingUp size={18} />,
+      icon: <TrendingUp size={16} />,
       iconBg: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400',
       accentClass: 'bg-amber-500'
     },
@@ -82,19 +81,21 @@ const EmployesStats: React.FC<EmployesStatsProps> = ({
           >
             <div className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-full ${stat.accentClass} opacity-0 transition-opacity duration-200 group-hover:opacity-100`} />
 
-            <div className="flex min-w-0 items-start gap-3">
+            <div className="flex min-w-0 items-center gap-3">
 
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${stat.iconBg}`}>
                 {stat.icon}
               </div>
 
-              <div className="flex min-w-0 flex-col">
-                <div className="min-w-0 truncate text-[18px] font-semibold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
-                  {stat.value}
-                </div>
-                <div className="mt-0.5 truncate text-[14px] font-medium text-slate-500 dark:text-slate-400">
+              {/* ⭐ Label eo ambonin'ny valeur */}
+              {/* ⭐ FIX: Nampiasa <p> fa tsy <span> ary nampiasa text-base (16px) mba azo antoka */}
+              <div className="flex min-w-0 flex-1 flex-col">
+                <p className="min-w-0 truncate text-base font-medium text-slate-500 dark:text-slate-400">
                   {stat.label}
-                </div>
+                </p>
+                <p className="mt-0.5 min-w-0 truncate text-[18px] font-semibold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
+                  {stat.value}
+                </p>
               </div>
             </div>
           </div>

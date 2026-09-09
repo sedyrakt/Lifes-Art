@@ -181,7 +181,7 @@ const DepensesTable: React.FC<DepensesTableProps> = ({
       <div className="custom-scrollbar overflow-x-auto overflow-y-auto scrollbar-gutter-stable">
         <table className={`w-full min-w-[880px] table-fixed border-collapse border text-left ${borderColor}`}>
           <thead className={`sticky top-0 z-20 backdrop-blur-xl ${isDark ? 'bg-[#0F172A]/97' : 'bg-slate-50/97'}`}>
-            <tr className="text-[12.5px] font-semibold uppercase tracking-[0.055em] text-slate-500 dark:text-slate-400">
+            <tr className="text-[13px] font-semibold uppercase tracking-[0.055em] text-slate-500 dark:text-slate-400">
               <th scope="col" className={`w-[40px] border px-2 py-2.5 align-middle ${headerBorderColor}`}>
                 <input type="checkbox" checked={allSelected} ref={input => { if (input) input.indeterminate = someSelected; }} onChange={e => onSelectAll?.(e.target.checked)} className="h-[15px] w-[15px] cursor-pointer accent-brand-500" aria-label="Sélectionner toutes les dépenses" />
               </th>
@@ -205,13 +205,13 @@ const DepensesTable: React.FC<DepensesTableProps> = ({
                   <td className={`border px-2 py-1.5 align-middle ${cellBorderColor}`}>
                     <div className="min-w-0">
                       <div className="truncate text-[14.5px] font-semibold text-slate-900 transition-colors group-hover:text-brand-600 dark:text-slate-100 dark:group-hover:text-brand-400">{depense.categorie || 'Autre'}</div>
-                      <div className="mt-0.5 text-[12.5px] font-medium text-slate-400 dark:text-slate-500">Dépense</div>
+                      <div className="mt-0.5 text-[13px] font-medium text-slate-400 dark:text-slate-500">Dépense</div>
                     </div>
                   </td>
                   <td className={`border px-2 py-1.5 align-middle ${cellBorderColor}`}>
                     <div className="min-w-0">
                       <div className="truncate text-[14.5px] font-medium text-slate-800 transition-colors group-hover:text-brand-600 dark:text-slate-200 dark:group-hover:text-brand-400" title={depense.description || undefined}>{depense.description || 'Sans description'}</div>
-                      {depense.reference && <div className="mt-0.5 truncate text-[12.5px] text-slate-400 dark:text-slate-500" title={depense.reference}>{depense.reference}</div>}
+                      {depense.reference && <div className="mt-0.5 truncate text-[13px] text-slate-400 dark:text-slate-500" title={depense.reference}>{depense.reference}</div>}
                     </div>
                   </td>
                   <td className={`border px-2 py-1.5 align-middle ${cellBorderColor}`}>
@@ -271,7 +271,7 @@ const DepensesTable: React.FC<DepensesTableProps> = ({
               <span className={`hidden h-3.5 w-px bg-slate-300 sm:block dark:bg-white/[0.12]`} />
               <div className="flex flex-wrap items-center gap-1.5">
                 {categorieStats.map(([category, categoryStat]) => (
-                  <span key={category} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[12.5px] font-medium text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300">
+                  <span key={category} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[13px] font-medium text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300">
                     <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
                     <span className="max-w-[100px] truncate">{category}</span>
                     <span className="text-slate-400 dark:text-slate-500">{categoryStat.count}</span>
@@ -281,7 +281,7 @@ const DepensesTable: React.FC<DepensesTableProps> = ({
             </>
           )}
         </div>
-        <span className="text-[12.5px] font-medium text-slate-400 dark:text-slate-500">Suivi des dépenses</span>
+        <span className="text-[13px] font-medium text-slate-400 dark:text-slate-500">Suivi des dépenses</span>
       </div>
 
       <style>{`

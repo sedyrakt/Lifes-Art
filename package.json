@@ -1,14 +1,14 @@
 {
-  "name": "tahirypro",
+  "name": "Lifes-Art",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "main": "electron/main.cjs",
-  "description": "TahiryPro ERP - Gestion de stock professionnel",
-  "author": "TahiryPro ERP <sdrrakt@gmail.com>",
+  "description": "Lifes-Art ERP - Gestion de stock professionnel",
+  "author": "Lifes-Art ERP <sdrrakt@gmail.com>",
   "license": "PROPRIETARY",
-  "desktopName": "tahirypro",
-  "homepage": "https://tahirypro.com",
+  "desktopName": "Lifes-Art",
+  "homepage": "https://Lifes-Art.com",
   "engines": {
     "node": ">=22.12.0",
     "npm": ">=10.0.0"

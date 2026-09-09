@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { TrendingDown, FileText, DollarSign, Building, Loader2 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -96,13 +95,18 @@ const DepensesStats: React.FC<DepensesStatsProps> = ({
                 {stat.icon}
               </div>
 
+              {/* ⭐ LABEL EO AMBONIN'NY VALUE */}
               <div className="flex min-w-0 flex-1 flex-col">
-                <div className="flex min-w-0 items-center justify-between gap-2">
-                  <span className="min-w-0 truncate text-[18px] font-semibold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
+                {/* ⭐ FIX: Nampitombo ho text-[15px] ny label */}
+                <span className="min-w-0 truncate text-[15px] font-medium text-slate-500 dark:text-slate-400">
+                  {stat.label}
+                </span>
+                <div className="mt-0.5 flex min-w-0 items-center justify-between gap-2">
+                  <span className="truncate text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
                     {stat.value}
                   </span>
                   {hasEvolution && (
-                    <span className={`inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold leading-none ${
+                    <span className={`inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
                       isPositive 
                         ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400' 
                         : 'bg-danger-50 text-danger-600 dark:bg-danger-500/10 dark:text-danger-400'
@@ -110,9 +114,6 @@ const DepensesStats: React.FC<DepensesStatsProps> = ({
                       {evolutionDisplay}
                     </span>
                   )}
-                </div>
-                <div className="mt-0.5 truncate text-[14px] font-medium text-slate-500 dark:text-slate-400">
-                  {stat.label}
                 </div>
               </div>
             </div>

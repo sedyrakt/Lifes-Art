@@ -130,9 +130,7 @@ const AchatsModalForm: React.FC<AchatsModalFormProps> = ({
         {/* ⭐ HEADER BLANC EN LIGHT */}
         <div className="flex items-center justify-between px-6 py-4 border-b" style={{ background: headerBg, borderColor: theme.border }}>
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg" style={{ background: headerIconBg }}>
-              <Building2 size={19} style={{ color: headerIconColor }} />
-            </div>
+          
             <div>
               <h2 className="text-[17px] font-bold" style={{ color: headerTextColor }}>{editingAchat ? 'Modifier achat' : 'Nouvel achat'}</h2>
               <p className="text-[13px]" style={{ color: headerSubTextColor }}>Créer un achat fournisseur</p>

@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import useMouvementsData from '../hooks/useMouvementsData';
+import useMouvementsData, { ExportPeriod } from '../hooks/useMouvementsData';
 import { Search, ArrowUpDown, Filter, Calendar, X } from 'lucide-react';
 
 import MouvementsHeader from '../components/mouvements/MouvementsHeader';
@@ -27,13 +27,17 @@ const SORT_OPTIONS = [
 
 const MouvementsStock: React.FC = () => {
   const { isDark } = useTheme();
+  
   const {
     mouvements, loading, refreshing, setRefreshing, totalItems, currentPage,
     searchTerm, setSearchTerm, filterType, setFilterType, filterDate, setFilterDate,
-    sortOption, setSortOption, statsData, loadMouvements, getTypeColor, getTypeLabel,
-    getTypeIcon, ITEMS_PER_PAGE, selectedIds, setSelectedIds, handleSelectAll,
-    handleSelectOne, bulkDelete, hasMore,
+    period, setPeriod, sortOption, setSortOption, statsData, loadMouvements,
+    getTypeColor, getTypeLabel, getTypeIcon, ITEMS_PER_PAGE, selectedIds, setSelectedIds,
+    handleSelectAll, handleSelectOne, bulkDelete, hasMore,
     handleNextPage, handlePrevPage,
+    exportPeriod, setExportPeriod,
+    exportCustomDate, setExportCustomDate,
+    exportToExcel, exportToPDF, exportToCSV,
   } = useMouvementsData();
 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -52,18 +56,38 @@ const MouvementsStock: React.FC = () => {
     setErrorTitle(title); setErrorMessage(message); setShowErrorModal(true);
   }, []);
 
+  // ⭐ Fonction locale pour récupérer le prix unitaire (car le hook ne le renvoie pas toujours)
+  const getPrixUnitaire = useCallback((m: any): number => {
+    if (m.prix_unitaire !== undefined && m.prix_unitaire !== null && m.prix_unitaire !== 0) return Number(m.prix_unitaire);
+    if (m.produit) {
+      if (m.produit.prix_vente) return Number(m.produit.prix_vente);
+      if (m.produit.prix_unitaire) return Number(m.produit.prix_unitaire);
+      if (m.produit.prix_achat) return Number(m.produit.prix_achat);
+      if (m.produit.prix) return Number(m.produit.prix);
+    }
+    if (m.prix_vente) return Number(m.prix_vente);
+    if (m.prix_achat) return Number(m.prix_achat);
+    if (m.prix) return Number(m.prix);
+    return 0;
+  }, []);
+
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
-    try { await loadMouvements(true); } catch (error: any) {
+    try {
+      await loadMouvements(true);
+    } catch (error: any) {
       showError('Erreur', error?.message || 'Impossible de charger les mouvements.');
-    } finally { setRefreshing(false); }
+    } finally {
+      setRefreshing(false);
+    }
   }, [refreshing, setRefreshing, loadMouvements, showError]);
 
-  const handleBulkDelete = useCallback(() => {
-    const ids = Array.from(selectedIds);
-    if (ids.length === 0) return;
-    setDeleteTarget(ids);
+  // ⭐ FIX: Manao action Supprimer na avy amin'ny dropdown na checkbox
+  const handleBulkDelete = useCallback((ids?: number[]) => {
+    const targetIds = Array.isArray(ids) && ids.length > 0 ? ids : Array.from(selectedIds);
+    if (targetIds.length === 0) return;
+    setDeleteTarget(targetIds);
     setShowDeleteModal(true);
   }, [selectedIds]);
 
@@ -76,23 +100,93 @@ const MouvementsStock: React.FC = () => {
     } catch (error: any) {
       showError('Erreur de suppression', error?.message || 'Impossible de supprimer les mouvements.');
     } finally {
-      setShowDeleteModal(false); setDeleteTarget([]);
+      setShowDeleteModal(false);
+      setDeleteTarget([]);
     }
   }, [deleteTarget, bulkDelete, setSelectedIds, showSuccess, showError]);
 
-  const handleEditMouvement = useCallback((mouvement: any) => {
-    console.log('Modifier mouvement:', mouvement);
-    showSuccess('Modification', `Modification du mouvement ${mouvement.reference || 'sans référence'}.`);
-  }, [showSuccess]);
+  // ⭐ FIX: Manao action Exporter isaky ny mouvement avy amin'ny dropdown
+  const handleExportOne = useCallback(async (mouvement: any) => {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
 
-  const handleExportMouvement = useCallback((mouvement: any) => {
-    console.log('Exporter mouvement:', mouvement);
-    showSuccess('Export', `Export du mouvement ${mouvement.reference || 'sans référence'} réussi.`);
-  }, [showSuccess]);
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, 297, 15, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(12);
+      doc.text('Lifes-Art - Détail du mouvement', 14, 10);
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(18);
+      doc.text(`Mouvement: ${mouvement.reference || 'N/A'}`, 14, 28);
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Généré le: ${new Date().toLocaleString('fr-FR')}`, 14, 36);
+
+      const columns = ['Produit', 'Type', 'Quantité', 'Prix unit.', 'Stock préc.', 'Stock actuel', 'Date', 'Observation'];
+      const rows = [[
+        mouvement.produit_nom || 'N/A',
+        getTypeLabel(mouvement.type_mouvement),
+        mouvement.quantite,
+        getPrixUnitaire(mouvement),
+        mouvement.ancien_stock ?? 'N/A',
+        mouvement.nouveau_stock ?? 'N/A',
+        mouvement.date_mouvement ? new Date(mouvement.date_mouvement).toLocaleDateString('fr-FR') : '',
+        mouvement.observation || '',
+      ]];
+
+      autoTable(doc, {
+        head: [columns], body: rows, startY: 42,
+        styles: { fontSize: 9, cellPadding: 4 },
+        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+        theme: 'grid',
+      });
+
+      const pdfData = doc.output('arraybuffer');
+      const fileName = `mouvement_${mouvement.reference || mouvement.id}.pdf`;
+
+      if (window?.api?.utils?.saveFile) {
+        const result = await window.api.utils.saveFile(pdfData, fileName);
+        if (result?.canceled) return;
+        if (!result?.success) {
+          showError('Erreur', result?.error || 'Erreur lors de la sauvegarde');
+          return;
+        }
+      } else {
+        const blob = new Blob([pdfData], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = fileName;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      showSuccess('Export réussi', 'Le mouvement a été exporté en PDF.');
+    } catch (error: any) {
+      showError('Erreur', error?.message || 'Impossible d\'exporter le mouvement.');
+    }
+  }, [getTypeLabel, getPrixUnitaire, showSuccess, showError]);
+
+  const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
+    try {
+      if (format === 'excel') await exportToExcel(period, customDate);
+      else if (format === 'pdf') await exportToPDF(period, customDate);
+      else await exportToCSV(period, customDate);
+      showSuccess('Export réussi', `Les mouvements ont été exportés en ${format.toUpperCase()} (${period}${period === 'custom' ? ' - ' + customDate : ''}).`);
+    } catch (error: any) {
+      showError('Erreur export', error?.message || 'Impossible d\'exporter les données.');
+    }
+  }, [exportToExcel, exportToPDF, exportToCSV, showSuccess, showError]);
 
   const resetFilters = useCallback(() => {
-    setSearchTerm(''); setFilterType(''); setFilterDate(''); setSortOption('date-desc');
-  }, [setSearchTerm, setFilterType, setFilterDate, setSortOption]);
+    setSearchTerm('');
+    setFilterType('');
+    setFilterDate('');
+    setSortOption('date-desc');
+    setPeriod('mois');
+    setExportPeriod('mois');
+    setExportCustomDate(new Date().toISOString().split('T')[0]);
+  }, [setSearchTerm, setFilterType, setFilterDate, setSortOption, setPeriod, setExportPeriod, setExportCustomDate]);
 
   const uniqueMouvements = useMemo(() => {
     const seen = new Set();
@@ -136,12 +230,9 @@ const MouvementsStock: React.FC = () => {
   const shadow = isDark ? '0 4px 24px -4px rgba(0,0,0,0.35)' : '0 4px 20px -4px rgba(79,70,229,0.08)';
 
   return (
-    <main
-      className="min-h-full w-full transition-colors duration-300"
-      style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}
-    >
+    <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
-        <MouvementsHeader onPrint={() => {}} onExport={() => {}} refreshing={refreshing} onRefresh={handleRefresh} totalItems={totalItems} />
+        <MouvementsHeader onPrint={() => {}} onExport={handleExport} refreshing={refreshing} onRefresh={handleRefresh} totalItems={totalItems} />
         <MouvementsStats total={statsData.total} entrees={statsData.entrees} sorties={statsData.sorties} ajustements={statsData.ajustements} quantiteEntree={statsData.quantiteEntree} quantiteSortie={statsData.quantiteSortie} refreshing={refreshing} onRefresh={handleRefresh} filtreActif={filterType} onSelectFiltre={setFilterType} />
 
         <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center">
@@ -152,7 +243,7 @@ const MouvementsStock: React.FC = () => {
               placeholder="Rechercher un mouvement..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10 w-full rounded-xl border bg-white pl-10 pr-10 text-[13px] text-slate-900 outline-none placeholder:text-slate-400 transition-all duration-150 hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-white/[0.18]"
+              className="h-10 w-full rounded-xl border bg-white pl-10 pr-10 text-[13px] text-slate-900 outline-none placeholder:text-slate-400 transition-all duration-150 hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-white/[0.18]"
               style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}
             />
             {searchTerm && (
@@ -168,11 +259,30 @@ const MouvementsStock: React.FC = () => {
 
           <div className="flex flex-wrap items-center gap-2 xl:shrink-0">
             <div className="relative">
+              <Calendar size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" />
+              <select
+                value={period}
+                onChange={(e) => setPeriod(e.target.value as typeof period)}
+                className="h-10 min-w-[140px] appearance-none rounded-xl border bg-white pl-9 pr-8 text-[13px] font-medium text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-200 dark:hover:border-white/[0.18]"
+                style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}
+              >
+                {[
+                  { value: 'jour', label: "Aujourd'hui" },
+                  { value: 'semaine', label: 'Cette semaine' },
+                  { value: 'mois', label: 'Ce mois' },
+                  { value: 'annee', label: 'Cette année' },
+                ].map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="relative">
               <Filter size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" />
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="h-10 min-w-[145px] appearance-none rounded-xl border bg-white pl-9 pr-8 text-[13px] font-medium text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-200 dark:hover:border-white/[0.18]"
+                className="h-10 min-w-[145px] appearance-none rounded-xl border bg-white pl-9 pr-8 text-[13px] font-medium text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-200 dark:hover:border-white/[0.18]"
                 style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}
               >
                 {TYPE_OPTIONS.map((option) => (
@@ -181,7 +291,6 @@ const MouvementsStock: React.FC = () => {
               </select>
             </div>
 
-            {/* ⭐ Remplacement du DatePicker par input type="date" */}
             <div className="relative flex items-center">
               <Calendar size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500" />
               <input
@@ -189,7 +298,7 @@ const MouvementsStock: React.FC = () => {
                 value={filterDate}
                 onChange={(e) => setFilterDate(e.target.value)}
                 placeholder="Date"
-                className="h-10 w-[145px] rounded-xl border bg-white pl-9 pr-8 text-[13px] text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-200 dark:hover:border-white/[0.18]"
+                className="h-10 w-[145px] rounded-xl border bg-white pl-9 pr-8 text-[13px] text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-200 dark:hover:border-white/[0.18]"
                 style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}
               />
               {filterDate && (
@@ -209,7 +318,7 @@ const MouvementsStock: React.FC = () => {
               <select
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value)}
-                className="h-10 min-w-[140px] appearance-none rounded-xl border bg-white pl-9 pr-8 text-[13px] font-medium text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-slate-800 dark:text-slate-200 dark:hover:border-white/[0.18]"
+                className="h-10 min-w-[140px] appearance-none rounded-xl border bg-white pl-9 pr-8 text-[13px] font-medium text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-200 dark:hover:border-white/[0.18]"
                 style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}
               >
                 {SORT_OPTIONS.map((option) => (
@@ -239,10 +348,10 @@ const MouvementsStock: React.FC = () => {
               selectedIds={selectedIds}
               onSelectAll={handleSelectAll}
               onSelectOne={handleSelectOne}
-              onBulkDelete={handleBulkDelete}
+              onBulkDelete={handleBulkDelete}   
               onView={(m) => { /* Voir détails */ }}
-              onEdit={handleEditMouvement}
-              onExport={handleExportMouvement}
+              onEdit={(m) => { /* Modifier */ }}
+              onExport={handleExportOne}       
             />
           )}
         </section>

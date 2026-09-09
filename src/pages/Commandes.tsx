@@ -1,8 +1,7 @@
-
 import React, { useState, useCallback } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useCommandesData } from '../hooks/useCommandesData';
+import { useCommandesData, ExportPeriod } from '../hooks/useCommandesData';
 import { useCompany } from '../contexts/CompanyContext';
 import CommandesHeader from '../components/commandes/CommandesHeader';
 import { CommandesStats } from '../components/commandes';
@@ -21,11 +20,9 @@ const normalizePaiementStatus = (statut: unknown): 'Payé' | 'Partiel' | 'Non pa
   switch (n) {
     case 'payé': case 'paye': case 'paid': case 'payee': case 'payé complet': case 'paye complet': case 'paiement complet': return 'Payé';
     case 'partiel': case 'partial': case 'partielle': case 'partiellement payé': case 'partiellement paye': case 'paiement partiel': return 'Partiel';
-    case 'non payé': case 'non paye': case 'unpaid': case 'non_payé': case 'non_paye': case 'impayé': case 'impaye': case 'en attente': return 'Non payé';
     default: return 'Non payé';
   }
 };
-
 
 const CommandesSkeleton = ({ isDark }: { isDark: boolean }) => {
   const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
@@ -56,9 +53,11 @@ const Commandes: React.FC = () => {
     currentPage, setCurrentPage, searchTerm, setSearchTerm, filterStatut, setFilterStatut,
     sortOption, setSortOption,
     stats, createCommande, deleteCommande,
-    generateFacture, selectedClientId, setSelectedClientId, selectedProduits,
+    selectedClientId, setSelectedClientId, selectedProduits,
     handleAddProduit, handleUpdateQuantite, handleRemoveProduit, clearPanier,
-    refreshReferences, details, loadDetails, updatePaiement, getDetteStats, detteStats
+    refreshReferences, details, loadDetails, updatePaiement, getDetteStats, detteStats,
+    exportPeriod, setExportPeriod, exportCustomDate, setExportCustomDate,
+    exportToExcel, exportToPDF, exportToCSV,
   } = useCommandesData();
 
   const [showModal, setShowModal] = useState(false);
@@ -86,6 +85,25 @@ const Commandes: React.FC = () => {
   const showError = useCallback((t: string, m: string) => {
     setErrorTitle(t); setErrorMessage(m); setShowErrorModal(true);
   }, []);
+
+  const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
+    try {
+      let result;
+      if (format === 'excel') result = await exportToExcel(period, customDate);
+      else if (format === 'pdf') result = await exportToPDF(period, customDate);
+      else result = await exportToCSV(period, customDate);
+
+      if (result?.canceled) return;
+      if (result?.success === false) {
+        showError('Erreur export', result.error || 'Impossible d\'exporter les données.');
+        return;
+      }
+
+      showSuccess('Export réussi', `Les commandes ont été exportées en ${format.toUpperCase()} (${period}${period === 'custom' ? ' - ' + customDate : ''}).`);
+    } catch (error: any) {
+      showError('Erreur export', error?.message || 'Impossible d\'exporter les données.');
+    }
+  }, [exportToExcel, exportToPDF, exportToCSV, showSuccess, showError]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     setSelectedIds(checked ? new Set(commandes.map((c: any) => Number(c.id))) : new Set());
@@ -187,10 +205,11 @@ const Commandes: React.FC = () => {
       const companyData = dataFromModal || company;
       const { downloadPDF } = await import('../lib/pdfService');
       const displayVendeur = user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : (user?.name || 'admin');
+      
       const result = await downloadPDF({
         order: commandeForInvoice, clientName: commandeForInvoice.client_nom || 'Client',
         clientEmail: commandeForInvoice.client_email || '', clientPhone: commandeForInvoice.client_telephone || '',
-        clientAddress: commandeForInvoice.client_address || '', companyName: companyData?.name || "TahiryPro",
+        clientAddress: commandeForInvoice.client_address || '', companyName: companyData?.name || "Lifes-Art",
         companyAddress: companyData?.address || '', companyPhone: companyData?.phone || '',
         companyEmail: companyData?.email || '', companySiret: companyData?.siret || '',
         companyTaxId: companyData?.taxId || '', companyRcs: companyData?.rcs || '', companyVatNumber: companyData?.vatNumber || '',
@@ -198,7 +217,8 @@ const Commandes: React.FC = () => {
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         montantPaye: commandeForInvoice.montant_paye || 0,
         vendeur: displayVendeur
-      });
+      }, isDark);
+
       if (result?.canceled) showSuccess('Génération annulée', 'PDF annulé.');
       else if (result?.success) showSuccess('Facture générée', 'Facture enregistrée.');
       else showError('Erreur', result?.error || 'Erreur génération.');
@@ -209,21 +229,27 @@ const Commandes: React.FC = () => {
     } finally {
       setGeneratingPDF(false); setShowCompanyModal(false); setCommandeForInvoice(null);
     }
-  }, [commandeForInvoice, company, showSuccess, showError, user]);
+  }, [commandeForInvoice, company, showSuccess, showError, user, isDark]);
 
   return (
-    <main
-      className="min-h-full w-full transition-colors duration-300"
-      style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}
-    >
+    <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
-        <CommandesHeader onAddCommande={handleOpenAddModal} onOpenStats={() => {}} totalItems={stats?.total || totalItems} refreshing={refreshing} />
+        <CommandesHeader 
+          onAddCommande={handleOpenAddModal} 
+          onOpenStats={() => {}} 
+          onExport={handleExport}
+          totalItems={stats?.total || totalItems} 
+          refreshing={refreshing} 
+        />
         <CommandesStats {...stats} totalItems={totalItems} refreshing={refreshing} totalDette={detteStats?.total_dette || 0} nbCommandesNonPayees={detteStats?.nb_commandes_non_payees || 0} />
         <CommandesSearchBar
           searchTerm={searchTerm} onSearchChange={setSearchTerm} filterStatut={filterStatut} onFilterStatutChange={setFilterStatut}
           sortOption={sortOption} onSortChange={setSortOption} isLoading={loading}
         />
-        <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_4px_20px_-4px_rgba(79,70,229,0.08)] transition-all duration-300 dark:border-white/[0.1] dark:bg-[#0F172A] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.35)]">
+        
+
+        <section className="relative overflow-hidden rounded-2xl border transition-all duration-300" 
+          style={{ background: isDark ? '#0F172A' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0', boxShadow: isDark ? '0 4px 24px -4px rgba(0,0,0,0.35)' : '0 4px 20px -4px rgba(79,70,229,0.08)' }}>
           {refreshing && (
             <div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent">
               <div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" />
@@ -244,7 +270,9 @@ const Commandes: React.FC = () => {
           )}
         </section>
         {!loading && totalItems > 0 && (
-          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_2px_10px_-2px_rgba(79,70,229,0.06)] transition-all duration-300 dark:border-white/[0.1] dark:bg-[#0F172A] dark:shadow-[0_2px_12px_-2px_rgba(0,0,0,0.25)]">
+        
+          <div className="flex items-center justify-between rounded-2xl border px-3 py-2.5 transition-all duration-300" 
+            style={{ background: isDark ? '#0F172A' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#E2E8F0', boxShadow: isDark ? '0 2px 12px -2px rgba(0,0,0,0.25)' : '0 2px 10px -2px rgba(79,70,229,0.06)' }}>
             <CommandesPagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} onPageChange={setCurrentPage} />
           </div>
         )}

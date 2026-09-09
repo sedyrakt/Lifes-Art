@@ -10,10 +10,10 @@ let dbInstance = null;
 
 function getDbPath() {
   const userDataPath = app.getPath('userData');
-  const dbPath = path.join(userDataPath, 'stock.db');
+  const dbPath = path.join(userDataPath, 'tahirypro.db');
   
   console.log('============================================================');
-  console.log('📦 LIFE\'S ART DATABASE DEBUG');
+  console.log('📦 TAHIRYPRO DATABASE DEBUG');
   console.log('============================================================');
   console.log('📁 app.getPath("userData") :', userDataPath);
   console.log('📁 Database path            :', dbPath);
@@ -47,27 +47,10 @@ function createConnection() {
   try {
     const options = encryptionKey ? { key: encryptionKey } : {};
     const newDb = new Database(dbPath, options);
-    
-    // ⭐ FIX: Aza atao ON satria misy olana amin'ny foreign keys
-    // newDb.pragma('foreign_keys = ON');
-    
-    try {
-      newDb.pragma('journal_mode = WAL');
-    } catch (pragmaErr) {
-      warn('⚠️ journal_mode pragma:', pragmaErr.message);
-    }
-    
-    try {
-      newDb.pragma('busy_timeout = 30000');
-    } catch (pragmaErr) {
-      warn('⚠️ busy_timeout pragma:', pragmaErr.message);
-    }
-    
-    try {
-      newDb.pragma('optimize');
-    } catch (pragmaErr) {
-      warn('⚠️ optimize pragma:', pragmaErr.message);
-    }
+
+    try { newDb.pragma('journal_mode = WAL'); } catch (pragmaErr) { warn('⚠️ journal_mode pragma:', pragmaErr.message); }
+    try { newDb.pragma('busy_timeout = 30000'); } catch (pragmaErr) { warn('⚠️ busy_timeout pragma:', pragmaErr.message); }
+    try { newDb.pragma('optimize'); } catch (pragmaErr) { warn('⚠️ optimize pragma:', pragmaErr.message); }
     
     const connectionTest = newDb.prepare('SELECT 1 AS ok').get();
     if (!connectionTest || Number(connectionTest.ok) !== 1) {
@@ -91,10 +74,16 @@ function createConnection() {
 }
 
 function getDb() {
-  if (dbInstance && dbInstance.open) {
-    return dbInstance;
+  // ⭐ FIX LEHIBE: Raha misy objet nefa mikatona (db.open == false), dia fafana aloha!
+  if (dbInstance && !dbInstance.open) {
+    dbInstance = null;
   }
-  dbInstance = createConnection();
+  
+  // ⭐ Rehefa null na mikatona, dia mamorona vaovao
+  if (!dbInstance) {
+    dbInstance = createConnection();
+  }
+  
   return dbInstance;
 }
 
@@ -104,7 +93,7 @@ function closeDatabase() {
       if (dbInstance.open) {
         dbInstance.close();
       }
-      dbInstance = null;
+      dbInstance = null; // ⭐ Zava-dehibe: Atombohy ho null!
     }
   } catch (err) {
     warn('⚠️ [connection] Erreur fermeture:', err.message);

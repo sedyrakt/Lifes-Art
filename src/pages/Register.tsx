@@ -67,7 +67,7 @@ const THEME = {
     error: '#f35a5a',
     inputBg: 'transparent',
     inputPlaceholder: '#64748B',
-    shadow: '0 25px 50px -12px rgba(0,0,0,0.6)',
+    shadow: '0 20px 50px -12px rgba(0,0,0,0.6)',
     shadowSmall: '0 4px 15px rgba(0,0,0,0.4)',
     glassBg: 'rgba(15,23,42,0.8)',
     glassBorder: 'rgba(79,70,229,0.2)'
@@ -93,7 +93,7 @@ const THEME = {
     error: '#FCA5A5', 
     inputBg: '#FFFFFF',
     inputPlaceholder: '#94A3B8',
-    shadow: '0 25px 50px -12px rgba(79,70,229,0.25)',
+    shadow: '0 20px 50px -12px rgba(79,70,229,0.25)',
     shadowSmall: '0 4px 15px rgba(79,70,229,0.1)',
     glassBg: 'rgba(255,255,255,0.8)',
     glassBorder: 'rgba(79,70,229,0.15)'
@@ -126,7 +126,7 @@ const PasswordStrengthBars: React.FC<{ password: string }> = ({ password }) => {
           return <div key={index} className="h-0.5 flex-1 rounded-full transition-all duration-300" style={{ background: active ? strength.color : colors.border }} />;
         })}
       </div>
-      {strength.label && <span className="shrink-0 text-[10px] font-semibold" style={{ color: strength.color }}>{strength.label}</span>}
+      {strength.label && <span className="shrink-0 text-[11px] font-semibold" style={{ color: strength.color }}>{strength.label}</span>}
     </div>
   );
 };
@@ -138,11 +138,11 @@ const CustomCheckbox: React.FC<{
   const { isDark } = useTheme();
   const colors = isDark ? THEME.dark : THEME.light;
   return (
-    <button type="button" disabled={disabled} role="checkbox" aria-checked={checked} onClick={() => { if (!disabled) onChange(!checked); }} className={`group flex w-full items-start gap-2 text-left outline-none ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
-      <span className="mt-[2px] flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border transition-all duration-150" style={{ borderColor: hasError ? colors.error : checked ? colors.primary : colors.borderStrong, background: checked ? colors.primary : 'transparent' }}>
+    <button type="button" disabled={disabled} role="checkbox" aria-checked={checked} onClick={() => { if (!disabled) onChange(!checked); }} className={`group flex w-full items-start gap-2.5 text-left outline-none ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+      <span className="mt-[3px] flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border transition-all duration-150" style={{ borderColor: hasError ? colors.error : checked ? colors.primary : colors.borderStrong, background: checked ? colors.primary : 'transparent' }}>
         {checked && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
       </span>
-      <span className="text-[13px] font-medium leading-4" style={{ color: colors.textMuted }}>{label}</span>
+      <span className="text-[14px] font-medium leading-snug" style={{ color: colors.textMuted }}>{label}</span>
     </button>
   );
 };
@@ -159,10 +159,10 @@ const FormInput: React.FC<{
   const borderColor = hasError ? colors.error : focused ? colors.primary : colors.border;
   return (
     <div className="min-w-0">
-      {label && <label htmlFor={name} className="mb-1 block text-[13px] font-medium" style={{ color: colors.textMuted }}>{label}</label>}
+      {label && <label htmlFor={name} className="mb-1 block text-[14px] font-medium" style={{ color: colors.textMuted }}>{label}</label>}
       <div className="relative">
-        <Icon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 transition-colors" style={{ color: focused ? colors.primary : colors.textSubMuted }} />
-        <input id={name} name={name} type={type} value={value} placeholder={placeholder} disabled={disabled} autoComplete={autoComplete} onChange={onChange} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} className="h-9 w-full rounded-md border pl-8 pr-3 text-[13px] font-medium outline-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60" style={{ background: isDark ? 'transparent' : colors.inputBg, color: colors.text, borderColor, boxShadow: focused && !hasError ? `0 0 0 2px ${colors.primaryBg}` : 'none' }} />
+        <Icon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 transition-colors" style={{ color: focused ? colors.primary : colors.textSubMuted }} />
+        <input id={name} name={name} type={type} value={value} placeholder={placeholder} disabled={disabled} autoComplete={autoComplete} onChange={onChange} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} className="h-10 w-full rounded-md border pl-9 pr-3 text-[14px] font-medium outline-none transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60" style={{ background: isDark ? 'transparent' : colors.inputBg, color: colors.text, borderColor, boxShadow: focused && !hasError ? `0 0 0 2px ${colors.primaryBg}` : 'none' }} />
         {rightElement}
       </div>
     </div>
@@ -177,12 +177,13 @@ export const Register: React.FC = () => {
   const logoSrc = isDark ? LOGO_DARK : LOGO_LIGHT;
   const backgroundImage = "url('./images/abstract3.jpeg')";
   
+  // ⭐ FIX: Nampidina ny overlay light mba hifanaraka amin'ny Login (0.95 -> 0.85, 0.45 -> 0.35)
   const bgOverlay = isDark
     ? 'linear-gradient(to right, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.55) 100%)'
-    : 'linear-gradient(to right, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.45) 100%)';
+    : 'linear-gradient(to right, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.35) 100%)';
 
-  // ⭐ Fond indigo ho an'ny panneau droite amin'ny mode light
-  const rightBoxBg = isDark ? colors.surface : colors.surfaceAlt; // #EEF2FF
+  // ⭐ FIX: Fotsy tanteraka ny panneau droite rehefa mode light
+  const rightBoxBg = isDark ? colors.surface : '#FFFFFF';
 
   const [formData, setFormData] = useState<RegisterFormData>({
     firstName: '', lastName: '', email: '', phone: '',
@@ -278,65 +279,69 @@ export const Register: React.FC = () => {
         {isDark ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
       </button>
 
-      <div className="relative z-10 flex w-full max-w-[980px] overflow-hidden rounded-xl border" style={{ background: colors.surface, borderColor: colors.border, boxShadow: colors.shadow }}>
+      {/* COMPACT PREMIUM */}
+      <div className="relative z-10 flex w-full max-w-[1000px] overflow-hidden rounded-xl border" style={{ background: colors.surface, borderColor: colors.border, boxShadow: colors.shadow }}>
         
-        {/* PANNEAU GAUCHE (tsy ovaina) */}
-        <div className="hidden w-1/2 shrink-0 flex-col border-r p-5 lg:flex" style={{ background: colors.surface, borderColor: colors.border }}>
+        {/* PANNEAU GAUCHE */}
+        <div className="hidden w-1/2 shrink-0 flex-col border-r p-6 lg:flex" style={{ background: colors.surface, borderColor: colors.border }}>
           <div className="flex flex-1 flex-col justify-between">
-            <div className="space-y-6">
-              <div className="space-y-3">
+            <div className="space-y-4">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`, boxShadow: `0 2px 8px ${colors.primaryBg}` }}>
                     <Cloud className="h-4 w-4 text-white" />
                   </div>
-                  <div><h1 className="text-[15px] font-bold" style={{ color: colors.text }}>TahiryPro ERP</h1><p className="text-[11px] font-medium" style={{ color: colors.textMuted }}>Enterprise Solution</p></div>
+                  <div><h1 className="text-[16px] font-bold" style={{ color: colors.text }}>Life's Art ERP</h1><p className="text-[12px] font-medium" style={{ color: colors.textMuted }}>Enterprise Solution</p></div>
                 </div>
-                <div><h2 className="text-[19px] font-bold leading-tight" style={{ color: colors.text }}>Gérez tout,<br />partout.</h2><p className="mt-1 text-[12px] mb-4" style={{ color: colors.textMuted }}>Solution complète pour votre entreprise</p></div>
+                <div><h2 className="text-[20px] font-bold leading-tight" style={{ color: colors.text }}>Gérez tout,<br />partout.</h2><p className="mt-0.5 text-[13px]" style={{ color: colors.textMuted }}>Solution complète pour votre entreprise</p></div>
               </div>
               
-              <div className="relative overflow-hidden rounded-lg border mx-auto w-full max-w-[400px]" style={{ borderColor: colors.border, background: colors.surface, boxShadow: colors.shadowSmall }}>
+              <div className="relative overflow-hidden rounded-lg border mx-auto w-full max-w-[380px]" style={{ borderColor: colors.border, background: colors.surface, boxShadow: colors.shadowSmall }}>
                 <img
                   src={isDark ? MINIATURE_DARK_PATH : MINIATURE_LIGHT_PATH}
                   alt="Dashboard Preview"
-                  className="w-full h-auto object-contain max-h-[300px]"
+                  className="w-full h-auto object-contain max-h-[200px]"
                 />
               </div>
 
-              <div className="space-y-2">
-                <p className="text-[13px] font-semibold" style={{ color: colors.text }}>Pourquoi choisir TahiryPro ?</p>
+              {/* ⭐ RESUMÉ FOHY: Nohafohezina ny lisitra */}
+              <div className="space-y-1.5">
+               
                 {[
-                  "Gestion complète : Produits, Ventes, Achats, Stock & RH.",
-                  "Tableaux de bord en temps réel pour vos décisions.",
-                  "Sécurité des données et accès multi-utilisateurs."
+                  "Gestion complète : Produits, Ventes, Achats & Stock.",
+                  "Tableaux de bord en temps réel.",
+                  "Sécurité & accès multi-utilisateurs.",
+                  "Facturation multiple jusqu'à +10 000.",
+                  "Sauvegarde & restauration des données."
                 ].map((text, i) => (
                   <div key={i} className="flex items-start gap-2">
-                    <CheckCircle2 size={15} className="mt-0.5 shrink-0" style={{ color: colors.primary }} />
-                    <span className="text-[13px] leading-5" style={{ color: colors.textMuted }}>{text}</span>
+                    <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-500" />
+                    <span className="text-[14px] leading-snug" style={{ color: colors.textMuted }}>{text}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-1 mt-6">
+            <div className="grid grid-cols-2 gap-1.5 mt-4">
               {[{ icon: ShieldCheck, title: 'Sécurisé' }, { icon: BarChart3, title: 'Analytics' }, { icon: UsersIcon, title: 'Équipe' }, { icon: LayoutDashboard, title: 'Dashboard' }].map((item, i) => (
                 <div key={i} className="flex items-center gap-1.5 rounded-lg border px-2 py-1.5" style={{ borderColor: colors.border }}>
                   <item.icon size={12} style={{ color: colors.primary }} />
-                  <span className="text-[12px] font-medium truncate" style={{ color: colors.text }}>{item.title}</span>
+                  <span className="text-[13px] font-medium truncate" style={{ color: colors.text }}>{item.title}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* PANNEAU DROITE : Fond indigo en mode light */}
-        <div className="flex w-full flex-col justify-between p-5 lg:w-1/2" style={{ background: rightBoxBg }}>
-          <div className="mb-4 flex items-center gap-2 lg:hidden"><div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: colors.primary }}><Cloud className="h-3.5 w-3.5 text-white" /></div><span className="text-[14px] font-bold" style={{ color: colors.text }}>TahiryPro</span></div>
+        {/* PANNEAU DROITE : Fotsy (White) amin'ny mode light, #0F172A amin'ny dark */}
+        <div className="flex w-full flex-col justify-between p-6 lg:w-1/2" style={{ background: rightBoxBg }}>
+          <div className="mb-3 flex items-center gap-2 lg:hidden"><div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: colors.primary }}><Cloud className="h-3.5 w-3.5 text-white" /></div><span className="text-[15px] font-bold" style={{ color: colors.text }}>Life's Art</span></div>
 
-          <img src={logoSrc} alt="TahiryPro" className="mx-auto mb-4 h-20 w-20 object-contain" />
+          <img src={logoSrc} alt="Life's Art" className="mx-auto mb-3 h-16 w-16 object-contain" />
 
-          <div className="mb-5">
-            <h1 className="text-[22px] font-bold text-center" style={{ color: colors.text }}>Créer un compte</h1>
-            <p className="mt-1 text-[13px] text-center" style={{ color: colors.textMuted }}>Commencez votre essai gratuit</p>
+          <div className="mb-3">
+            <h1 className="text-[24px] font-bold text-center" style={{ color: colors.text }}>Créer un compte</h1>
+            <p className="mt-1 text-[14px] text-center" style={{ color: colors.textMuted }}>Commencez votre essai gratuit</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-2.5">
@@ -349,23 +354,23 @@ export const Register: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-2">
               <div className="min-w-0">
-                <FormInput label="Mot de passe" name="password" type={showPassword ? 'text' : 'password'} value={formData.password} onChange={handleInputChange} placeholder="Mot de passe" icon={Lock} error={errors.password} autoComplete="new-password" rightElement={<button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1" style={{ color: colors.textSubMuted }}>{showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</button>} />
+                <FormInput label="Mot de passe" name="password" type={showPassword ? 'text' : 'password'} value={formData.password} onChange={handleInputChange} placeholder="Mot de passe" icon={Lock} error={errors.password} autoComplete="new-password" rightElement={<button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1" style={{ color: colors.textSubMuted }}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>} />
                 <PasswordStrengthBars password={formData.password} />
               </div>
-              <FormInput label="Confirmation" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} value={formData.confirmPassword} onChange={handleInputChange} placeholder="Répéter" icon={Lock} error={errors.confirmPassword} autoComplete="new-password" rightElement={<button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1" style={{ color: colors.textSubMuted }}>{showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</button>} />
+              <FormInput label="Confirmation" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} value={formData.confirmPassword} onChange={handleInputChange} placeholder="Répéter" icon={Lock} error={errors.confirmPassword} autoComplete="new-password" rightElement={<button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1" style={{ color: colors.textSubMuted }}>{showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>} />
             </div>
 
             <CustomCheckbox checked={termsAccepted} onChange={setTermsAccepted} label="J'accepte les conditions d'utilisation et la politique de confidentialité." hasError={Boolean(errors.terms)} />
 
-            <button type="submit" disabled={loading} className="group relative flex h-10 w-full items-center justify-center gap-2 rounded-lg text-[14px] font-semibold text-white transition-all hover:opacity-95 disabled:opacity-50" style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryHover})`, boxShadow: `0 4px 12px ${colors.primaryBg}` }}>
+            <button type="submit" disabled={loading} className="group relative flex h-10 w-full items-center justify-center gap-2 rounded-lg text-[15px] font-semibold text-white transition-all hover:opacity-95 disabled:opacity-50" style={{ background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryHover})`, boxShadow: `0 4px 12px ${colors.primaryBg}` }}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Créer mon compte<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></>}
             </button>
           </form>
 
-          <div className="mt-4 text-center"><p className="text-[13px]" style={{ color: colors.textMuted }}>Déjà inscrit ? <Link to="/login" className="font-medium hover:underline" style={{ color: colors.primary }}>Se connecter</Link></p></div>
-          <div className="mt-5 flex items-center justify-between border-t pt-3" style={{ borderColor: colors.border }}>
-            <span className="text-[12px]" style={{ color: colors.textSubMuted }}>© 2026 TahiryPro ERP</span>
-            <div className="flex gap-3"><Link to="/terms" className="text-[12px] hover:underline" style={{ color: colors.textSubMuted }}>Conditions</Link><Link to="/support" className="text-[12px] hover:underline" style={{ color: colors.textSubMuted }}>Support</Link></div>
+          <div className="mt-3 text-center"><p className="text-[14px]" style={{ color: colors.textMuted }}>Déjà inscrit ? <Link to="/login" className="font-medium hover:underline" style={{ color: colors.primary }}>Se connecter</Link></p></div>
+          <div className="mt-4 flex items-center justify-between border-t pt-2" style={{ borderColor: colors.border }}>
+            <span className="text-[13px]" style={{ color: colors.textSubMuted }}>© 2026 Life's Art ERP</span>
+            <div className="flex gap-3"><Link to="/terms" className="text-[13px] hover:underline" style={{ color: colors.textSubMuted }}>Conditions</Link><Link to="/support" className="text-[13px] hover:underline" style={{ color: colors.textSubMuted }}>Support</Link></div>
           </div>
         </div>
       </div>

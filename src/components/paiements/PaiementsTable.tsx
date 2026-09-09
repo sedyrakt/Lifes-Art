@@ -54,26 +54,17 @@ const getEmployeeName = (paiement: Paiement): string => {
 };
 
 const PaiementsTable: React.FC<PaiementsTableProps> = ({
-  paiements = [],
-  moisLabels = [],
-  onViewHistorique,
-  onEdit,
-  onDelete,
-  onAdd,
-  selectedIds = new Set<number>(),
-  onSelectAll,
-  onSelectOne,
-  onBulkDelete,
-  onValidate,
-  onBulletin,
+  paiements = [], moisLabels = [], onViewHistorique, onEdit, onDelete, onAdd,
+  selectedIds = new Set<number>(), onSelectAll, onSelectOne, onBulkDelete, onValidate, onBulletin,
 }) => {
   const { isDark } = useTheme();
 
+  // ⭐ COLORS STANDARD
   const tableBackground = isDark ? 'bg-[#0F172A]' : 'bg-white';
-  const tableSecondaryBackground = isDark ? 'bg-[#0F172A]' : 'bg-indigo-50';
-  const borderColor = isDark ? 'border-white/[0.12]' : 'border-indigo-200';
-  const cellBorderColor = isDark ? 'border-white/[0.10]' : 'border-indigo-100';
-  const headerBorderColor = isDark ? 'border-white/[0.15]' : 'border-indigo-200';
+  const tableSecondaryBackground = isDark ? 'bg-[#0F172A]' : 'bg-slate-50';
+  const borderColor = isDark ? 'border-white/[0.12]' : 'border-slate-200';
+  const cellBorderColor = isDark ? 'border-white/[0.10]' : 'border-slate-200';
+  const headerBorderColor = isDark ? 'border-white/[0.15]' : 'border-slate-200';
 
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top?: number; bottom?: number; left?: number; right?: number; }>({});
@@ -112,8 +103,7 @@ const PaiementsTable: React.FC<PaiementsTableProps> = ({
   }, []);
 
   const toggleMenu = useCallback((id: number, event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
+    event.preventDefault(); event.stopPropagation();
     if (openMenuId === id) { setOpenMenuId(null); return; }
     setMenuPosition(calculateMenuPosition(event.currentTarget));
     setOpenMenuId(id);
@@ -125,36 +115,28 @@ const PaiementsTable: React.FC<PaiementsTableProps> = ({
       const target = event.target as Node;
       if (menuRef.current && !menuRef.current.contains(target)) setOpenMenuId(null);
     };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.preventDefault(); setOpenMenuId(null); }
-    };
+    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); setOpenMenuId(null); } };
     const handleScroll = () => setOpenMenuId(null);
     document.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('scroll', handleScroll, true);
-    return () => {
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('scroll', handleScroll, true);
-    };
+    return () => { document.removeEventListener('mousedown', handleMouseDown); document.removeEventListener('keydown', handleKeyDown); window.removeEventListener('scroll', handleScroll, true); };
   }, [openMenuId]);
 
   const handleMenuAction = useCallback((callback: () => void, event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setOpenMenuId(null);
-    callback();
+    event.preventDefault(); event.stopPropagation();
+    setOpenMenuId(null); callback();
   }, []);
 
   if (paiements.length === 0) {
     return (
-      <div className={`flex min-h-[320px] flex-col items-center justify-center overflow-hidden rounded-xl border px-6 py-14 text-center shadow-sm ${tableBackground} ${borderColor} dark:shadow-[0_14px_45px_rgba(0,0,0,0.20)]`}>
-        <div className="mb-5 flex h-[68px] w-[68px] items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-indigo-600 shadow-sm dark:border-indigo-500/15 dark:bg-indigo-500/10 dark:text-indigo-400">
+      <div className={`flex min-h-[320px] flex-col items-center justify-center overflow-hidden rounded-xl border px-6 py-14 text-center shadow-sm ${tableBackground} ${borderColor}`}>
+        <div className="mb-5 flex h-[68px] w-[68px] items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 dark:border-white/[0.10] dark:bg-white/[0.05] dark:text-slate-400">
           <CreditCard size={30} strokeWidth={1.8} />
         </div>
-        <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-slate-900 dark:text-slate-100">Aucun paiement</h3>
+        <h3 className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">Aucun paiement</h3>
         <p className="mt-2 max-w-[390px] text-[14px] leading-6 text-slate-500 dark:text-slate-400">Ajoutez un paiement pour commencer à suivre les rémunérations.</p>
-        <button type="button" onClick={onAdd} className="mt-6 inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-5 py-2.5 text-[14px] font-semibold text-white shadow-[0_4px_14px_rgba(79,70,229,0.22)] transition-all duration-150 hover:bg-indigo-600 hover:shadow-[0_6px_18px_rgba(79,70,229,0.28)] focus:outline-none focus:ring-2 focus:ring-indigo-500/30 active:scale-[0.98]">
+        <button type="button" onClick={onAdd} className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-[14px] font-semibold text-white shadow-sm hover:bg-brand-600">
           <Plus size={17} />Ajouter un paiement
         </button>
       </div>
@@ -162,29 +144,27 @@ const PaiementsTable: React.FC<PaiementsTableProps> = ({
   }
 
   return (
-    <div className={`relative overflow-hidden rounded-xl border shadow-[0_2px_12px_rgba(15,23,42,0.04)] dark:shadow-[0_14px_45px_rgba(0,0,0,0.20)] ${tableBackground} ${borderColor}`}>
+    <div className={`relative overflow-hidden rounded-xl border shadow-sm ${tableBackground} ${borderColor}`}>
       {selectedIds.size > 0 && (
         <div className={`flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 ${isDark ? 'border-white/[0.08] bg-red-500/[0.06]' : 'border-red-100 bg-red-50'}`}>
-          <span className="text-[14px] font-semibold text-red-600 dark:text-red-400">
-            {selectedIds.size} paiement{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
-          </span>
+          <span className="text-[14px] font-semibold text-red-600 dark:text-red-400">{selectedIds.size} paiement(s) sélectionné(s)</span>
           <div className="flex items-center gap-1.5">
-            <button type="button" onClick={() => onBulkDelete?.(Array.from(selectedIds))} className="inline-flex items-center rounded-lg bg-red-500 px-3.5 py-2 text-[13px] font-semibold text-white shadow-sm transition-all hover:bg-red-600 hover:shadow-md active:scale-[0.98]">
+            <button type="button" onClick={() => onBulkDelete?.(Array.from(selectedIds))} className="inline-flex items-center rounded-lg bg-red-500 px-3.5 py-2 text-[13px] font-semibold text-white shadow-sm hover:bg-red-600">
               <Trash2 size={14} />Supprimer
             </button>
-            <button type="button" onClick={() => onSelectAll?.(false)} className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-semibold text-slate-600 shadow-sm transition-all hover:bg-slate-50 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-300 dark:hover:bg-[#333333] dark:hover:text-white">
+            <button type="button" onClick={() => onSelectAll?.(false)} className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-semibold text-slate-600 shadow-sm hover:bg-slate-50 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-300">
               <X size={14} />Désélectionner
             </button>
           </div>
         </div>
       )}
 
-      <div className="custom-paiements-scrollbar scrollbar-gutter-stable overflow-x-auto overflow-y-auto" style={{ maxHeight: '600px', minHeight: '400px' }}>
+      <div className="overflow-x-auto">
         <table className={`w-full min-w-full table-fixed border-collapse text-left ${borderColor}`}>
-          <thead className={`sticky top-0 z-20 backdrop-blur-xl ${isDark ? 'bg-[#0F172A]/97' : 'bg-indigo-50/97'}`}>
+          <thead className={`sticky top-0 z-20 backdrop-blur-xl ${isDark ? 'bg-[#0F172A]/97' : 'bg-slate-50/97'}`}>
             <tr className="text-[12px] font-semibold uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">
               <th scope="col" className={`w-[42px] border-b px-4 py-4 align-middle ${headerBorderColor}`}>
-                <input type="checkbox" checked={allSelected} ref={(element) => { if (element) element.indeterminate = someSelected; }} onChange={(event) => onSelectAll?.(event.target.checked)} aria-label="Sélectionner tous les paiements" className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-500 accent-indigo-600 focus:ring-indigo-500/30 dark:border-slate-600" />
+                <input type="checkbox" checked={allSelected} ref={(element) => { if (element) element.indeterminate = someSelected; }} onChange={(event) => onSelectAll?.(event.target.checked)} aria-label="Sélectionner tous" className="h-4 w-4 cursor-pointer rounded accent-brand-500" />
               </th>
               <th scope="col" className={`w-[200px] border-b px-4 py-4 align-middle ${headerBorderColor}`}>Employé</th>
               <th scope="col" className={`w-[130px] border-b px-4 py-4 align-middle ${headerBorderColor}`}>Date paiement</th>
@@ -202,30 +182,30 @@ const PaiementsTable: React.FC<PaiementsTableProps> = ({
               const statut = paiement.statut || 'Payé';
               
               const modeColor = mode === 'Espèces' 
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/25'
+                ? 'bg-success-50 text-success-700 border-success-200 dark:bg-success-500/10 dark:text-success-400 dark:border-success-500/25'
                 : mode === 'Chèque' 
-                  ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/25'
-                  : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/25';
+                  ? 'bg-warning-50 text-warning-700 border-warning-200 dark:bg-warning-500/10 dark:text-warning-300 dark:border-warning-500/25'
+                  : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-white/[0.05] dark:text-slate-300 dark:border-white/[0.12]';
 
               const statutColor = statut === 'Brouillon'
                 ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
                 : statut === 'Validé'
                   ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400'
                   : statut === 'Payé'
-                    ? 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400'
+                    ? 'bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400'
                     : statut === 'Partiel'
-                      ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400'
-                      : 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400';
+                      ? 'bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-400'
+                      : 'bg-danger-50 text-danger-700 dark:bg-danger-500/10 dark:text-danger-400';
 
               return (
-                <tr key={paiement.id} onClick={() => { setOpenMenuId(null); if (onViewHistorique) onViewHistorique(paiement.employe_id); }} className={`group h-[64px] cursor-pointer transition-all duration-150 ${isSelected ? (isDark ? 'bg-indigo-500/[0.085]' : 'bg-indigo-50') : (isDark ? 'hover:bg-white/[0.025]' : 'hover:bg-indigo-50/50')}`}>
+                <tr key={paiement.id} onClick={() => { setOpenMenuId(null); if (onViewHistorique) onViewHistorique(paiement.employe_id); }} className={`group h-[64px] cursor-pointer transition-colors duration-150 ${isSelected ? (isDark ? 'bg-brand-500/[0.085]' : 'bg-brand-50') : (isDark ? 'hover:bg-white/[0.025]' : 'hover:bg-slate-50')}`}>
                   <td className={`border-b px-4 py-3 align-middle ${cellBorderColor}`} onClick={(event) => event.stopPropagation()}>
-                    <input type="checkbox" checked={isSelected} onChange={(event) => onSelectOne?.(paiement.id, event.target.checked)} aria-label={`Sélectionner le paiement ${paiement.id}`} className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-500 accent-indigo-600 focus:ring-indigo-500/30 dark:border-slate-600" />
+                    <input type="checkbox" checked={isSelected} onChange={(event) => onSelectOne?.(paiement.id, event.target.checked)} aria-label={`Sélectionner ${paiement.id}`} className="h-4 w-4 cursor-pointer rounded accent-brand-500" />
                   </td>
 
                   <td className={`border-b px-4 py-3 align-middle ${cellBorderColor}`}>
                     <div className="min-w-0 leading-tight">
-                      <div className="max-w-[180px] truncate text-[15px] font-semibold text-slate-900 transition-colors group-hover:text-indigo-600 dark:text-slate-100 dark:group-hover:text-indigo-400">{employeeName}</div>
+                      <div className="max-w-[180px] truncate text-[15px] font-semibold text-slate-900 dark:text-slate-100">{employeeName}</div>
                       <div className="mt-1 truncate text-[14px] text-slate-500 dark:text-slate-400">{paiement.employe_poste || 'Poste non spécifié'}</div>
                     </div>
                   </td>
@@ -235,27 +215,26 @@ const PaiementsTable: React.FC<PaiementsTableProps> = ({
                   </td>
 
                   <td className={`border-b px-4 py-3 align-middle ${cellBorderColor}`}>
-                    <span className="whitespace-nowrap text-[15px] font-bold text-emerald-700 dark:text-emerald-400">{`${Number(montant).toLocaleString('fr-FR')} Ar`}</span>
+                    <span className="whitespace-nowrap text-[15px] font-bold text-success-700 dark:text-success-400">{`${Number(montant).toLocaleString('fr-FR')} Ar`}</span>
                   </td>
 
                   <td className={`border-b px-4 py-3 align-middle ${cellBorderColor}`}>
-                    <span className={`inline-flex items-center whitespace-nowrap rounded-lg border px-3 py-1.5 text-[13px] font-semibold leading-tight ${modeColor}`}>{mode}</span>
+                    <span className={`inline-flex items-center whitespace-nowrap rounded-md border px-2 py-1 text-[13px] font-semibold ${modeColor}`}>{mode}</span>
                   </td>
 
                   <td className={`border-b px-2 py-3 text-right align-middle ${cellBorderColor}`} onClick={(event) => event.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       {statut === 'Brouillon' && onValidate && (
-                        <button type="button" title="Valider" aria-label="Valider" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onValidate(paiement); }} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-green-50 hover:text-green-700 dark:hover:bg-green-500/10 dark:hover:text-green-400">
+                        <button type="button" title="Valider" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onValidate(paiement); }} className="rounded-lg p-1.5 text-slate-500 hover:bg-success-50 hover:text-success-700 dark:hover:bg-success-500/10">
                           <CheckCircle2 size={16} />
                         </button>
                       )}
                       {onBulletin && (
-                        <button type="button" title="Bulletin de paie" aria-label="Bulletin de paie" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onBulletin(paiement); }} className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-400">
+                        <button type="button" title="Bulletin" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onBulletin(paiement); }} className="rounded-lg p-1.5 text-slate-500 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/10">
                           <FileText size={16} />
                         </button>
                       )}
-                      {/* ⭐ FIX: BOUTON ACTIONS -> ELLIPSIS ("...") */}
-                      <button type="button" title="Actions" aria-label={`Actions pour ${employeeName}`} aria-expanded={openMenuId === paiement.id} onClick={(event) => toggleMenu(paiement.id, event)} className={`flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-slate-400 transition-all duration-150 ${openMenuId === paiement.id ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400' : 'hover:border-slate-200 hover:bg-slate-50 hover:text-indigo-600 dark:hover:border-white/[0.12] dark:hover:bg-slate-800 dark:hover:text-slate-200'}`}>
+                      <button type="button" title="Actions" onClick={(event) => toggleMenu(paiement.id, event)} className={`flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-slate-400 ${openMenuId === paiement.id ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400' : 'hover:border-slate-200 hover:bg-slate-50 hover:text-brand-600 dark:hover:border-white/[0.12] dark:hover:bg-slate-800'}`}>
                         <span className="font-bold tracking-widest">...</span>
                       </button>
                     </div>
@@ -268,8 +247,8 @@ const PaiementsTable: React.FC<PaiementsTableProps> = ({
       </div>
 
       {openMenuId !== null && currentPaiement && createPortal(
-        <div ref={menuRef} className={`fixed z-[99999] w-[220px] overflow-hidden rounded-xl border py-1.5 shadow-[0_18px_55px_rgba(15,23,42,0.18)] backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-100 ${isDark ? 'border-white/[0.10] bg-[#0F172A]/98' : 'border-indigo-100 bg-white/98'}`} style={{ ...menuPosition }} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
-          <div className={`border-b px-4 py-3 ${isDark ? 'border-white/[0.08]' : 'border-indigo-100'}`}>
+        <div ref={menuRef} className={`fixed z-[99999] w-[220px] overflow-hidden rounded-xl border py-1.5 shadow-xl ${isDark ? 'border-white/[0.10] bg-[#0F172A]/98' : 'border-slate-200 bg-white/98'}`} style={{ ...menuPosition }} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()}>
+          <div className={`border-b px-4 py-3 ${isDark ? 'border-white/[0.08]' : 'border-slate-100'}`}>
             <div className="min-w-0">
               <div className="max-w-[180px] truncate text-[15px] font-semibold text-slate-900 dark:text-slate-100">{getEmployeeName(currentPaiement)}</div>
               <div className="mt-1 font-mono text-[11px] text-slate-400">ID #{currentPaiement.id}</div>
@@ -277,17 +256,17 @@ const PaiementsTable: React.FC<PaiementsTableProps> = ({
           </div>
           <div className="flex flex-col text-[14px]">
             {onViewHistorique && (
-              <button type="button" onMouseDown={(event) => handleMenuAction(() => onViewHistorique(currentPaiement.employe_id), event)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left font-medium text-slate-700 transition-colors hover:bg-indigo-50 dark:text-slate-200 dark:hover:bg-white/[0.06]">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400"><History size={15} /></span>
+              <button type="button" onMouseDown={(event) => handleMenuAction(() => onViewHistorique(currentPaiement.employe_id), event)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.06]">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-white/[0.05] dark:text-slate-400"><History size={15} /></span>
                 <span>Voir l'historique</span>
               </button>
             )}
-            <button type="button" onMouseDown={(event) => handleMenuAction(() => onEdit(currentPaiement), event)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left font-medium text-slate-700 transition-colors hover:bg-amber-50 dark:text-slate-200 dark:hover:bg-amber-500/10">
+            <button type="button" onMouseDown={(event) => handleMenuAction(() => onEdit(currentPaiement), event)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.06]">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"><Edit size={15} /></span>
               <span>Modifier</span>
             </button>
-            <div className={`mx-3 my-1 border-t ${isDark ? 'border-white/[0.07]' : 'border-indigo-100'}`} />
-            <button type="button" onMouseDown={(event) => handleMenuAction(() => onDelete(currentPaiement.id), event)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left font-semibold text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10">
+            <div className={`mx-3 my-1 border-t ${isDark ? 'border-white/[0.07]' : 'border-slate-100'}`} />
+            <button type="button" onMouseDown={(event) => handleMenuAction(() => onDelete(currentPaiement.id), event)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400">
                 <Trash2 size={15} />
               </span>
@@ -300,36 +279,12 @@ const PaiementsTable: React.FC<PaiementsTableProps> = ({
 
       <div className={`flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 ${tableSecondaryBackground} ${borderColor}`}>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] font-medium text-slate-500 dark:text-slate-400">
-          <span><span className="font-semibold text-slate-900 dark:text-slate-100">{stats.total}</span> paiement{stats.total > 1 ? 's' : ''}</span>
+          <span><span className="font-semibold text-slate-900 dark:text-slate-100">{stats.total}</span> paiement(s)</span>
           <span><span className="font-semibold text-slate-900 dark:text-slate-100">{Number(stats.totalMontant).toLocaleString('fr-FR')} Ar</span> Total</span>
-          <span><span className="font-semibold text-slate-900 dark:text-slate-100">{stats.employesUniques}</span> employé{stats.employesUniques > 1 ? 's' : ''}</span>
-          <span className="hidden h-4 w-px bg-slate-300 sm:block dark:bg-white/[0.12]" />
-          <div className="flex flex-wrap items-center gap-1.5">
-            {stats.topModes.map(([mode, count]) => (
-              <span key={mode} className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-100 bg-white px-2.5 py-1 text-[13px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
-                <span className="max-w-[120px] truncate">{mode}</span>
-                <span className="text-slate-400 dark:text-slate-500">{count}</span>
-              </span>
-            ))}
-          </div>
+          <span><span className="font-semibold text-slate-900 dark:text-slate-100">{stats.employesUniques}</span> employé(s)</span>
         </div>
-        <div className="flex items-center gap-2 text-[13px] font-medium text-slate-400 dark:text-slate-500">
-          <AlertCircle size={14} />
-          <span>Gestion des paiements</span>
-        </div>
+        <span className="text-[12px] font-medium text-slate-400 dark:text-slate-500">Gestion des paiements</span>
       </div>
-
-      <style>{`
-        .custom-paiements-scrollbar::-webkit-scrollbar { width: 7px; height: 7px; }
-        .custom-paiements-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-paiements-scrollbar::-webkit-scrollbar-thumb { background: rgba(79,70,229,0.25); border-radius: 999px; }
-        .custom-paiements-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(79,70,229,0.45); }
-        .custom-paiements-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(79,70,229,0.25) transparent; }
-        .scrollbar-gutter-stable { scrollbar-gutter: stable; }
-        @keyframes paiementRowIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
-        .group { animation: paiementRowIn .18s ease-out; }
-      `}</style>
     </div>
   );
 };

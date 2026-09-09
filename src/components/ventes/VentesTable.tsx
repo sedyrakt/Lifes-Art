@@ -193,11 +193,12 @@ const VentesTable: React.FC<VentesTableProps> = ({
         </div>
       )}
 
-      {/* ⭐ FIX: MITOVY AMIN'NY PRODUITS TABLE — overflow-hidden + min-w-full mba hanesorana ny scrollbar */}
-      <div className="custom-scrollbar scrollbar-gutter-stable overflow-hidden" style={{ height: '600px', minHeight: '400px' }}>
+      {/* ⭐ FIX: NOVAINA HO AUTO HEIGHT (Max 600px) + overflow-y-auto. 
+          Tsy hisy banga intsony raha vitsy ny andalana, fa hisy scroll raha lava. */}
+      <div className="custom-scrollbar scrollbar-gutter-stable overflow-y-auto" style={{ maxHeight: '600px' }}>
         <table className={`w-full min-w-full table-fixed border-collapse text-left ${border}`}>
           <thead className={`sticky top-0 z-20 backdrop-blur-xl ${isDark ? 'bg-[#0F172A]/97' : 'bg-slate-50/97'}`}>
-            <tr className="text-[12.5px] font-semibold uppercase tracking-[0.055em] text-slate-500 dark:text-slate-400">
+            <tr className="text-[13px] font-semibold uppercase tracking-[0.055em] text-slate-500 dark:text-slate-400">
               <th className={`w-[40px] border-b px-2 py-2.5 align-middle ${headerBorder}`}>
                 <input type="checkbox" checked={allSelected} ref={el => { if (el) el.indeterminate = someSelected; }} onChange={e => onSelectAll?.(e.target.checked)} className="h-[15px] w-[15px] cursor-pointer accent-brand-500" aria-label="Sélectionner tous les éléments" />
               </th>
@@ -229,12 +230,12 @@ const VentesTable: React.FC<VentesTableProps> = ({
                     <input type="checkbox" checked={selected} onChange={e => onSelectOne?.(item.id, e.target.checked)} className="h-[15px] w-[15px] cursor-pointer accent-brand-500" aria-label={`Sélectionner ${item.reference || item.id}`} />
                   </td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorder}`}>
-                    <span className="inline-flex max-w-[110px] truncate rounded-md border border-brand-100 bg-brand-50 px-2 py-1 font-mono text-[12.5px] font-semibold leading-tight text-brand-600 dark:border-brand-500/15 dark:bg-brand-500/10 dark:text-brand-400">{item.reference || '—'}</span>
+                    <span className="inline-flex max-w-[110px] truncate rounded-md border border-brand-100 bg-brand-50 px-2 py-1 font-mono text-[14px] font-semibold leading-tight text-brand-600 dark:border-brand-500/15 dark:bg-brand-500/10 dark:text-brand-400">{item.reference || '—'}</span>
                   </td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorder}`}>
                     <div className="min-w-0 leading-tight">
                       <div className="max-w-[160px] truncate text-[14.5px] font-semibold text-slate-900 group-hover:text-brand-600 dark:text-slate-100 dark:group-hover:text-brand-400" title={item.client_nom || 'Client inconnu'}>{item.client_nom || 'Client inconnu'}</div>
-                      <div className="mt-0.5 text-[12.5px] font-medium text-slate-500 dark:text-slate-400">ID #{String(item.id).padStart(3, '0')}</div>
+                      <div className="mt-0.5 text-[13px] font-medium text-slate-500 dark:text-slate-400">ID #{String(item.id).padStart(3, '0')}</div>
                     </div>
                   </td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorder}`}>
@@ -243,7 +244,7 @@ const VentesTable: React.FC<VentesTableProps> = ({
                   <td className={`border-b px-2 py-2 align-middle ${cellBorder}`}><span className="whitespace-nowrap text-[14.5px] font-medium text-slate-700 dark:text-slate-300">{formatMoney(item.total_ht)}</span></td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorder}`}><span className="whitespace-nowrap text-[14.5px] font-bold text-slate-900 dark:text-slate-100">{formatMoney(item.total_ttc)}</span></td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorder}`}>
-                    <span className={`inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-[12.5px] font-semibold leading-tight ${badge.bg} ${badge.text} ${badge.border}`}>
+                    <span className={`inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-[13px] font-semibold leading-tight ${badge.bg} ${badge.text} ${badge.border}`}>
                       {badge.label}
                     </span>
                   </td>
@@ -305,12 +306,12 @@ const VentesTable: React.FC<VentesTableProps> = ({
           <span><span className="font-semibold text-slate-900 dark:text-slate-100">{formatMoney(statusStats.totalMontant)}</span> Total</span>
           <span className="hidden h-3.5 w-px bg-slate-300 sm:block dark:bg-white/[0.12]" />
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[12.5px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-success-500" /><span>Payé</span><span className="text-slate-400 dark:text-slate-500">{statusStats.payees}</span></span>
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[12.5px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-warning-500" /><span>Partiel</span><span className="text-slate-400 dark:text-slate-500">{statusStats.partiel}</span></span>
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[12.5px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-danger-500" /><span>Non payé</span><span className="text-slate-400 dark:text-slate-500">{statusStats.nonPayees}</span></span>
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[13px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-success-500" /><span>Payé</span><span className="text-slate-400 dark:text-slate-500">{statusStats.payees}</span></span>
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[13px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-warning-500" /><span>Partiel</span><span className="text-slate-400 dark:text-slate-500">{statusStats.partiel}</span></span>
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[13px] font-medium leading-tight text-slate-600 dark:border-white/[0.10] dark:bg-[#0F172A] dark:text-slate-300"><span className="h-1.5 w-1.5 rounded-full bg-danger-500" /><span>Non payé</span><span className="text-slate-400 dark:text-slate-500">{statusStats.nonPayees}</span></span>
           </div>
         </div>
-        <span className="text-[12.5px] font-medium text-slate-400 dark:text-slate-500">Gestion des {type === 'devis' ? 'devis' : 'factures'}</span>
+        <span className="text-[13px] font-medium text-slate-400 dark:text-slate-500">Gestion des {type === 'devis' ? 'devis' : 'factures'}</span>
       </div>
 
       <style>{`

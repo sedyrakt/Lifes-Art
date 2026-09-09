@@ -4,9 +4,6 @@ const DEBUG = false;
 function log(...args) { if (DEBUG) console.log('[📦 payments]', ...args); }
 function error(...args) { console.error('[❌ payments]', ...args); }
 
-// ============================================================
-// LIVE DATABASE
-// ============================================================
 function withLiveDb(fn) {
   return (event, ...args) => {
     try {
@@ -20,24 +17,15 @@ function withLiveDb(fn) {
   };
 }
 
-// ============================================================
-// HELPERS
-// ============================================================
 function toInt(value, fallback = 0) { const n = Number.parseInt(value, 10); return Number.isFinite(n) ? n : fallback; }
 function toNumber(value, fallback = 0) { const n = Number(value); return Number.isFinite(n) ? n : fallback; }
 function normalizeMoney(value) { return Math.round(toNumber(value, 0) * 100) / 100; }
 function normalizeMonth(value) { const month = toInt(value); return (month < 1 || month > 12) ? 0 : month; }
 function normalizeYear(value) { const year = toInt(value); return (year < 2000 || year > 2100) ? 0 : year; }
 
-// ============================================================
-// DATE HELPERS
-// ============================================================
 function getTodayISO() {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 function normalizeDate(value) {
   if (!value) return null;
@@ -58,19 +46,11 @@ function normalizeDate(value) {
 }
 function getDefaultPaymentDate() { return getTodayISO(); }
 
-// ============================================================
-// COLUMN EXISTS
-// ============================================================
 function columnExists(db, tableName, columnName) {
-  try {
-    const stmt = db.prepare(`PRAGMA table_info("${tableName}")`);
-    return stmt.all().some(column => column.name === columnName);
-  } catch (err) { error(`columnExists ${tableName}.${columnName}:`, err.message); return false; }
+  try { const stmt = db.prepare(`PRAGMA table_info("${tableName}")`); return stmt.all().some(column => column.name === columnName); }
+  catch (err) { return false; }
 }
 
-// ============================================================
-// AUDIT
-// ============================================================
 function logAudit(db, action, paymentId, employeName, userId, details = '') {
   try {
     const stmt = db.prepare(`INSERT INTO audit_logs (action, entity, entity_id, entity_name, user_id, details, created_at) VALUES (?, 'paiement', ?, ?, ?, ?, datetime('now'))`);
@@ -78,9 +58,6 @@ function logAudit(db, action, paymentId, employeName, userId, details = '') {
   } catch (err) { if (DEBUG) console.warn('[payments] Audit non enregistré:', err.message); }
 }
 
-// ============================================================
-// EMPLOYEE NAME
-// ============================================================
 function getEmployeeName(db, employeId) {
   try {
     const employee = db.prepare('SELECT id, prenom, nom FROM employes WHERE id = ? LIMIT 1').get(employeId);
@@ -89,9 +66,6 @@ function getEmployeeName(db, employeId) {
   } catch (_) { return `Employé #${employeId}`; }
 }
 
-// ============================================================
-// PAYROLL CALCULATION
-// ============================================================
 function calculatePayroll(brut) {
   const salaireBrut = Math.max(0, normalizeMoney(brut));
   const cnaps = Math.round(salaireBrut * 0.01);
@@ -106,41 +80,26 @@ function calculatePayroll(brut) {
   return { salaire_brut: salaireBrut, cnaps, ostie, irsa, montant: net };
 }
 
-// ============================================================
-// STATUS (FIX: NAMPIANA 'Brouillon' sy 'Validé')
-// ============================================================
 function normalizeStatus(value) {
   const allowed = ['Brouillon', 'Validé', 'Payé', 'Partiel', 'Non payé'];
   const status = String(value || '').trim();
   return allowed.includes(status) ? status : 'Payé';
 }
-
-// ============================================================
-// PAYMENT MODE
-// ============================================================
 function normalizeMode(value) {
   const allowed = ['Espèces', 'Virement', 'Chèque', 'Mobile Money'];
   const mode = String(value || '').trim();
   return allowed.includes(mode) ? mode : 'Espèces';
 }
 
-// ============================================================
-// FETCH FULL PAYMENT
-// ============================================================
 function getPaymentById(db, paymentId) {
   return db.prepare(`
-    SELECT
-      p.*, e.nom AS employe_nom, e.prenom AS employe_prenom, e.poste AS employe_poste,
-      e.departement AS employe_departement, e.salaire AS salaire_base, e.email AS employe_email, e.telephone AS employe_telephone
+    SELECT p.*, e.nom AS employe_nom, e.prenom AS employe_prenom, e.poste AS employe_poste, e.departement AS employe_departement, e.salaire AS salaire_base, e.email AS employe_email, e.telephone AS employe_telephone
     FROM paiements_employes p
     LEFT JOIN employes e ON p.employe_id = e.id
     WHERE p.id = ? LIMIT 1
   `).get(paymentId);
 }
 
-// ============================================================
-// REGISTER
-// ============================================================
 const registerPaymentsHandlers = (ipcMain) => {
   const channels = [
     'payments:get-all', 'payments:get-by-id', 'payments:create', 'payments:update', 'payments:delete',
@@ -150,9 +109,6 @@ const registerPaymentsHandlers = (ipcMain) => {
   ];
   for (const channel of channels) { try { ipcMain.removeHandler(channel); } catch (_) {} }
 
-  // ==========================================================
-  // GET ALL
-  // ==========================================================
   ipcMain.handle('payments:get-all', withLiveDb((db, options = {}) => {
     try {
       const search = String(options.search || '').trim();
@@ -178,28 +134,18 @@ const registerPaymentsHandlers = (ipcMain) => {
       const query = `SELECT p.*, e.nom AS employe_nom, e.prenom AS employe_prenom, e.poste AS employe_poste, e.departement AS employe_departement, e.salaire AS salaire_base, e.email AS employe_email, e.telephone AS employe_telephone ${where} ORDER BY CASE WHEN p.date_paiement IS NULL THEN 1 ELSE 0 END ASC, date(p.date_paiement) DESC, p.id DESC LIMIT ? OFFSET ?`;
       const data = db.prepare(query).all(...params, limit, offset);
       return { success: true, data, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
-    } catch (err) {
-      error('[payments:get-all]', err.message);
-      return { success: false, error: err.message, data: [], total: 0, page: 1, limit: 10, totalPages: 1 };
-    }
+    } catch (err) { return { success: false, error: err.message, data: [], total: 0 }; }
   }));
 
-  // ==========================================================
-  // GET BY ID
-  // ==========================================================
   ipcMain.handle('payments:get-by-id', withLiveDb((db, id) => {
     try {
       const paymentId = toInt(id);
-      if (!paymentId) return { success: false, error: 'ID de paiement invalide', data: null };
+      if (!paymentId) return { success: false, error: 'ID invalide', data: null };
       const data = getPaymentById(db, paymentId);
-      if (!data) return { success: false, error: 'Paiement non trouvé', data: null };
       return { success: true, data };
     } catch (err) { return { success: false, error: err.message, data: null }; }
   }));
 
-  // ==========================================================
-  // CREATE
-  // ==========================================================
   ipcMain.handle('payments:create', withLiveDb((db, data = {}) => {
     try {
       const employeId = toInt(data.employe_id);
@@ -207,9 +153,9 @@ const registerPaymentsHandlers = (ipcMain) => {
       const annee = normalizeYear(data.annee);
       const montant = normalizeMoney(data.montant);
       if (!employeId) return { success: false, error: 'Employé requis' };
-      if (!mois) return { success: false, error: 'Mois de paie invalide' };
-      if (!annee) return { success: false, error: 'Année de paie invalide' };
-      if (montant < 0) return { success: false, error: 'Le montant ne peut pas être négatif' };
+      if (!mois) return { success: false, error: 'Mois invalide' };
+      if (!annee) return { success: false, error: 'Année invalide' };
+      if (montant < 0) return { success: false, error: 'Montant négatif' };
       const employee = db.prepare('SELECT id, prenom, nom, salaire FROM employes WHERE id = ? LIMIT 1').get(employeId);
       if (!employee) return { success: false, error: 'Employé introuvable' };
       const paymentDate = normalizeDate(data.date_paiement) || getDefaultPaymentDate();
@@ -222,33 +168,28 @@ const registerPaymentsHandlers = (ipcMain) => {
       const ostie = normalizeMoney(data.ostie);
       const irsa = normalizeMoney(data.irsa);
       const avance = normalizeMoney(data.avance);
-      const stmt = db.prepare(`INSERT INTO paiements_employes (employe_id, mois, annee, montant, date_paiement, mode_paiement, statut, reference, observation, salaire_brut, cnaps, ostie, irsa, avance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-      const result = stmt.run(employeId, mois, annee, montant, paymentDate, modePaiement, statut, reference, observation, salaireBrut, cnaps, ostie, irsa, avance);
+      const absencesDeduction = normalizeMoney(data.absences_deduction); // ⭐ VAOVAO
+      const stmt = db.prepare(`INSERT INTO paiements_employes (employe_id, mois, annee, montant, date_paiement, mode_paiement, statut, reference, observation, salaire_brut, cnaps, ostie, irsa, avance, absences_deduction) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      const result = stmt.run(employeId, mois, annee, montant, paymentDate, modePaiement, statut, reference, observation, salaireBrut, cnaps, ostie, irsa, avance, absencesDeduction);
       const paymentId = Number(result.lastInsertRowid);
-      const employeeName = `${employee.prenom || ''} ${employee.nom || ''}`.trim() || `Employé #${employeId}`;
-      logAudit(db, 'create', paymentId, employeeName, null, [`Montant: ${montant}`, `Période: ${mois}/${annee}`, `Date paiement: ${paymentDate}`, `Statut: ${statut}`, `Mode: ${modePaiement}`].join(' - '));
-      const created = getPaymentById(db, paymentId);
-      return { success: true, data: created };
-    } catch (err) { error('[payments:create]', err.message); return { success: false, error: err.message }; }
+      const employeeName = `${employee.prenom || ''} ${employee.nom || ''}`.trim();
+      logAudit(db, 'create', paymentId, employeeName, null, `Montant: ${montant}, Absence: ${absencesDeduction}`);
+      return { success: true, data: getPaymentById(db, paymentId) };
+    } catch (err) { return { success: false, error: err.message }; }
   }));
 
-  // ==========================================================
-  // UPDATE
-  // ==========================================================
   ipcMain.handle('payments:update', withLiveDb((db, id, data = {}) => {
     try {
       const paymentId = toInt(id);
-      if (!paymentId) return { success: false, error: 'ID de paiement invalide' };
+      if (!paymentId) return { success: false, error: 'ID invalide' };
       const existing = getPaymentById(db, paymentId);
       if (!existing) return { success: false, error: 'Paiement non trouvé' };
       const employeId = toInt(data.employe_id, existing.employe_id);
       const mois = normalizeMonth(data.mois || existing.mois);
       const annee = normalizeYear(data.annee || existing.annee);
       const montant = normalizeMoney(data.montant);
-      if (!employeId) return { success: false, error: 'Employé requis' };
-      if (!mois) return { success: false, error: 'Mois invalide' };
-      if (!annee) return { success: false, error: 'Année invalide' };
-      if (montant < 0) return { success: false, error: 'Le montant ne peut pas être négatif' };
+      if (!employeId || !mois || !annee) return { success: false, error: 'Paramètres invalides' };
+      if (montant < 0) return { success: false, error: 'Montant négatif' };
       const paymentDate = normalizeDate(data.date_paiement) || normalizeDate(existing.date_paiement) || getDefaultPaymentDate();
       const modePaiement = normalizeMode(data.mode_paiement ?? existing.mode_paiement);
       const statut = normalizeStatus(data.statut ?? existing.statut);
@@ -259,182 +200,135 @@ const registerPaymentsHandlers = (ipcMain) => {
       const ostie = normalizeMoney(data.ostie ?? existing.ostie);
       const irsa = normalizeMoney(data.irsa ?? existing.irsa);
       const avance = normalizeMoney(data.avance ?? existing.avance);
-      const stmt = db.prepare(`UPDATE paiements_employes SET employe_id = ?, mois = ?, annee = ?, montant = ?, date_paiement = ?, mode_paiement = ?, statut = ?, reference = ?, observation = ?, salaire_brut = ?, cnaps = ?, ostie = ?, irsa = ?, avance = ? WHERE id = ?`);
-      stmt.run(employeId, mois, annee, montant, paymentDate, modePaiement, statut, reference, observation, salaireBrut, cnaps, ostie, irsa, avance, paymentId);
+      const absencesDeduction = normalizeMoney(data.absences_deduction ?? existing.absences_deduction); // ⭐ VAOVAO
+      const stmt = db.prepare(`UPDATE paiements_employes SET employe_id = ?, mois = ?, annee = ?, montant = ?, date_paiement = ?, mode_paiement = ?, statut = ?, reference = ?, observation = ?, salaire_brut = ?, cnaps = ?, ostie = ?, irsa = ?, avance = ?, absences_deduction = ? WHERE id = ?`);
+      stmt.run(employeId, mois, annee, montant, paymentDate, modePaiement, statut, reference, observation, salaireBrut, cnaps, ostie, irsa, avance, absencesDeduction, paymentId);
       const employeeName = getEmployeeName(db, employeId);
-      logAudit(db, 'update', paymentId, employeeName, null, [`Montant: ${montant}`, `Période: ${mois}/${annee}`, `Date paiement: ${paymentDate}`, `Statut: ${statut}`, `Mode: ${modePaiement}`].join(' - '));
-      const updated = getPaymentById(db, paymentId);
-      return { success: true, data: updated };
-    } catch (err) { error('[payments:update]', err.message); return { success: false, error: err.message }; }
+      logAudit(db, 'update', paymentId, employeeName, null, 'Mise à jour');
+      return { success: true, data: getPaymentById(db, paymentId) };
+    } catch (err) { return { success: false, error: err.message }; }
   }));
 
-  // ==========================================================
-  // DELETE
-  // ==========================================================
   ipcMain.handle('payments:delete', withLiveDb((db, id) => {
     try {
       const paymentId = toInt(id);
-      if (!paymentId) return { success: false, error: 'ID de paiement invalide' };
+      if (!paymentId) return { success: false, error: 'ID invalide' };
       const existing = getPaymentById(db, paymentId);
       if (!existing) return { success: false, error: 'Paiement non trouvé' };
-      const employeeName = getEmployeeName(db, existing.employe_id);
       db.prepare('DELETE FROM paiements_employes WHERE id = ?').run(paymentId);
-      logAudit(db, 'delete', paymentId, employeeName, null, [`Montant: ${existing.montant}`, `Période: ${existing.mois}/${existing.annee}`, `Date paiement: ${existing.date_paiement}`].join(' - '));
-      return { success: true, data: { id: paymentId } };
-    } catch (err) { error('[payments:delete]', err.message); return { success: false, error: err.message }; }
+      logAudit(db, 'delete', paymentId, getEmployeeName(db, existing.employe_id), null, 'Suppression');
+      return { success: true };
+    } catch (err) { return { success: false, error: err.message }; }
   }));
 
-  // ==========================================================
-  // GET BY EMPLOYEE
-  // ==========================================================
   ipcMain.handle('payments:get-by-employe', withLiveDb((db, employeId) => {
     try {
       const id = toInt(employeId);
-      if (!id) return { success: false, error: 'Employé invalide', data: [] };
-      const stmt = db.prepare(`SELECT p.*, e.nom AS employe_nom, e.prenom AS employe_prenom, e.poste AS employe_poste, e.departement AS employe_departement, e.salaire AS salaire_base, e.email AS employe_email, e.telephone AS employe_telephone FROM paiements_employes p LEFT JOIN employes e ON p.employe_id = e.id WHERE p.employe_id = ? ORDER BY CASE WHEN p.date_paiement IS NULL THEN 1 ELSE 0 END ASC, date(p.date_paiement) DESC, p.annee DESC, p.mois DESC, p.id DESC`);
+      if (!id) return { success: false, error: 'Employé invalide' };
+      const stmt = db.prepare(`SELECT p.*, e.nom AS employe_nom, e.prenom AS employe_prenom, e.poste AS employe_poste, e.salaire AS salaire_base FROM paiements_employes p LEFT JOIN employes e ON p.employe_id = e.id WHERE p.employe_id = ? ORDER BY date(p.date_paiement) DESC, p.id DESC`);
       return { success: true, data: stmt.all(id) };
-    } catch (err) { error('[payments:get-by-employe]', err.message); return { success: false, error: err.message, data: [] }; }
+    } catch (err) { return { success: false, error: err.message, data: [] }; }
   }));
 
-  // ==========================================================
-  // GET BY PERIOD
-  // ==========================================================
   ipcMain.handle('payments:get-by-period', withLiveDb((db, mois, annee) => {
     try {
       const month = normalizeMonth(mois), year = normalizeYear(annee);
-      if (!month || !year) return { success: false, error: 'Période invalide', data: [] };
-      const stmt = db.prepare(`SELECT p.*, e.nom AS employe_nom, e.prenom AS employe_prenom, e.poste AS employe_poste, e.departement AS employe_departement, e.salaire AS salaire_base FROM paiements_employes p LEFT JOIN employes e ON p.employe_id = e.id WHERE p.mois = ? AND p.annee = ? ORDER BY date(p.date_paiement) DESC, p.id DESC`);
+      if (!month || !year) return { success: false, error: 'Période invalide' };
+      const stmt = db.prepare(`SELECT p.*, e.nom AS employe_nom, e.prenom AS employe_prenom, e.poste AS employe_poste FROM paiements_employes p LEFT JOIN employes e ON p.employe_id = e.id WHERE p.mois = ? AND p.annee = ? ORDER BY date(p.date_paiement) DESC`);
       return { success: true, data: stmt.all(month, year) };
-    } catch (err) { return { success: false, error: err.message, data: [] }; }
+    } catch (err) { return { success: false, error: err.message }; }
   }));
 
-  // ==========================================================
-  // HISTORIQUE
-  // ==========================================================
   ipcMain.handle('payments:get-historique', withLiveDb((db, employeId) => {
     try {
       const id = toInt(employeId);
-      if (!id) return { success: false, error: 'Employé invalide', data: [] };
-      const stmt = db.prepare(`SELECT p.*, e.nom AS employe_nom, e.prenom AS employe_prenom, e.poste AS employe_poste, e.departement AS employe_departement, e.salaire AS salaire_base FROM paiements_employes p LEFT JOIN employes e ON p.employe_id = e.id WHERE p.employe_id = ? ORDER BY p.annee DESC, p.mois DESC, date(p.date_paiement) DESC, p.id DESC`);
+      if (!id) return { success: false, error: 'Employé invalide' };
+      const stmt = db.prepare(`SELECT p.*, e.nom AS employe_nom, e.prenom AS employe_prenom, e.poste AS employe_poste, e.salaire AS salaire_base FROM paiements_employes p LEFT JOIN employes e ON p.employe_id = e.id WHERE p.employe_id = ? ORDER BY p.annee DESC, p.mois DESC, date(p.date_paiement) DESC`);
       return { success: true, data: stmt.all(id) };
-    } catch (err) { return { success: false, error: err.message, data: [] }; }
+    } catch (err) { return { success: false, error: err.message }; }
   }));
 
-  // ==========================================================
-  // SALAIRE MENSUEL
-  // ==========================================================
   ipcMain.handle('payments:get-salaire-mensuel', withLiveDb((db, employeId, mois, annee) => {
     try {
       const id = toInt(employeId), month = normalizeMonth(mois), year = normalizeYear(annee);
-      if (!id || !month || !year) return { success: false, error: 'Paramètres invalides', data: null };
-      const data = db.prepare(`SELECT COALESCE(SUM(montant), 0) AS total_montant, COUNT(*) AS nombre_paiements, MAX(date_paiement) AS derniere_date, MAX(statut) AS dernier_statut FROM paiements_employes WHERE employe_id = ? AND mois = ? AND annee = ?`).get(id, month, year);
+      if (!id || !month || !year) return { success: false, error: 'Paramètres invalides' };
+      const data = db.prepare(`SELECT COUNT(*) AS nombre_paiements, COALESCE(SUM(montant), 0) AS total_montant FROM paiements_employes WHERE employe_id = ? AND mois = ? AND annee = ?`).get(id, month, year);
       return { success: true, data };
-    } catch (err) { return { success: false, error: err.message, data: null }; }
+    } catch (err) { return { success: false, error: err.message }; }
   }));
 
-  // ==========================================================
-  // GLOBAL STATS
-  // ==========================================================
   ipcMain.handle('payments:get-stats', withLiveDb((db) => {
     try {
-      const data = db.prepare(`SELECT COUNT(*) AS total_paiements, COALESCE(SUM(montant), 0) AS total_montant, COUNT(DISTINCT employe_id) AS employes, COALESCE(SUM(CASE WHEN statut = 'Payé' THEN montant ELSE 0 END), 0) AS total_paye, COALESCE(SUM(CASE WHEN statut = 'Partiel' THEN montant ELSE 0 END), 0) AS total_partiel, COALESCE(SUM(CASE WHEN statut = 'Non payé' THEN montant ELSE 0 END), 0) AS total_non_paye, COALESCE(SUM(CASE WHEN statut = 'Brouillon' THEN montant ELSE 0 END), 0) AS total_brouillon FROM paiements_employes`).get();
+      const data = db.prepare(`SELECT COUNT(*) AS total_paiements, COALESCE(SUM(montant), 0) AS total_montant, COUNT(DISTINCT employe_id) AS employes FROM paiements_employes`).get();
       return { success: true, data };
-    } catch (err) { return { success: false, error: err.message, data: null }; }
+    } catch (err) { return { success: false, error: err.message }; }
   }));
 
-  // ==========================================================
-  // COUNT BY EMPLOYEE
-  // ==========================================================
   ipcMain.handle('payments:count-by-employe', withLiveDb((db, employeId) => {
     try {
       const id = toInt(employeId);
-      if (!id) return { success: false, error: 'Employé invalide', data: { count: 0 } };
+      if (!id) return { success: false, error: 'Employé invalide' };
       const data = db.prepare('SELECT COUNT(*) AS count FROM paiements_employes WHERE employe_id = ?').get(id);
       return { success: true, data };
-    } catch (err) { return { success: false, error: err.message, data: { count: 0 } }; }
+    } catch (err) { return { success: false, error: err.message }; }
   }));
 
-  // ==========================================================
-  // EMPLOYEE STATS
-  // ==========================================================
   ipcMain.handle('payments:get-employe-stats', withLiveDb((db, employeId) => {
     try {
       const id = toInt(employeId);
-      if (!id) return { success: false, error: 'Employé invalide', data: null };
+      if (!id) return { success: false, error: 'Employé invalide' };
       const data = db.prepare(`SELECT COUNT(*) AS nombre_paiements, COALESCE(SUM(montant), 0) AS total, COALESCE(AVG(montant), 0) AS moyenne, MAX(date_paiement) AS dernier_paiement FROM paiements_employes WHERE employe_id = ?`).get(id);
       return { success: true, data };
-    } catch (err) { return { success: false, error: err.message, data: null }; }
+    } catch (err) { return { success: false, error: err.message }; }
   }));
 
-  // ==========================================================
-  // BULK CREATE (Idempotency Check)
-  // ==========================================================
   ipcMain.handle('payments:bulk-create', withLiveDb((db, data = {}) => {
     try {
       const ids = Array.isArray(data.ids) ? data.ids.map(id => toInt(id)).filter(Boolean) : [];
       const mois = normalizeMonth(data.mois), annee = normalizeYear(data.annee);
-      if (ids.length === 0) return { success: false, error: 'Aucun employé sélectionné' };
-      if (!mois) return { success: false, error: 'Mois requis' };
-      if (!annee) return { success: false, error: 'Année requise' };
+      if (!ids.length || !mois || !annee) return { success: false, error: 'Paramètres invalides' };
       const bulkDate = normalizeDate(data.date_paiement) || getDefaultPaymentDate();
       const mode = normalizeMode(data.mode_paiement);
       const statut = normalizeStatus(data.statut);
-      const insertStmt = db.prepare(`INSERT INTO paiements_employes (employe_id, mois, annee, montant, date_paiement, mode_paiement, statut, reference, observation, salaire_brut, cnaps, ostie, irsa, avance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-      const getEmployee = db.prepare('SELECT id, prenom, nom, salaire FROM employes WHERE id = ? LIMIT 1');
-      
-      // ⭐ FIX: CHECK Raha efa misy karama tamin'io volana io (Idempotency)
-      const checkExisting = db.prepare(`
-        SELECT id FROM paiements_employes
-        WHERE employe_id = ? AND mois = ? AND annee = ?
-        LIMIT 1
-      `);
-
+      const insertStmt = db.prepare(`INSERT INTO paiements_employes (employe_id, mois, annee, montant, date_paiement, mode_paiement, statut, reference, observation, salaire_brut, cnaps, ostie, irsa, avance, absences_deduction) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`);
+      const getEmployee = db.prepare('SELECT id, salaire FROM employes WHERE id = ? LIMIT 1');
+      const checkExisting = db.prepare(`SELECT id FROM paiements_employes WHERE employe_id = ? AND mois = ? AND annee = ? LIMIT 1`);
       let created = 0, skipped = 0;
-      const createdIds = [];
       const transaction = db.transaction(() => {
         for (const id of ids) {
           const employee = getEmployee.get(id);
           if (!employee) { skipped++; continue; }
-          
-          // ⭐ VAOVAO: Raha efa nandoa tamin'io volana io izy dia tsy averina
-          const existingPayment = checkExisting.get(employee.id, mois, annee);
-          if (existingPayment) {
-            skipped++;
-            continue;
-          }
-
+          if (checkExisting.get(id, mois, annee)) { skipped++; continue; }
           const calc = calculatePayroll(employee.salaire);
-          const result = insertStmt.run(employee.id, mois, annee, calc.montant, bulkDate, mode, statut, '', '', calc.salaire_brut, calc.cnaps, calc.ostie, calc.irsa, 0);
-          const paymentId = Number(result.lastInsertRowid);
-          createdIds.push(paymentId);
+          insertStmt.run(id, mois, annee, calc.montant, bulkDate, mode, statut, '', '', calc.salaire_brut, calc.cnaps, calc.ostie, calc.irsa, 0);
           created++;
-          logAudit(db, 'create', paymentId, `${employee.prenom || ''} ${employee.nom || ''}`.trim() || `Employé #${employee.id}`, null, ['Bulk paiement', `Montant: ${calc.montant}`, `Période: ${mois}/${annee}`, `Date paiement: ${bulkDate}`].join(' - '));
         }
       });
       transaction();
-      return { success: true, data: { created, skipped, ids: createdIds, date_paiement: bulkDate, mois, annee } };
-    } catch (err) { error('[payments:bulk-create]', err.message); return { success: false, error: err.message }; }
+      return { success: true, data: { created, skipped } };
+    } catch (err) { return { success: false, error: err.message }; }
   }));
 
-  // ==========================================================
-  // ⭐ VAOVAO: GET ABSENCES COUNT (INTÉGRATION PRÉSENCES → PAIE)
-  // ==========================================================
+  // ⭐ NOVAINA: Récupère les absences + retards + HS
   ipcMain.handle('payments:get-absences-count', withLiveDb((db, employeId, mois, annee) => {
     try {
       const id = toInt(employeId), month = normalizeMonth(mois), year = normalizeYear(annee);
-      if (!id || !month || !year) return { success: false, error: 'Paramètres invalides', data: { count: 0 } };
+      if (!id || !month || !year) return { success: false, error: 'Paramètres invalides' };
       const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
       const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
-      const stmt = db.prepare('SELECT COUNT(*) AS count FROM presence_journaliere WHERE employe_id = ? AND statut = \'absent\' AND date BETWEEN ? AND ?');
+      const stmt = db.prepare(`
+        SELECT 
+          SUM(CASE WHEN statut = 'absent' THEN 1 ELSE 0 END) AS count,
+          SUM(CASE WHEN statut = 'retard' THEN 1 ELSE 0 END) AS retards,
+          COALESCE(SUM(heures_sup), 0) AS heures_sup
+        FROM presence_journaliere 
+        WHERE employe_id = ? AND date BETWEEN ? AND ?
+      `);
       const result = stmt.get(id, startDate, endDate);
-      return { success: true, data: { count: Number(result?.count || 0) } };
-    } catch (err) { error('[payments:get-absences-count]', err.message); return { success: false, error: err.message, data: { count: 0 } }; }
+      return { success: true, data: { count: Number(result?.count || 0), retards: Number(result?.retards || 0), heures_sup: Number(result?.heures_sup || 0) } };
+    } catch (err) { return { success: false, error: err.message }; }
   }));
 
-  // ==========================================================
-  // FINAL LOG
-  // ==========================================================
-  log('✅ Payments handlers enregistrés');
   return true;
 };
 

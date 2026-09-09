@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, X, Plus } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useCategoriesData } from '../hooks/useCategoriesData';
+import { useCategoriesData, ExportPeriod } from '../hooks/useCategoriesData';
 import CategoriesHeader from '../components/categories/CategoriesHeader';
 import CategoriesStats from '../components/categories/CategoriesStats';
 import CategoriesTable from '../components/categories/CategoriesTable';
@@ -51,16 +51,31 @@ const Categories: React.FC = () => {
     categories, loading, refreshing, totalItems, totalPages, currentPage,
     setCurrentPage, searchTerm, setSearchTerm, sortOption, setSortOption,
     loadData, createCategorie, updateCategorie, deleteCategorie, bulkDelete,
-    getCategoryColor, ITEMS_PER_PAGE
+    getCategoryColor, ITEMS_PER_PAGE,
+    exportPeriod, setExportPeriod, exportCustomDate, setExportCustomDate,
+    exportToExcel, exportToPDF, exportToCSV,
   } = useCategoriesData();
 
+  // ===== HOOKS – rehetra ato ambony =====
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successTitle, setSuccessTitle] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorTitle, setErrorTitle] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [bulkDeleteTargetIds, setBulkDeleteTargetIds] = useState<number[]>([]);
+  const [reelStats, setReelStats] = useState({ total: 0, avecDescription: 0, totalProduits: 0 });
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedCategorie, setSelectedCategorie] = useState<any>(null);
+  const [editingCategorie, setEditingCategorie] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
+  // ===== CALLBACKS =====
   const showSuccess = useCallback((title: string, message: string) => {
     setSuccessTitle(title);
     setSuccessMessage(message);
@@ -72,7 +87,25 @@ const Categories: React.FC = () => {
     setShowErrorModal(true);
   }, []);
 
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  // ⭐ Handle Export
+  const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
+    try {
+      let result;
+      if (format === 'excel') result = await exportToExcel(period, customDate);
+      else if (format === 'pdf') result = await exportToPDF(period, customDate);
+      else result = await exportToCSV(period, customDate);
+
+      if (result?.canceled) return;
+      if (result?.success === false) {
+        showError('Erreur export', result.error || 'Impossible d\'exporter les données.');
+        return;
+      }
+
+      showSuccess('Export réussi', `Les catégories ont été exportées en ${format.toUpperCase()} (${period}${period === 'custom' ? ' - ' + customDate : ''}).`);
+    } catch (error: any) {
+      showError('Erreur export', error?.message || 'Impossible d\'exporter les données.');
+    }
+  }, [exportToExcel, exportToPDF, exportToCSV, showSuccess, showError]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (!checked) {
@@ -97,9 +130,6 @@ const Categories: React.FC = () => {
       return next;
     });
   }, []);
-
-  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
-  const [bulkDeleteTargetIds, setBulkDeleteTargetIds] = useState<number[]>([]);
 
   const handleBulkDelete = useCallback((ids: number[]) => {
     const validIds = ids.map(Number).filter(id => Number.isFinite(id) && id > 0);
@@ -136,9 +166,6 @@ const Categories: React.FC = () => {
     }
   }, [bulkDelete, bulkDeleteTargetIds, showError, showSuccess]);
 
-  const [reelStats, setReelStats] = useState({ total: 0, avecDescription: 0, totalProduits: 0 });
-  const [statsLoading, setStatsLoading] = useState(false);
-
   const fetchStats = useCallback(async () => {
     if (!window.api?.categories?.getStats) return;
     setStatsLoading(true);
@@ -172,16 +199,10 @@ const Categories: React.FC = () => {
     await Promise.allSettled([loadData(), fetchStats()]);
   }, [loadData, fetchStats]);
 
+  // ===== EFFECTS =====
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
-
-  const [showModal, setShowModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedCategorie, setSelectedCategorie] = useState<any>(null);
-  const [editingCategorie, setEditingCategorie] = useState<any>(null);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
   const handleOpenAddModal = useCallback(() => {
     setEditingCategorie(null);
@@ -267,6 +288,7 @@ const Categories: React.FC = () => {
         <CategoriesHeader
           onAddCategorie={handleOpenAddModal}
           onOpenStats={() => {}}
+          onExport={handleExport}
           refreshing={refreshing}
           onRefresh={refreshAll}
           totalItems={totalItems}
@@ -283,7 +305,6 @@ const Categories: React.FC = () => {
           evolutionTauxCompletion={0}
         />
 
-        {/* ✅ CategoriesSearchBar (search + sort + view mode) */}
         <CategoriesSearchBar
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}

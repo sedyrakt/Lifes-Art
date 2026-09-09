@@ -23,8 +23,10 @@ const PaiementsSearchbar: React.FC<PaiementsSearchbarProps> = ({
 }) => {
   const { isDark } = useTheme();
   
-  const borderColor = isDark ? 'border-white/[0.12]' : 'border-gray-200';
-  const bgColor = isDark ? 'bg-[#2A2A2A]' : 'bg-white';
+  const borderColor = isDark ? 'border-white/[0.12]' : 'border-slate-200';
+  const bgColor = isDark ? 'bg-[#0F172A]' : 'bg-white';
+  const textColor = isDark ? 'text-slate-100' : 'text-slate-900';
+  const placeholderColor = isDark ? 'dark:placeholder:text-slate-500' : 'placeholder:text-slate-400';
 
   return (
     <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -35,13 +37,13 @@ const PaiementsSearchbar: React.FC<PaiementsSearchbarProps> = ({
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Rechercher un paiement ou un employé..."
-          className={`w-full h-10 pl-10 pr-10 rounded-lg text-[14px] outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${bgColor} ${borderColor} text-slate-900 dark:text-[#FDE2E4]`}
+          className={`w-full h-10 pl-10 pr-10 rounded-lg text-[14px] outline-none transition-all focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${bgColor} ${borderColor} ${textColor} ${placeholderColor}`}
         />
         {searchTerm && (
           <button
             type="button"
             onClick={() => onSearchChange('')}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-brand-600 hover:bg-gray-100 dark:hover:bg-white/[0.06] dark:hover:text-slate-200 transition-colors"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-md text-slate-400 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-white/[0.06] dark:hover:text-slate-200 transition-colors"
             aria-label="Effacer la recherche"
           >
             <X size={15} />
@@ -53,7 +55,7 @@ const PaiementsSearchbar: React.FC<PaiementsSearchbarProps> = ({
         <select
           value={filterMois}
           onChange={(e) => onFilterMoisChange(Number(e.target.value))}
-          className={`h-10 min-w-[110px] px-3 rounded-lg text-[14px] outline-none cursor-pointer transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${bgColor} ${borderColor} text-slate-700 dark:text-slate-200`}
+          className={`h-10 min-w-[110px] px-3 rounded-lg text-[14px] outline-none cursor-pointer transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${bgColor} ${borderColor} ${textColor}`}
         >
           <option value={0}>Tous les mois</option>
           {moisLabels.map((mois, index) => (
@@ -64,7 +66,7 @@ const PaiementsSearchbar: React.FC<PaiementsSearchbarProps> = ({
         <select
           value={filterAnnee}
           onChange={(e) => onFilterAnneeChange(Number(e.target.value))}
-          className={`h-10 min-w-[100px] px-3 rounded-lg text-[14px] outline-none cursor-pointer transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${bgColor} ${borderColor} text-slate-700 dark:text-slate-200`}
+          className={`h-10 min-w-[100px] px-3 rounded-lg text-[14px] outline-none cursor-pointer transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${bgColor} ${borderColor} ${textColor}`}
         >
           <option value={0}>Toutes les années</option>
           {annees.map((annee) => (
@@ -77,7 +79,7 @@ const PaiementsSearchbar: React.FC<PaiementsSearchbarProps> = ({
           <select
             value={sortOption}
             onChange={(e) => onSortChange(e.target.value)}
-            className={`h-10 min-w-[140px] pl-9 pr-3 rounded-lg text-[14px] outline-none cursor-pointer transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${bgColor} ${borderColor} text-slate-700 dark:text-slate-200`}
+            className={`h-10 min-w-[140px] pl-9 pr-3 rounded-lg text-[14px] outline-none cursor-pointer transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 ${bgColor} ${borderColor} ${textColor}`}
           >
             <option value="date-desc">Date (Récent)</option>
             <option value="date-asc">Date (Ancien)</option>
@@ -93,7 +95,7 @@ const PaiementsSearchbar: React.FC<PaiementsSearchbarProps> = ({
             className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${
               viewMode === 'table'
                 ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400'
-                : 'text-slate-400 hover:text-brand-600 hover:bg-gray-100 dark:hover:bg-white/[0.06]'
+                : 'text-slate-400 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
             }`}
             title="Vue tableau"
           >
@@ -105,7 +107,7 @@ const PaiementsSearchbar: React.FC<PaiementsSearchbarProps> = ({
             className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors ${
               viewMode === 'grid'
                 ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400'
-                : 'text-slate-400 hover:text-brand-600 hover:bg-gray-100 dark:hover:bg-white/[0.06]'
+                : 'text-slate-400 hover:text-brand-600 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
             }`}
             title="Vue grille"
           >

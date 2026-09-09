@@ -2,6 +2,7 @@
 // ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
 // ⭐ DESIGN MITOVY TANTERAKA AMIN'NY VENTES VIEW MODAL
 // ⭐ FIX: NAMPIANA DIVIDERS (border-t) HO AN'NY ANDALANA REHETRA
+// ⭐ NEW: NAMPIANA NY "Créé le" (Date de création) - Format DD/MM/YYYY
 
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -34,6 +35,8 @@ interface Produit {
   status: string;
   nb_commandes?: number;
   tva_rate?: number | null;
+  // ⭐ NEW: Date de création
+  created_at?: string;
 }
 
 interface ProduitsViewModalProps {
@@ -49,6 +52,17 @@ const formatTva = (rate?: number | null) => {
   const val = Number(rate);
   if (!Number.isFinite(val)) return '0%';
   return `${(val * 100).toFixed(0)}%`;
+};
+
+// ⭐ Helper: formatage date DD/MM/YYYY
+const formatDateFr = (dateStr?: string) => {
+  if (!dateStr) return '—';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '—';
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
 };
 
 const ProduitsViewModal: React.FC<ProduitsViewModalProps> = ({ produit, onClose, onEdit, onNewCommande, isDark: propIsDark }) => {
@@ -98,7 +112,7 @@ const ProduitsViewModal: React.FC<ProduitsViewModalProps> = ({ produit, onClose,
         style={{ background: theme.card, borderColor: theme.border }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* HEADER (MITOVY AMIN'NY VENTES) */}
+        {/* HEADER */}
         <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: theme.border, background: theme.card }}>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg" style={{ background: 'rgba(79,70,229,0.06)' }}>
@@ -121,7 +135,7 @@ const ProduitsViewModal: React.FC<ProduitsViewModalProps> = ({ produit, onClose,
         {/* BODY */}
         <div className="flex-1 overflow-y-auto p-6">
           
-          {/* PRODUIT INFO (MITOVY AMIN'NY CLIENT INFO) */}
+          {/* PRODUIT INFO */}
           <div className="mb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -137,12 +151,18 @@ const ProduitsViewModal: React.FC<ProduitsViewModalProps> = ({ produit, onClose,
             </div>
           </div>
 
-          {/* DETAILS (MITOVY AMIN'NY TOTALS SECTION - MISY DIVIDERS) */}
+          {/* DETAILS */}
           <div className="mt-6 flex flex-col">
             {/* Code */}
             <div className="flex justify-between text-[14px] py-2 border-b" style={{ borderColor: theme.border }}>
               <span style={{ color: theme.muted }}>Code</span>
               <span className="font-semibold" style={{ color: theme.text }}>{produit.code || '—'}</span>
+            </div>
+
+            {/* ⭐ Créé le */}
+            <div className="flex justify-between text-[14px] py-2 border-b" style={{ borderColor: theme.border }}>
+              <span style={{ color: theme.muted }}>Créé le</span>
+              <span className="font-semibold" style={{ color: theme.text }}>{formatDateFr(produit.created_at)}</span>
             </div>
 
             {/* Catégorie */}
@@ -163,7 +183,7 @@ const ProduitsViewModal: React.FC<ProduitsViewModalProps> = ({ produit, onClose,
               <span className="font-semibold" style={{ color: theme.text }}>{Number(produit.prix_achat || 0).toLocaleString('fr-FR')} Ar</span>
             </div>
 
-            {/* Prix de vente (GROS & INDIGO) */}
+            {/* Prix de vente */}
             <div className="flex justify-between text-[16px] font-bold py-3 border-b" style={{ borderColor: theme.border }}>
               <span style={{ color: theme.text }}>Prix de vente</span>
               <span style={{ color: theme.primary }}>{Number(produit.prix_vente || 0).toLocaleString('fr-FR')} Ar</span>
@@ -188,7 +208,7 @@ const ProduitsViewModal: React.FC<ProduitsViewModalProps> = ({ produit, onClose,
             </div>
           </div>
 
-          {/* DESCRIPTION (Misy divider eo ambony) */}
+          {/* DESCRIPTION */}
           {produit.description && (
             <div className="mt-4 border-t pt-3" style={{ borderColor: theme.border }}>
               <p className="text-[12px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-2">Description</p>
@@ -197,7 +217,7 @@ const ProduitsViewModal: React.FC<ProduitsViewModalProps> = ({ produit, onClose,
           )}
         </div>
 
-        {/* FOOTER (MITOVY AMIN'NY VENTES) */}
+        {/* FOOTER */}
         <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: theme.border, background: theme.softBg }}>
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-[14px] font-medium hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>Fermer</button>
           <button onClick={onNewCommande} className="px-4 py-2 rounded-lg text-[14px] font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/[0.12] hover:bg-slate-100 dark:hover:bg-white/5">

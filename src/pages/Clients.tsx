@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useClientsData } from '../hooks/useClientsData';
+import { useClientsData, ExportPeriod } from '../hooks/useClientsData';
 import ClientsHeader from '../components/clients/ClientsHeader';
 import ClientsStats from '../components/clients/ClientsStats';
 import ClientsTable from '../components/clients/ClientsTable';
@@ -19,7 +19,9 @@ const ClientsSkeleton = ({ isDark }: { isDark: boolean }) => {
     <div className="min-h-[500px] w-full p-5">
       <div className="space-y-4">
         <div className={`flex items-center gap-4 border-b pb-4 ${border}`}>
-          {[...Array(7)].map((_, i) => <div key={i} className={`h-4 w-${i === 0 ? 8 : i === 1 ? 10 : i === 2 ? 24 : i === 3 ? 32 : i === 4 ? 20 : i === 5 ? 28 : 20} rounded ${base} animate-pulse`} />)}
+          {[...Array(7)].map((_, i) => (
+            <div key={i} className={`h-4 w-${i === 0 ? 8 : i === 1 ? 10 : i === 2 ? 24 : i === 3 ? 32 : i === 4 ? 20 : i === 5 ? 28 : 20} rounded ${base} animate-pulse`} />
+          ))}
         </div>
         {[...Array(6)].map((_, i) => (
           <div key={i} className={`flex items-center gap-4 py-3 ${border}`}>
@@ -44,50 +46,12 @@ const Clients: React.FC = () => {
     filters, setFilters, sortOption, setSortOption, refresh, loadData, getStats,
     getTypeColor, getTypeIcon, ITEMS_PER_PAGE,
     createClient, updateClient, deleteClient, bulkDelete, bulkUpdateType,
+    getClientById, // ⭐ NOVAINA: Ampiasaina amin'ny View
+    exportPeriod, setExportPeriod, exportCustomDate, setExportCustomDate,
+    exportToExcel, exportToPDF, exportToCSV,
   } = useClientsData();
 
   const [reelStats, setReelStats] = useState({ total: 0, particuliers: 0, entreprises: 0, avec_telephone: 0, total_achats: 0 });
-  
-  const fetchReelStats = useCallback(async () => {
-    try {
-      const data = await getStats();
-      if (data) {
-        setReelStats({
-          total: Number(data.total) || 0,
-          particuliers: Number(data.particuliers) || 0,
-          entreprises: Number(data.entreprises) || 0,
-          avec_telephone: Number(data.avec_telephone) || 0,
-          total_achats: Number(data.total_achats) || 0
-        });
-      } else {
-        setReelStats({
-          total: clients.length,
-          particuliers: clients.filter(c => c.type === 'Particulier').length,
-          entreprises: clients.filter(c => c.type === 'Entreprise').length,
-          avec_telephone: clients.filter(c => c.email || c.telephone).length,
-          total_achats: clients.reduce((sum, c) => sum + Number(c.total_achats || 0), 0)
-        });
-      }
-    } catch (err) {
-      console.error('❌ Stats:', err);
-      setReelStats({
-        total: clients.length,
-        particuliers: clients.filter(c => c.type === 'Particulier').length,
-        entreprises: clients.filter(c => c.type === 'Entreprise').length,
-        avec_telephone: clients.filter(c => c.email || c.telephone).length,
-        total_achats: clients.reduce((sum, c) => sum + Number(c.total_achats || 0), 0)
-      });
-    }
-  }, [getStats, clients]);
-
-  useEffect(() => { if (!loading) fetchReelStats(); }, [loading, clients, fetchReelStats]);
-
-  const totalAchats = reelStats.total_achats > 0 
-    ? reelStats.total_achats 
-    : clients.reduce((sum: number, c: any) => sum + Number(c.total_achats || 0), 0);
-
-  const tauxContact = reelStats.total > 0 ? Math.round((reelStats.avec_telephone / reelStats.total) * 100) : 0;
-
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -113,6 +77,58 @@ const Clients: React.FC = () => {
     setErrorTitle(t); setErrorMessage(m); setShowErrorModal(true);
   }, []);
 
+  // ⭐ FIX: Ny Stats dia ny clients efa enrichit (izy no manana total_achats)
+  const fetchReelStats = useCallback(async () => {
+    try {
+      const data = await getStats();
+      if (data) {
+        setReelStats({
+          total: Number(data.total) || 0,
+          particuliers: Number(data.particuliers) || 0,
+          entreprises: Number(data.entreprises) || 0,
+          avec_telephone: Number(data.avec_telephone) || 0,
+          total_achats: Number(data.total_achats) || clients.reduce((sum, c) => sum + (Number(c.total_achats) || 0), 0)
+        });
+      } else {
+        setReelStats({
+          total: clients.length,
+          particuliers: clients.filter(c => c.type === 'Particulier').length,
+          entreprises: clients.filter(c => c.type === 'Entreprise').length,
+          avec_telephone: clients.filter(c => c.email || c.telephone).length,
+          total_achats: clients.reduce((sum, c) => sum + (Number(c.total_achats) || 0), 0)
+        });
+      }
+    } catch (err) {
+      console.error('❌ Stats:', err);
+      setReelStats({
+        total: clients.length,
+        particuliers: clients.filter(c => c.type === 'Particulier').length,
+        entreprises: clients.filter(c => c.type === 'Entreprise').length,
+        avec_telephone: clients.filter(c => c.email || c.telephone).length,
+        total_achats: clients.reduce((sum, c) => sum + (Number(c.total_achats) || 0), 0)
+      });
+    }
+  }, [getStats, clients]);
+
+  useEffect(() => { if (!loading) fetchReelStats(); }, [loading, clients, fetchReelStats]);
+
+  const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
+    try {
+      let result;
+      if (format === 'excel') result = await exportToExcel(period, customDate);
+      else if (format === 'pdf') result = await exportToPDF(period, customDate);
+      else result = await exportToCSV(period, customDate);
+      if (result?.canceled) return;
+      if (result?.success === false) {
+        showError('Erreur export', result.error || 'Impossible d\'exporter les données.');
+        return;
+      }
+      showSuccess('Export réussi', `Les clients ont été exportés en ${format.toUpperCase()} (${period}${period === 'custom' ? ' - ' + customDate : ''}).`);
+    } catch (error: any) {
+      showError('Erreur export', error?.message || 'Impossible d\'exporter les données.');
+    }
+  }, [exportToExcel, exportToPDF, exportToCSV, showSuccess, showError]);
+
   const handleSelectAll = useCallback((checked: boolean) => {
     setSelectedIds(checked ? new Set(clients.map((c: any) => c.id)) : new Set());
   }, [clients]);
@@ -121,9 +137,17 @@ const Clients: React.FC = () => {
     setSelectedIds(prev => { const n = new Set(prev); if (checked) n.add(id); else n.delete(id); return n; });
   }, []);
 
-  const handleViewClient = useCallback((client: any) => {
-    setSelectedClient(client); setShowViewModal(true);
-  }, []);
+  // ⭐ FIX: Raha tsy misy stats ny client (avy amin'ny table), dia miantso ny getClientById mba hahazoana azy
+  const handleViewClient = useCallback(async (client: any) => {
+    if (client.nb_commandes !== undefined) {
+      setSelectedClient(client); setShowViewModal(true);
+    } else {
+      const enriched = await getClientById(client.id);
+      if (enriched) setSelectedClient(enriched);
+      else setSelectedClient(client);
+      setShowViewModal(true);
+    }
+  }, [getClientById]);
 
   const handleEditClient = useCallback((client: any) => {
     setEditingClient(client); setShowModal(true);
@@ -205,7 +229,6 @@ const Clients: React.FC = () => {
     try { await refresh(); await fetchReelStats(); } catch (err) { console.error('❌ Refresh:', err); }
   }, [refresh, fetchReelStats]);
 
-  // ⭐ FIX: Ampiasao ny functional update rehefa setFilters
   const handleSearchChange = useCallback((v: string) => {
     setFilters(prev => ({ ...prev, searchTerm: v }));
   }, [setFilters]);
@@ -227,10 +250,20 @@ const Clients: React.FC = () => {
     setCurrentPage(1);
   }, [setFilters, setCurrentPage]);
 
+  const totalAchats = reelStats.total_achats > 0 ? reelStats.total_achats : clients.reduce((sum: number, c: any) => sum + Number(c.total_achats || 0), 0);
+  const tauxContact = reelStats.total > 0 ? Math.round((reelStats.avec_telephone / reelStats.total) * 100) : 0;
+
   return (
     <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
-        <ClientsHeader onAddClient={handleOpenAddModal} refreshing={refreshing} onRefresh={handleRefresh} isLoading={loading} totalItems={reelStats.total || totalItems} />
+        <ClientsHeader 
+          onAddClient={handleOpenAddModal} 
+          onExport={handleExport}
+          refreshing={refreshing} 
+          onRefresh={handleRefresh} 
+          isLoading={loading} 
+          totalItems={reelStats.total || totalItems} 
+        />
         <ClientsStats totalClients={reelStats.total} particuliers={reelStats.particuliers} entreprises={reelStats.entreprises} totalAchats={totalAchats} refreshing={refreshing} />
         
         <ClientsSearchBar

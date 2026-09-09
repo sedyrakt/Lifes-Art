@@ -14,7 +14,8 @@ export function KpiCard({ label, value, icon, colorClass }: {
         </div>
       )}
       <div className="min-w-0">
-        <p className="text-[14px] text-slate-500 dark:text-slate-400">{label}</p>
+ 
+        <p className="text-[15px] font-medium text-slate-500 dark:text-slate-400">{label}</p>
         <p className="mt-1 truncate text-[18px] font-bold text-slate-900 dark:text-slate-100">{value}</p>
       </div>
     </div>

@@ -1,46 +1,26 @@
+// AchatsTable.tsx
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckSquare, Eye, Edit, MoreVertical, Plus, TextSelection, Trash2 } from 'lucide-react';
+import { CheckSquare, Eye, Edit, Plus, TextSelection, Trash2, Download } from 'lucide-react'; // ⭐ NESORINA ny ArrowRightLeft
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface Achat {
-  id: number;
-  reference: string | null;
-  fournisseur_id: number;
-  fournisseur_nom?: string;
-  date_achat: string;
-  total_ht: number;
-  total_ttc: number;
-  statut_paiement?: string;
-  montant_paye?: number;
-  montant_restant?: number;
-  designation?: string;
-  nombre_produits?: number;
-  observation?: string;
-  created_at: string;
-  updated_at?: string;
+  id: number; reference: string | null; fournisseur_id: number; fournisseur_nom?: string; date_achat: string;
+  total_ht: number; total_ttc: number; statut_paiement?: string; montant_paye?: number; montant_restant?: number;
+  designation?: string; nombre_produits?: number; observation?: string; created_at: string; updated_at?: string;
 }
 
 interface AchatsTableProps {
-  achats: Achat[];
-  loading?: boolean;
-  totalItems?: number;
-  onView: (achat: Achat) => void;
-  onEdit: (achat: Achat) => void;
-  onDelete: (achat: Achat) => void;
-  onAdd: () => void;
-  selectedIds?: Set<number>;
-  onSelectAll?: (checked: boolean) => void;
-  onSelectOne?: (id: number, checked: boolean) => void;
-  onBulkDelete?: (ids: number[]) => void;
-  onUpdatePaiement?: (id: number, data: { statut_paiement: string; montant_paye: number; montant_restant: number }) => void;
+  achats: Achat[]; loading?: boolean; totalItems?: number;
+  onView: (achat: Achat) => void; onEdit: (achat: Achat) => void; onDelete: (achat: Achat) => void; onAdd: () => void;
+  selectedIds?: Set<number>; onSelectAll?: (checked: boolean) => void; onSelectOne?: (id: number, checked: boolean) => void;
+  onBulkDelete?: (ids: number[]) => void; onUpdatePaiement?: (id: number, data: { statut_paiement: string; montant_paye: number; montant_restant: number }) => void;
+  // ⭐ PROPS VAOVAO (Télécharger PDF ihany no tavela)
+  onDownloadPDF?: (achat: Achat) => void;
 }
 
 interface MenuPosition { top?: number; bottom?: number; left?: number; right?: number; }
-
-const MENU_WIDTH = 195;
-const MENU_HEIGHT = 180;
-const MENU_PADDING = 10;
+const MENU_WIDTH = 195; const MENU_HEIGHT = 180; const MENU_PADDING = 10;
 
 const SkeletonRow = memo(({ isDark }: { isDark: boolean }) => {
   const skeletonColor = isDark ? 'animate-pulse rounded-md bg-white/[0.07]' : 'animate-pulse rounded-md bg-slate-200';
@@ -65,6 +45,7 @@ SkeletonRow.displayName = 'SkeletonRow';
 const AchatsTable: React.FC<AchatsTableProps> = ({
   achats, loading = false, totalItems, onView, onEdit, onDelete, onAdd,
   selectedIds = new Set<number>(), onSelectAll, onSelectOne, onBulkDelete, onUpdatePaiement,
+  onDownloadPDF, // ⭐ NESORINA ny onConvertToInvoice
 }) => {
   const { isDark } = useTheme();
   const tableBackground = isDark ? 'bg-[#0F172A]' : 'bg-white';
@@ -82,9 +63,7 @@ const AchatsTable: React.FC<AchatsTableProps> = ({
       const totalTTC = Number(achat.total_ttc) || 0;
       const paye = Number(achat.montant_paye) || 0;
       const statut = paye <= 0 ? 'Non payé' : paye >= totalTTC ? 'Payé' : 'Partiel';
-      if (statut === 'Payé') payees++;
-      else if (statut === 'Partiel') partiel++;
-      else nonPayees++;
+      if (statut === 'Payé') payees++; else if (statut === 'Partiel') partiel++; else nonPayees++;
     }
     const totalMontant = achats.reduce((sum, achat) => sum + Number(achat.total_ttc || 0), 0);
     const totalReste = achats.reduce((sum, achat) => sum + Math.max(0, Number(achat.total_ttc || 0) - Number(achat.montant_paye || 0)), 0);
@@ -103,39 +82,23 @@ const AchatsTable: React.FC<AchatsTableProps> = ({
     document.addEventListener('keydown', handleEscape);
     document.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('resize', handleResize);
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('resize', handleResize);
-    };
+    return () => { document.removeEventListener('keydown', handleEscape); document.removeEventListener('mousedown', handleMouseDown); window.removeEventListener('resize', handleResize); };
   }, [openMenuId]);
 
   const toggleMenu = useCallback((id: number, event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     if (openMenuId === id) { setOpenMenuId(null); return; }
     const rect = event.currentTarget.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth; const viewportHeight = window.innerHeight;
     const position: MenuPosition = {};
-    const spaceBelow = viewportHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    if (spaceBelow < MENU_HEIGHT + MENU_PADDING && spaceAbove > MENU_HEIGHT + MENU_PADDING) {
-      position.bottom = viewportHeight - rect.top + 4;
-    } else { position.top = rect.bottom + 4; }
+    const spaceBelow = viewportHeight - rect.bottom; const spaceAbove = rect.top;
+    if (spaceBelow < MENU_HEIGHT + MENU_PADDING && spaceAbove > MENU_HEIGHT + MENU_PADDING) { position.bottom = viewportHeight - rect.top + 4; } else { position.top = rect.bottom + 4; }
     const spaceRight = viewportWidth - rect.right;
-    if (spaceRight < MENU_WIDTH + MENU_PADDING && rect.left > MENU_WIDTH + MENU_PADDING) {
-      position.right = viewportWidth - rect.right + 4;
-    } else { position.left = Math.max(MENU_PADDING, rect.right - MENU_WIDTH); }
-    setMenuPosition(position);
-    setOpenMenuId(id);
+    if (spaceRight < MENU_WIDTH + MENU_PADDING && rect.left > MENU_WIDTH + MENU_PADDING) { position.right = viewportWidth - rect.right + 4; } else { position.left = Math.max(MENU_PADDING, rect.right - MENU_WIDTH); }
+    setMenuPosition(position); setOpenMenuId(id);
   }, [openMenuId]);
 
-  const handleMenuAction = useCallback((callback: () => void, event: React.MouseEvent) => {
-    event.stopPropagation();
-    setOpenMenuId(null);
-    callback();
-  }, []);
-
+  const handleMenuAction = useCallback((callback: () => void, event: React.MouseEvent) => { event.stopPropagation(); setOpenMenuId(null); callback(); }, []);
   const currentAchat = useMemo(() => (openMenuId === null ? null : achats.find(achat => achat.id === openMenuId) ?? null), [achats, openMenuId]);
 
   if (!loading && achats.length === 0) {
@@ -161,8 +124,8 @@ const AchatsTable: React.FC<AchatsTableProps> = ({
         </div>
       )}
 
-      {/* ⭐ FIX: ESORINA NY HEIGHT RAIKITRA, AMPIASANA MAX-HEIGHT + OVERFLOW-X-HIDDEN */}
-      <div className="custom-scrollbar scrollbar-gutter-stable overflow-x-hidden overflow-y-auto" style={{ maxHeight: '600px' }}>
+      {/* ⭐ FIX LEHIBE: Novaina ho overflow-x-auto mba tsy hanafenana ny colonne Actions! */}
+      <div className="custom-scrollbar scrollbar-gutter-stable overflow-x-auto overflow-y-auto" style={{ maxHeight: '600px' }}>
         <table className={`w-full min-w-full table-fixed border-collapse text-left ${borderColor}`}>
           <thead className={`sticky top-0 z-20 backdrop-blur-xl ${isDark ? 'bg-[#0F172A]/97' : 'bg-slate-50/97'}`}>
             <tr className="text-[12.5px] font-semibold uppercase tracking-[0.055em] text-slate-500 dark:text-slate-400">
@@ -175,6 +138,7 @@ const AchatsTable: React.FC<AchatsTableProps> = ({
               <th scope="col" className={`w-[130px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>Total TTC</th>
               <th scope="col" className={`w-[110px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>Statut</th>
               <th scope="col" className={`w-[130px] border-b px-2 py-2.5 align-middle ${headerBorderColor}`}>Reste</th>
+              {/* ⭐ ILAY ACTIONS IZY ITO */}
               <th scope="col" className={`w-[60px] border-b px-2 py-2.5 text-right align-middle ${headerBorderColor}`}>Actions</th>
             </tr>
           </thead>
@@ -191,7 +155,7 @@ const AchatsTable: React.FC<AchatsTableProps> = ({
               return (
                 <tr key={achat.id} onClick={() => { setOpenMenuId(null); onView(achat); }} className={`group h-[60px] cursor-pointer transition-colors duration-150 ${isSelected ? (isDark ? 'bg-brand-500/[0.08]' : 'bg-brand-50') : isDark ? 'hover:bg-white/[0.025]' : 'hover:bg-slate-50'} ${firstRowShadow}`}>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`} onClick={event => event.stopPropagation()}><input type="checkbox" checked={isSelected} onChange={event => onSelectOne?.(achat.id, event.target.checked)} className="h-[15px] w-[15px] cursor-pointer accent-brand-500" aria-label={`Sélectionner ${achat.reference || achat.id}`} /></td>
-                  <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}><span title={achat.reference || '—'} className="inline-flex max-w-[120px] truncate rounded-md border border-brand-100 bg-brand-50 px-2 py-1 font-mono text-[12.5px] font-semibold leading-tight text-brand-600 dark:border-brand-500/15 dark:bg-brand-500/10 dark:text-brand-400">{achat.reference || '—'}</span></td>
+                  <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}><span title={achat.reference || '—'} className="inline-flex max-w-[120px] truncate rounded-md border border-brand-100 bg-brand-50 px-2 py-1 font-mono text-[14px] font-semibold leading-tight text-brand-600 dark:border-brand-500/15 dark:bg-brand-500/10 dark:text-brand-400">{achat.reference || '—'}</span></td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}><div className="min-w-0 leading-tight"><div title={achat.fournisseur_nom || 'Fournisseur inconnu'} className="max-w-[150px] truncate text-[14.5px] font-semibold text-slate-900 transition-colors group-hover:text-brand-600 dark:text-slate-100 dark:group-hover:text-brand-400">{achat.fournisseur_nom || 'Fournisseur inconnu'}</div><div className="mt-0.5 text-[12.5px] text-slate-500 dark:text-slate-400">ID #{String(achat.id).padStart(3, '0')}</div></div></td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}>{achat.date_achat ? <span className="whitespace-nowrap text-[14.5px] font-medium text-slate-700 dark:text-slate-300">{new Date(achat.date_achat).toLocaleDateString('fr-FR')}</span> : <span className="text-[14.5px] text-slate-400 dark:text-slate-500">—</span>}</td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}><div className="min-w-0"><div title={achat.designation || '—'} className="max-w-[140px] truncate text-[14.5px] font-medium text-slate-700 dark:text-slate-300">{achat.designation || '—'}</div></div></td>
@@ -199,6 +163,8 @@ const AchatsTable: React.FC<AchatsTableProps> = ({
                   <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}><span className="whitespace-nowrap text-[14.5px] font-bold text-slate-900 dark:text-slate-100">{calculatedTTC.toLocaleString('fr-FR')} Ar</span></td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}><span className={`inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-[12.5px] font-semibold leading-tight ${statutColor}`}>{statutPaiement}</span></td>
                   <td className={`border-b px-2 py-2 align-middle ${cellBorderColor}`}><span className="whitespace-nowrap text-[14.5px] font-bold text-brand-600 dark:text-brand-400">{montantRestant.toLocaleString('fr-FR')} Ar</span></td>
+                  
+                  {/* ⭐ ILAY CELLULE ACTIONS IZAY MISY ELLIPSIS */}
                   <td className={`border-b px-1.5 py-2 align-middle text-right ${cellBorderColor}`} onClick={event => event.stopPropagation()}>
                     <div className="flex items-center justify-end">
                       <button type="button" onClick={event => toggleMenu(achat.id, event)} title="Actions" aria-label={`Actions pour ${achat.reference || achat.id}`} aria-expanded={openMenuId === achat.id} className={`flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-slate-400 transition-all duration-150 ${openMenuId === achat.id ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400' : 'hover:border-slate-200 hover:bg-slate-50 hover:text-brand-600 dark:hover:border-white/[0.12] dark:hover:bg-slate-800 dark:hover:text-slate-200'}`}>
@@ -225,6 +191,12 @@ const AchatsTable: React.FC<AchatsTableProps> = ({
             <button type="button" onMouseDown={event => handleMenuAction(() => onView(currentAchat), event)} className="flex w-full items-center gap-3 px-3 py-2 text-left font-medium text-slate-700 transition-colors hover:bg-brand-50 hover:text-brand-600 dark:text-slate-200 dark:hover:bg-brand-500/10 dark:hover:text-brand-400">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400"><Eye size={14} /></span><span>Voir les détails</span>
             </button>
+            {/* ⭐ NESORINA NY CONVERTIR EN FACTURE. ILAY TÉLÉCHARGER PDF NO TAVELA */}
+            {onDownloadPDF && (
+              <button type="button" onMouseDown={event => handleMenuAction(() => onDownloadPDF(currentAchat), event)} className="flex w-full items-center gap-3 px-3 py-2 text-left font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-brand-600 dark:text-slate-200 dark:hover:bg-white/[0.06] dark:hover:text-brand-400">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600 dark:bg-white/[0.06] dark:text-slate-300"><Download size={14} /></span><span>Télécharger PDF</span>
+              </button>
+            )}
             <button type="button" onMouseDown={event => handleMenuAction(() => onEdit(currentAchat), event)} className="flex w-full items-center gap-3 px-3 py-2 text-left font-medium text-slate-700 transition-colors hover:bg-amber-50 hover:text-amber-700 dark:text-slate-200 dark:hover:bg-amber-500/10 dark:hover:text-amber-400">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"><Edit size={14} /></span><span>Modifier</span>
             </button>
@@ -250,19 +222,7 @@ const AchatsTable: React.FC<AchatsTableProps> = ({
         </div>
         <span className="text-[12.5px] font-medium text-slate-400 dark:text-slate-500">Gestion des achats</span>
       </div>
-
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 7px; height: 7px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4F46E5; border-radius: 999px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4338CA; }
-        .custom-scrollbar { scrollbar-width: thin; scrollbar-color: #4F46E5 transparent; }
-        .scrollbar-gutter-stable { scrollbar-gutter: stable; }
-        @keyframes achatRowIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
-        .group { animation: achatRowIn 0.16s ease-out; }
-      `}</style>
     </div>
   );
 };
-
 export default memo(AchatsTable);

@@ -1,4 +1,3 @@
-// electron/ipc/orders/queries.cjs
 'use strict';
 
 const { normalizePaiement } = require('./validation.cjs');
@@ -81,7 +80,6 @@ function buildOrdersQuery(options = {}) {
   const { where, params } = buildOrdersFilters(options);
   const sort = normalizeSort(options.sort);
 
-  // ⭐ FIX: Ampidirina ny clients téléphone
   const query = `
     SELECT c.id, c.client_id, c.client_nom, c.total_ht, c.total_ttc, c.total,
       c.statut_paiement, c.montant_paye, c.montant_restant, c.date_limite_paiement,

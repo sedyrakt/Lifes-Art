@@ -1,14 +1,15 @@
-// ============================================================
-// electron/database/init.cjs - VERSION CORRIGÉE (Avec closeDatabase)
-// ============================================================
-const { getDb } = require('./connection.cjs');
+'use strict';
+
+const { getDb } = require('./connection.cjs'); // ⭐ Ampiasao ity getDb ity!
 const { log, error, createFolders } = require('./utils.cjs');
 
 async function initDatabase() {
   try {
     log('🔄 Initialisation de la base de données...');
+    
+    // ⭐ Ny getDb() dia hamorona connection vaovao raha toa ka mikatona!
     const db = getDb();
-    if (!db || !db.open) {
+    if (!db) {
       throw new Error('Connexion à la base de données non disponible');
     }
     log('✅ Connexion à la base de données établie');
@@ -29,22 +30,14 @@ async function initDatabase() {
     return { success: true, db };
   } catch (err) {
     error('❌ Erreur initDatabase:', err.message);
-    if (err.stack) error('   Stack:', err.stack);
     throw err;
   }
 }
 
-// ⭐ VAOVAO: closeDatabase
 function closeDatabase() {
-  try {
-    const db = getDb();
-    if (db && db.open) {
-      db.close();
-      log('✅ Base de données fermée avec succès');
-    }
-  } catch (err) {
-    error('❌ Erreur lors de la fermeture de la base de données:', err.message);
-  }
+  const { closeDatabase: closeDb } = require('./connection.cjs');
+  closeDb();
+  log('✅ Base de données fermée avec succès');
 }
 
 module.exports = { initDatabase, closeDatabase };

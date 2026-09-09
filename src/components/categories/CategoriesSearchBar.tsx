@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, Grid, List, ArrowUpDown } from 'lucide-react';
+import { Search, X, ArrowUpDown } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 // ✅ Mifanaraka amin'ny SORT_MAP ao amin'ny hook
@@ -15,8 +15,6 @@ interface CategoriesSearchBarProps {
   onSearchChange: (value: string) => void;
   sortOption: string;
   onSortChange: (option: string) => void;
-  viewMode: 'table' | 'grid';
-  onViewModeChange: (mode: 'table' | 'grid') => void;
 }
 
 const CategoriesSearchBar: React.FC<CategoriesSearchBarProps> = ({
@@ -24,8 +22,6 @@ const CategoriesSearchBar: React.FC<CategoriesSearchBarProps> = ({
   onSearchChange,
   sortOption,
   onSortChange,
-  viewMode,
-  onViewModeChange,
 }) => {
   const { isDark } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
@@ -50,7 +46,9 @@ const CategoriesSearchBar: React.FC<CategoriesSearchBarProps> = ({
 
   const borderColor = isDark ? 'border-white/[0.12]' : 'border-slate-200';
   const hoverBorderColor = isDark ? 'hover:border-white/[0.18]' : 'hover:border-slate-300';
-  const backgroundColor = isDark ? 'bg-slate-900' : 'bg-white';
+  
+  // ⭐ FIX: Fond #0F172A ho an'ny dark mode
+  const backgroundColor = isDark ? 'bg-[#0F172A]' : 'bg-white';
   const textColor = isDark ? 'text-slate-200' : 'text-slate-700';
 
   return (
@@ -72,7 +70,7 @@ const CategoriesSearchBar: React.FC<CategoriesSearchBarProps> = ({
             aria-label="Rechercher une catégorie"
           />
           {!searchTerm && (
-            <div className={`pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-md border ${borderColor} ${isDark ? 'bg-slate-800/70' : 'bg-slate-50'} px-1.5 py-0.5 text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'} shadow-sm sm:flex`}>
+            <div className={`pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-md border ${borderColor} ${isDark ? 'bg-[#1E293B]' : 'bg-slate-50'} px-1.5 py-0.5 text-[10px] font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'} shadow-sm sm:flex`}>
               <span>{typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform) ? '⌘' : 'Ctrl'}</span>
               <span>K</span>
             </div>
@@ -100,7 +98,9 @@ const CategoriesSearchBar: React.FC<CategoriesSearchBarProps> = ({
               aria-label="Trier les catégories"
             >
               {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+                <option key={option.value} value={option.value} style={{ backgroundColor: isDark ? '#0F172A' : '#FFFFFF', color: isDark ? '#F8FAFC' : '#0F172A' }}>
+                  {option.label}
+                </option>
               ))}
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
@@ -108,30 +108,6 @@ const CategoriesSearchBar: React.FC<CategoriesSearchBarProps> = ({
                 <path d="M6 8L10 12L14 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-          </div>
-          <div className={`flex shrink-0 items-center rounded-lg border ${borderColor} ${backgroundColor} p-0.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${hoverBorderColor}`} role="group" aria-label="Changer la vue">
-            <button
-              type="button"
-              onClick={() => onViewModeChange('table')}
-              className={`flex h-7 cursor-pointer items-center gap-1 rounded-md px-2.5 text-[14px] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${viewMode === 'table' ? 'bg-brand-50 text-brand-600 shadow-sm dark:bg-brand-500/10 dark:text-brand-400' : 'text-slate-500 hover:bg-brand-50 hover:text-brand-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'}`}
-              title="Vue tableau"
-              aria-label="Vue tableau"
-              aria-pressed={viewMode === 'table'}
-            >
-              <List size={14} strokeWidth={2} />
-              <span>Table</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onViewModeChange('grid')}
-              className={`flex h-7 cursor-pointer items-center gap-1 rounded-md px-2.5 text-[14px] transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand-500/20 ${viewMode === 'grid' ? 'bg-brand-50 text-brand-600 shadow-sm dark:bg-brand-500/10 dark:text-brand-400' : 'text-slate-500 hover:bg-brand-50 hover:text-brand-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'}`}
-              title="Vue grille"
-              aria-label="Vue grille"
-              aria-pressed={viewMode === 'grid'}
-            >
-              <Grid size={14} strokeWidth={2} />
-              <span>Grille</span>
-            </button>
           </div>
         </div>
       </div>
