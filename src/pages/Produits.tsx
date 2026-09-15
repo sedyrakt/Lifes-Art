@@ -20,7 +20,6 @@ import SuccessModal from '../components/common/SuccessModal';
 import ErrorModal from '../components/common/ErrorModal';
 import ProduitsSearchBar from '../components/produits/ProduitsSearchBar';
 
-// ⭐ Modules
 import {
   getStockLevel,
   getStatusColor,
@@ -28,7 +27,7 @@ import {
   ProduitsSkeleton,
   useProduitsPageModals,
   useProduitsCommandeModal,
-} from './produits';
+} from './produits/index';
 
 const Produits: React.FC = () => {
   const { isDark } = useTheme();
