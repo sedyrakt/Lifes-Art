@@ -1,3 +1,8 @@
+// src/components/parametres/ParametresBackup.tsx
+// ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
+// ⭐ TYPOGRAPHIE alignée sur ProfileSidebar
+// ⭐ FONT SIZE: labels 12px, values 14px, buttons 14px
+
 import React, { useEffect, useCallback, useState } from 'react';
 import { HardDrive, Save, RefreshCw, Clock, Database, Shield, Upload } from 'lucide-react';
 import SuccessModal from '../common/SuccessModal';
@@ -33,7 +38,6 @@ const ParametresBackup: React.FC<ParametresBackupProps> = ({ isDark }) => {
         showSuccess('Sauvegarde réussie', `La base de données a été sauvegardée avec succès.\nFichier: ${filename}`);
         await loadBackupStatus();
       } else if (result?.canceled) {
-        // Raha cancel, tsy misy erreur, mijanona fotsiny
         console.log('Sauvegarde annulée par l\'utilisateur');
       } else {
         throw new Error(result?.error || 'Échec de la sauvegarde');
@@ -59,56 +63,64 @@ const ParametresBackup: React.FC<ParametresBackupProps> = ({ isDark }) => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-xl border p-4" style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <HardDrive size={16} className="text-brand-500" />
-            <span className="text-[13px] font-medium" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Dernière sauvegarde</span>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="rounded-xl border-[0.5px] p-3.5" style={{ background: isDark ? '#0F172A' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            {/* ⭐ Icon : 14 → 15 */}
+            <HardDrive size={15} strokeWidth={2.2} className="text-brand-500" />
+            {/* ⭐ Label : 11.5px → 12px */}
+            <span className="text-[12px] font-semibold uppercase tracking-[0.06em] leading-[1.3]" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Dernière sauvegarde</span>
           </div>
-          <p className="text-[14px] font-semibold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{backupStatus.lastBackup || 'Aucune'}</p>
+          {/* ⭐ Value : 13.5px → 14px */}
+          <p className="text-[14px] font-semibold leading-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{backupStatus.lastBackup || 'Aucune'}</p>
         </div>
-        <div className="rounded-xl border p-4" style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <Database size={16} className="text-success-500" />
-            <span className="text-[13px] font-medium" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Nombre de sauvegardes</span>
+        <div className="rounded-xl border-[0.5px] p-3.5" style={{ background: isDark ? '#0F172A' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Database size={15} strokeWidth={2.2} className="text-emerald-500" />
+            <span className="text-[12px] font-semibold uppercase tracking-[0.06em] leading-[1.3]" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Nombre de sauvegardes</span>
           </div>
-          <p className="text-[14px] font-semibold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{backupStatus.backupCount || 0}</p>
+          <p className="text-[14px] font-semibold leading-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{backupStatus.backupCount || 0}</p>
         </div>
-        <div className="rounded-xl border p-4" style={{ background: isDark ? '#0F172A' : '#F8FAFC', borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <Clock size={16} className="text-warning-500" />
-            <span className="text-[13px] font-medium" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Statut</span>
+        <div className="rounded-xl border-[0.5px] p-3.5" style={{ background: isDark ? '#0F172A' : '#FFFFFF', borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0' }}>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Clock size={15} strokeWidth={2.2} className="text-amber-500" />
+            <span className="text-[12px] font-semibold uppercase tracking-[0.06em] leading-[1.3]" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>Statut</span>
           </div>
-          <p className="text-[14px] font-semibold" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{backupStatus.status || 'Opérationnel'}</p>
+          <p className="text-[14px] font-semibold leading-tight" style={{ color: isDark ? '#F8FAFC' : '#0F172A' }}>{backupStatus.status || 'Opérationnel'}</p>
         </div>
       </div>
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-3">
+        {/* ⭐ Backup button : 13px → 14px, py-2 → py-2.5 */}
         <button
           onClick={handleBackup}
           disabled={backupLoading}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-[14px] font-medium text-white transition-all duration-200 disabled:opacity-50 hover:brightness-110 active:scale-[0.98]"
+          className="flex-1 flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg text-[14px] font-semibold text-white transition-colors duration-200 disabled:opacity-50"
           style={{ background: '#4F46E5' }}
         >
-          {backupLoading ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
+          {/* ⭐ Icons : 16 → 17 */}
+          {backupLoading ? <RefreshCw size={17} className="animate-spin" /> : <Save size={17} strokeWidth={2.2} />}
           {backupLoading ? 'Sauvegarde en cours...' : 'Sauvegarder maintenant'}
         </button>
         <button
           onClick={handleRestoreClick}
           disabled={restoreLoading}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border text-[14px] font-medium transition-all duration-200 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/[0.06] active:scale-[0.98]"
+          className="flex-1 flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg border text-[14px] font-semibold transition-colors duration-200 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/[0.06]"
           style={{ borderColor: isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0', color: isDark ? '#94A3B8' : '#64748B' }}
         >
-          {restoreLoading ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} />}
+          {restoreLoading ? <RefreshCw size={17} className="animate-spin" /> : <Upload size={17} strokeWidth={2.2} />}
           {restoreLoading ? 'Restauration en cours...' : 'Restaurer une sauvegarde'}
         </button>
       </div>
-      <div className="rounded-xl border p-4" style={{ background: isDark ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.05)', borderColor: isDark ? 'rgba(239,68,68,0.30)' : 'rgba(239,68,68,0.20)' }}>
-        <div className="flex items-start gap-3">
-          <Shield size={18} className="text-danger-500 mt-0.5" />
+      <div className="rounded-xl border-[0.5px] p-3.5" style={{ background: isDark ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.05)', borderColor: isDark ? 'rgba(239,68,68,0.30)' : 'rgba(239,68,68,0.20)' }}>
+        <div className="flex items-start gap-2.5">
+          {/* ⭐ Shield icon : 16 → 17 */}
+          <Shield size={17} strokeWidth={2.2} className="text-red-500 mt-0.5" />
           <div>
-            <p className="text-[14px] font-medium" style={{ color: isDark ? '#F8FAFC' : '#DC2626' }}>⚠️ Attention</p>
-            <p className="text-[13px] mt-1" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>La restauration effacera toutes les données actuelles et les remplacera par celles de la sauvegarde. Cette action est irréversible.</p>
+            {/* ⭐ Title : 13.5px → 14px */}
+            <p className="text-[14px] font-semibold leading-tight" style={{ color: isDark ? '#F8FAFC' : '#DC2626' }}>⚠️ Attention</p>
+            {/* ⭐ Text : 11.5px → 13px */}
+            <p className="text-[13px] mt-1 leading-[1.4]" style={{ color: isDark ? '#94A3B8' : '#64748B' }}>La restauration effacera toutes les données actuelles et les remplacera par celles de la sauvegarde. Cette action est irréversible.</p>
           </div>
         </div>
       </div>

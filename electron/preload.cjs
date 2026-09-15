@@ -1,13 +1,10 @@
 // ============================================================
-// electron/preload.cjs - VERSION FINALE AVEC RH + VENTES
-// ⭐ FIX: NAMPIANA ny RH (getPresence, updatePresence, getSalaryHistory, updateSalary)
-// ⭐ FIX: NAMPIANA ny "ventes.updatePaiement" (Marquer comme payée)
-// ⭐ FIX: NAMPIANA NY "payments.bulkCreate" (Fandoavana Faobe - 10 000 employés)
-// ⭐ FIX: ESORINA NY "updateStatus" (TSY ILAINA INTSONY)
-// ⭐ NEW: NAMPIANA NY PRESENCE JOURNALIERE + HISTORIQUE
-// ⭐ NEW: NAMPIANA NY getAbsencesCount (PAYMENTS)
-// ⭐ NEW: NAMPIANA NY saveFileToDirectory (BULK BULLETIN)
-// ⭐ NEW: NAMPIANA FILTERS HO AN'NY saveFile (Save As - Excel/PDF/CSV)
+// electron/preload.cjs — Lifes-Art ERP
+// ⭐ VERSION FINALE AVEC RH + VENTES + PARAMETRES PAIE
+// ⭐ NOUVEAU: STOCK SNAPSHOTS (historique réel du stock)
+// ⭐ NEW: payments.getLastBatch (batch tokana — esorina ny N+1)
+// ⭐ NEW: ventes.getStats (stats devis + factures)
+// ⭐ NEW: achats.getStats (stats globales — total rehetra)
 // ============================================================
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -16,14 +13,13 @@ if (!ipcRenderer) throw new Error('Electron IPC unavailable');
 ipcRenderer.setMaxListeners(50);
 
 const DEBUG = false;
-
 function log(...args) { if (DEBUG) console.log(...args); }
 log('🔌 Plateforme:', process.platform);
 
 const APP_VERSION = '1.0.0';
 
 function invoke(channel, ...args) {
-  try { return ipcRenderer.invoke(channel, ...args); } 
+  try { return ipcRenderer.invoke(channel, ...args); }
   catch (error) { console.error(`❌ IPC invoke error [${channel}]`, error); return Promise.reject(error); }
 }
 
@@ -129,11 +125,9 @@ const api = {
     getJournalieres: (options) => invoke('orders:get-journalieres', options),
     bulkUpdateStatus: (ids, newStatus) => invoke('orders:bulk-update-status', ids, newStatus),
     bulkDelete: (ids) => invoke('orders:bulk-delete', ids),
-    
-    // ⭐ FANAMPIANA: DETTE CLIENT
     updatePaiement: (id, data) => invoke('orders:update-paiement', id, data),
     getDetteStats: () => invoke('orders:get-dette-stats'),
-    
+    getOverdue: () => invoke('orders:get-overdue'),
     onChanged: (callback) => on('orders:changed', callback),
   },
   stock: {
@@ -167,24 +161,19 @@ const api = {
     onChanged: (callback) => on('employes:changed', callback),
     getPaiementCountsBatch: (ids) => invoke('employes:get-paiement-counts-batch', ids),
     getTotalSalairesPayes: (annee) => invoke('employes:get-total-salaires-payes', annee),
-
-    // ⭐ RH (Congés, Absences, Fisondrotana)
     getPresence: (employeId, mois, annee) => invoke('employes:get-presence', employeId, mois, annee),
     updatePresence: (data) => invoke('employes:update-presence', data),
     getSalaryHistory: (employeId) => invoke('employes:get-salary-history', employeId),
     updateSalary: (employeId, newSalary, raison) => invoke('employes:update-salary', employeId, newSalary, raison),
-
-    // ⭐ PRESENCE JOURNALIERE
-    getPresenceJournaliere: (employeId, mois, annee) => invoke('employes:get-presence-journaliere', employeId, mois, annee),
+    getPresenceJournaliere: (employeId, date) => invoke('employes:get-presence-journaliere', employeId, date),
     updatePresenceJournaliere: (data) => invoke('employes:update-presence-journaliere', data),
     deletePresenceJournaliere: (id) => invoke('employes:delete-presence-journaliere', id),
-
-    // ⭐ BATCH API (10 000 EMPLOYÉS)
     getPresenceJournaliereMois: (mois, annee) => invoke('employes:get-presence-journaliere-mois', mois, annee),
     bulkUpdatePresenceJournaliere: (data) => invoke('employes:bulk-update-presence-journaliere', data),
-
-    // ⭐ HISTORIQUE (Par Jour / Mois / An)
     getPresenceHistorique: (options) => invoke('employes:get-presence-historique', options),
+    getPlanning: (employeId) => invoke('employes:get-planning', employeId),
+    updatePlanning: (employeId, planningData) => invoke('employes:update-planning', employeId, planningData),
+    deletePlanning: (id) => invoke('employes:delete-planning', id),
   },
   expenses: {
     getAll: (options) => invoke('expenses:get-all', options),
@@ -211,12 +200,16 @@ const api = {
     countByEmploye: (employeId) => invoke('payments:count-by-employe', employeId),
     getStats: () => invoke('payments:get-stats'),
     getEmployeStats: (employeId) => invoke('payments:get-employe-stats', employeId),
-    
-    // ⭐ BULK PAYMENT
     bulkCreate: (data) => invoke('payments:bulk-create', data),
-
-    // ⭐ NEW: GET ABSENCES COUNT (INTÉGRATION PRÉSENCES)
     getAbsencesCount: (employeId, mois, annee) => invoke('payments:get-absences-count', employeId, mois, annee),
+    getLastBatch: (employeIds) => invoke('payments:get-last-batch', employeIds),
+    getPayrollParameters: () => invoke('payments:get-payroll-parameters'),
+    savePayrollParameters: (data) => invoke('payments:save-payroll-parameters', data),
+  },
+  parametresPaie: {
+    get: () => invoke('parametres-paie:get'),
+    update: (data) => invoke('parametres-paie:update', data),
+    reset: () => invoke('parametres-paie:reset'),
   },
   categories: {
     getAll: (options) => invoke('categories:get-all', options),
@@ -229,10 +222,20 @@ const api = {
     onChanged: (callback) => on('categories:changed', callback),
   },
   dashboard: {
-    getStats: () => invoke('dashboard:get-stats'),
+    getStats: (options) => invoke('dashboard:get-stats', options),
     getFinancialSummary: () => invoke('dashboard:get-financial-summary'),
     getChartData: (options) => invoke('dashboard:get-chart-data', options),
     onChanged: (callback) => on('dashboard:changed', callback),
+  },
+  stockSnapshots: {
+    saveToday: () => invoke('stock-snapshots:save-today'),
+    getAtDate: (dateStr) => invoke('stock-snapshots:get-at-date', dateStr),
+    getRange: (options) => invoke('stock-snapshots:get-range', options),
+    getSeries: (options) => invoke('stock-snapshots:get-series', options),
+    getCurrent: () => invoke('stock-snapshots:current'),
+    getRotation: (days = 30) => invoke('stock-snapshots:rotation', days),
+    backfill: (options) => invoke('stock-snapshots:backfill', options),
+    prune: (daysToKeep = 730) => invoke('stock-snapshots:prune', daysToKeep),
   },
   images: {
     upload: (base64Data, folder) => invoke('images:upload', base64Data, folder),
@@ -304,15 +307,12 @@ const api = {
   },
   dialog: {
     showOpenDialog: (options) => invoke('dialog:show-open-dialog', options),
-    // ⭐ FANAMPINANA: Save Dialog ho an'ny export
     showSaveDialog: (options) => invoke('dialog:show-save-dialog', options),
   },
   utils: {
     exportData: (data, format) => invoke('utils:export-data', data, format),
     print: () => invoke('utils:print'),
-    // ⭐ FANOVANA: Nampiana filters ho an'ny Save As (Excel/PDF/CSV)
     saveFile: (data, defaultPath, filters) => invoke('utils:save-file', data, defaultPath, filters),
-    // ⭐ VAOVAO: Mitahiry mivantana ao anaty dossier (tsy misy dialog)
     saveFileToDirectory: (data, directory, filename) => invoke('utils:save-file-to-directory', data, directory, filename),
   },
   platform: {
@@ -337,6 +337,7 @@ api.achats = {
   delete: (id) => invoke('achats:delete', id),
   bulkDelete: (ids) => invoke('achats:bulk-delete', ids),
   updatePaiement: (id, data) => invoke('achats:update-paiement', id, data),
+  getStats: (options) => invoke('achats:get-stats', options),  // ⭐ NOUVEAU
   onChanged: (callback) => on('achats:changed', callback),
 };
 
@@ -358,6 +359,7 @@ api.ventes = {
   getFactureDetails: (factureId) => invoke('ventes:get-facture-details', factureId),
   convertDevisToFacture: (devisId) => invoke('ventes:convert-devis-to-facture', devisId),
   updatePaiement: (id, data) => invoke('ventes:update-paiement', id, data),
+  getStats: (options) => invoke('ventes:get-stats', options),
   onChanged: (callback) => on('ventes:changed', callback),
 };
 

@@ -1,18 +1,12 @@
 // src/components/clients/ClientsViewModal.tsx
-import React, { useMemo } from 'react';
+// ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
+// ⭐ TYPOGRAPHIE alignée sur ProduitsViewModal / FournisseursViewModal
+// ⭐ FONT SIZE: h2 18px, labels 13px, values 15px, buttons 15px
+
+import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Pencil, User, Mail, Phone, MapPin, Calendar } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-
-const COLORS = {
-  light: {
-    card: '#FFFFFF', border: '#E2E8F0', softBg: '#F8FAFC', text: '#0F172A',
-    muted: '#64748B', primary: '#4F46E5', green: '#059669', red: '#DC2626', amber: '#D97706'
-  },
-  dark: {
-    card: '#0F172A', border: 'rgba(255,255,255,0.12)', softBg: '#0F172A', text: '#F8FAFC',
-    muted: '#94A3B8', primary: '#4F46E5', green: '#34D399', red: '#F87171', amber: '#FBBF24'
-  }
-};
 
 interface Client {
   id: number;
@@ -44,7 +38,20 @@ const ClientsViewModal: React.FC<ClientsViewModalProps> = ({
   getTypeColor,
 }) => {
   const { isDark } = useTheme();
-  const theme = isDark ? COLORS.dark : COLORS.light;
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsVisible(true), 10);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const initials = useMemo(() => {
     return (client.nom || '?')
@@ -68,66 +75,86 @@ const ClientsViewModal: React.FC<ClientsViewModalProps> = ({
     });
   };
 
-  // ⭐ FIX: Natao mifanaraka amin'ny design rehefa
+  // ⭐ InfoRow — 13.5px → 15px, icon 13 → 14, py-2.5 → py-3
   const InfoRow = ({ icon: Icon, label, value }: { icon?: any; label: string; value: React.ReactNode }) => (
-    <div className="flex justify-between py-2 border-b" style={{ borderColor: theme.border }}>
-      <div className="flex items-center gap-2 text-[14px] font-medium" style={{ color: theme.muted }}>
-        {Icon && <Icon size={14} className="text-brand-500" />}
+    <div className="flex items-center justify-between gap-3 text-[15px] py-3 border-b border-slate-200 dark:border-white/[0.08]">
+      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
+        {Icon && <Icon size={14} strokeWidth={2.2} className="text-brand-500 shrink-0" />}
         <span>{label}</span>
       </div>
-      <div className="min-w-0 text-[14px] font-semibold text-right" style={{ color: theme.text }}>
+      <span className="min-w-0 truncate text-right font-semibold text-slate-900 dark:text-slate-100">
         {value}
-      </div>
+      </span>
     </div>
   );
 
   if (!client) return null;
 
-  return (
+  const modal = (
     <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
-      style={{ background: isDark ? 'rgba(0,0,0,0.80)' : 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}
+      className={`fixed inset-0 z-[99999] flex items-center justify-center p-4 transition-all duration-200 ${
+        isVisible ? 'opacity-100' : 'opacity-0'
+      } bg-black/80 dark:bg-black/80 backdrop-blur-sm`}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="client-view-title"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="relative w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden rounded-2xl border shadow-2xl"
-        style={{ background: theme.card, borderColor: theme.border }}
+        className={`relative w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden rounded-xl border-[0.5px] border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] shadow-[0_18px_55px_rgba(15,23,42,0.35)] transition-all duration-200 ${
+          isVisible ? 'translate-y-0 scale-100' : 'translate-y-2 scale-[0.98]'
+        }`}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: theme.border, background: theme.card }}>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg" style={{ background: 'rgba(79,70,229,0.06)' }}>
-              <User size={19} style={{ color: theme.primary }} />
+        <div className="absolute left-0 right-0 top-0 h-[2px] bg-brand-500" />
+
+        {/* HEADER — ⭐ h-14 → h-16, px-4 → px-5 */}
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#0F172A] px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            {/* ⭐ Icon container : h-7 w-7 → h-9 w-9, icon 15 → 18 */}
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+              <User size={18} strokeWidth={2.2} />
             </div>
-            <div>
-              <h2 className="text-[17px] font-bold" style={{ color: theme.text }}>Détails du client</h2>
-              <p className="text-[13px]" style={{ color: theme.muted }}>
+            <div className="min-w-0">
+              {/* ⭐ h2 : 13.5px → 18px */}
+              <h2 id="client-view-title" className="truncate text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+                Détails du client
+              </h2>
+              {/* ⭐ Subtitle : 11.5px → 14px */}
+              <p className="text-[14px] leading-[1.3] mt-0.5 text-slate-500 dark:text-slate-400">
                 CLI-{String(client.id).padStart(6, '0')}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>
-            <X size={19} />
+          {/* ⭐ Close button : h-8 w-8 → h-10 w-10, icon 16 → 19 */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.06]"
+          >
+            <X size={19} strokeWidth={2.2} />
           </button>
-        </div>
+        </header>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6">
+        {/* BODY — ⭐ px-4 py-4 → px-5 py-4 */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
           {/* Profil Client */}
           <div className="mb-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-600 text-lg font-bold text-white shadow-sm">
+            <div className="flex items-center gap-3">
+              {/* ⭐ Avatar : h-12 w-12 → h-14 w-14, text 16px → 18px */}
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-600 text-[18px] font-bold text-white shadow-sm">
                 {initials}
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="truncate text-[19px] font-bold leading-tight" style={{ color: theme.text }}>
+                {/* ⭐ h3 : 13.5px → 15px */}
+                <h3 className="truncate text-[15px] font-semibold leading-tight text-slate-900 dark:text-slate-100">
                   {client.nom}
                 </h3>
                 <div className="mt-1 flex items-center gap-2">
-                  {/* ⭐ FIX: Mampiasa ny getTypeColor mba hanova loko ny badge */}
+                  {/* ⭐ Type badge : 11.5px → 13px, px-1.5 py-0.5 → px-2.5 py-1.5 */}
                   <span
-                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[13px] font-semibold uppercase ${getTypeColor(client.type)}`}
+                    className={`inline-flex items-center rounded-md border px-2.5 py-1.5 text-[13px] font-semibold leading-tight ${getTypeColor(client.type)}`}
                   >
                     {client.type}
                   </span>
@@ -136,27 +163,23 @@ const ClientsViewModal: React.FC<ClientsViewModalProps> = ({
             </div>
           </div>
 
-          {/* Stats */}
+          {/* Stats — ⭐ padding + text nampitomboina */}
           <div className="grid grid-cols-2 gap-3 mb-4">
-            <div
-              className="rounded-lg border px-3 py-1.5"
-              style={{ background: theme.softBg, borderColor: theme.border }}
-            >
-              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: theme.muted }}>
+            <div className="rounded-lg border border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-[#0F172A] px-3.5 py-3">
+              {/* ⭐ Label : 11.5px → 13px */}
+              <p className="text-[13px] font-semibold uppercase tracking-[0.06em] text-slate-500 dark:text-slate-400">
                 Total Achats
               </p>
-              <p className="mt-1 text-[17px] font-bold" style={{ color: theme.primary }}>
+              {/* ⭐ Value : 13.5px → 15px */}
+              <p className="mt-1 text-[15px] font-semibold text-brand-600 dark:text-brand-400">
                 {Number(client.total_achats || 0).toLocaleString('fr-FR')} Ar
               </p>
             </div>
-            <div
-              className="rounded-lg border px-3 py-1.5"
-              style={{ background: theme.softBg, borderColor: theme.border }}
-            >
-              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: theme.muted }}>
+            <div className="rounded-lg border border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-[#0F172A] px-3.5 py-3">
+              <p className="text-[13px] font-semibold uppercase tracking-[0.06em] text-slate-500 dark:text-slate-400">
                 Commandes
               </p>
-              <p className="mt-1 text-[17px] font-bold" style={{ color: theme.text }}>
+              <p className="mt-1 text-[15px] font-semibold text-slate-900 dark:text-slate-100">
                 {client.nb_commandes || 0}
               </p>
             </div>
@@ -164,33 +187,41 @@ const ClientsViewModal: React.FC<ClientsViewModalProps> = ({
 
           {/* Informations */}
           <div className="flex flex-col">
-            <InfoRow icon={Mail} label="Email" value={client.email || '—'} />
-            <InfoRow icon={Phone} label="Téléphone" value={client.telephone || '—'} />
-            <InfoRow icon={MapPin} label="Adresse" value={client.adresse || '—'} />
-            <InfoRow icon={MapPin} label="Ville" value={client.ville || '—'} />
-            <InfoRow label="Code postal" value={client.code_postal || '—'} />
-            <InfoRow label="Pays" value={client.pays || '—'} />
+            <InfoRow icon={Mail}     label="Email"         value={client.email || '—'} />
+            <InfoRow icon={Phone}    label="Téléphone"     value={client.telephone || '—'} />
+            <InfoRow icon={MapPin}   label="Adresse"       value={client.adresse || '—'} />
+            <InfoRow icon={MapPin}   label="Ville"         value={client.ville || '—'} />
+            <InfoRow                 label="Code postal"   value={client.code_postal || '—'} />
+            <InfoRow                 label="Pays"          value={client.pays || '—'} />
             <InfoRow icon={Calendar} label="Client depuis" value={formatDate(client.created_at)} />
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: theme.border, background: theme.softBg }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-[14px] font-medium hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>
+        {/* FOOTER — ⭐ h-14 → h-[72px], px-4 → px-5 */}
+        <footer className="flex h-[72px] shrink-0 items-center justify-end gap-2 border-t border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-[#0F172A] px-5">
+          {/* ⭐ Fermer button : 13px → 15px, h-9 → h-10, px-3.5 → px-4.5 */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 rounded-lg px-4.5 text-[15px] font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.06]"
+          >
             Fermer
           </button>
+          {/* ⭐ Modifier button : 13px → 15px, h-9 → h-10, px-3.5 → px-5, icon 14 → 17 */}
           <button
+            type="button"
             onClick={onEdit}
-            className="flex items-center gap-1.5 rounded-lg text-[14px] font-semibold text-white transition-all hover:shadow-md active:scale-[0.98]"
-            style={{ background: theme.green, padding: '10px 16px' }}
+            className="flex h-10 items-center gap-2 rounded-lg bg-brand-500 px-5 text-[15px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-600 active:scale-[0.98]"
           >
-            <Pencil size={15} strokeWidth={2} />
+            <Pencil size={17} strokeWidth={2.2} />
             Modifier
           </button>
-        </div>
+        </footer>
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 };
 
 export default ClientsViewModal;

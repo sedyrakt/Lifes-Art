@@ -1,3 +1,6 @@
+// src/components/common/ErrorModal.tsx
+// ⭐ NEW: zIndex prop (default 9999, azo ovaina ho 9999999)
+// ⭐ FIX: Manaiky zIndex ambony noho ny modals hafa
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { XCircle, X } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -11,9 +14,20 @@ interface ErrorModalProps {
   buttonText?: string;
   autoCloseDelay?: number;
   isDark?: boolean;
+  zIndex?: number;  // ⭐ VAOVAO
 }
 
-const ErrorModal: React.FC<ErrorModalProps> = ({ isOpen, onClose, title, message, details, buttonText = 'OK', autoCloseDelay = 4000, isDark: propIsDark }) => {
+const ErrorModal: React.FC<ErrorModalProps> = ({
+  isOpen,
+  onClose,
+  title,
+  message,
+  details,
+  buttonText = 'OK',
+  autoCloseDelay = 4000,
+  isDark: propIsDark,
+  zIndex = 9999,  // ⭐ DEFAULT
+}) => {
   const { isDark: contextIsDark } = useTheme();
   const isDark = propIsDark !== undefined ? propIsDark : contextIsDark;
 
@@ -94,8 +108,12 @@ const ErrorModal: React.FC<ErrorModalProps> = ({ isOpen, onClose, title, message
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-opacity duration-180 ${isOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
-      style={{ backgroundColor: colors.overlay, backdropFilter: 'blur(4px)' }}
+      className={`fixed inset-0 flex items-center justify-center p-4 transition-opacity duration-180 ${isOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+      style={{
+        backgroundColor: colors.overlay,
+        backdropFilter: 'blur(4px)',
+        zIndex,  // ⭐ VAOVAO: Mampiasa ny zIndex prop
+      }}
       onMouseDown={(event) => { if (event.target === event.currentTarget) handleClose(); }}
     >
       <div

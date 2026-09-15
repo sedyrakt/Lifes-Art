@@ -1,5 +1,8 @@
 import React from 'react';
-import { Building2, MapPin, Phone, Mail, FileText, Hash, Building, Shield, CreditCard, Clock, ChevronDown, Check } from 'lucide-react';
+import {
+  Building2, MapPin, Phone, Mail, FileText, Hash, Building,
+  Shield, CreditCard, Clock, ChevronDown, Check, Globe, Users
+} from 'lucide-react';
 
 const inputBase = 'w-full h-10 px-3 rounded-lg border text-[14px] font-medium outline-none transition-all duration-150 focus:ring-2';
 
@@ -30,7 +33,7 @@ const CompanySettingsForm: React.FC<CompanySettingsFormProps> = ({ formData, err
     { value: 'Espèces', icon: CreditCard, label: 'Espèces' },
     { value: 'Virement', icon: Building, label: 'Virement bancaire' },
     { value: 'Chèque', icon: FileText, label: 'Chèque' },
-    { value: 'Mobile Money', icon: Smartphone, label: 'Mobile Money' },
+    { value: 'Mobile Money', icon: CreditCard, label: 'Mobile Money' },
     { value: 'Carte', icon: CreditCard, label: 'Carte bancaire' },
   ];
 
@@ -46,38 +49,73 @@ const CompanySettingsForm: React.FC<CompanySettingsFormProps> = ({ formData, err
   const inputStyle = { background: theme.input, color: theme.text };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col gap-4">
+      {/* ═══ ENTREPRISE ═══ */}
       <section className="min-w-0 flex-1 overflow-hidden rounded-xl border" style={{ background: theme.card, borderColor: theme.border }}>
-        <div className="grid grid-cols-1 sm:grid-cols-2">
+        <div className="border-b px-4 py-2.5 flex items-center gap-2" style={{ borderColor: theme.border, background: theme.primaryBg }}>
+          <Building2 size={15} style={{ color: theme.primary }} />
+          <h3 className="text-[13px] font-bold" style={{ color: theme.text }}>Informations de l'entreprise</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           <FormField label="Nom" required icon={<Building2 size={14} />} isDark={isDark} theme={theme} className="border-r border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
-            <input type="text" name="name" value={formData.name || ''} onChange={onChange} placeholder="Nom de l'entreprise" className={inputClass('name')} style={inputStyle} />
+            <input type="text" name="name" value={formData.name || ''} onChange={onChange} placeholder="Nom" className={inputClass('name')} style={inputStyle} />
           </FormField>
-          <FormField label="Adresse" icon={<MapPin size={14} />} isDark={isDark} theme={theme} className="border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
-            <input type="text" name="address" value={formData.address || ''} onChange={onChange} placeholder="Adresse" className={inputClass('address')} style={inputStyle} />
+
+          {/* ⭐ NIF (taloha: Tax ID) */}
+          <FormField label="NIF" icon={<Hash size={14} />} isDark={isDark} theme={theme} className="border-r border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+            <input
+              type="text"
+              name="nif"
+              value={(formData as any).nif || ''}
+              onChange={onChange}
+              placeholder="NIF"
+              className={inputClass('nif')}
+              style={inputStyle}
+            />
           </FormField>
-          <FormField label="Téléphone" icon={<Phone size={14} />} isDark={isDark} theme={theme} className="border-r border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
-            <input type="text" name="phone" value={formData.phone || ''} onChange={onChange} placeholder="+261 34 00 000 00" className={inputClass('phone')} style={inputStyle} />
+
+          {/* ⭐ STAT (taloha: SIRET) */}
+          <FormField label="STAT" icon={<FileText size={14} />} isDark={isDark} theme={theme} className="border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+            <input
+              type="text"
+              name="stat"
+              value={(formData as any).stat || ''}
+              onChange={onChange}
+              placeholder="STAT"
+              className={inputClass('stat')}
+              style={inputStyle}
+            />
           </FormField>
-          <FormField label="Email" icon={<Mail size={14} />} isDark={isDark} theme={theme} className="border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
-            <input type="email" name="email" value={formData.email || ''} onChange={onChange} placeholder="contact@entreprise.com" className={inputClass('email')} style={inputStyle} />
-          </FormField>
-          <FormField label="SIRET" icon={<FileText size={14} />} isDark={isDark} theme={theme} className="border-r border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
-            <input type="text" name="siret" value={formData.siret || ''} onChange={onChange} placeholder="SIRET" className={inputClass('siret')} style={inputStyle} />
-          </FormField>
-          <FormField label="NIF / STAT" icon={<Hash size={14} />} isDark={isDark} theme={theme} className="border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
-            <input type="text" name="taxId" value={formData.taxId || ''} onChange={onChange} placeholder="NIF / STAT" className={inputClass('taxId')} style={inputStyle} />
-          </FormField>
+
           <FormField label="RCS" icon={<Building size={14} />} isDark={isDark} theme={theme} className="border-r border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
             <input type="text" name="rcs" value={formData.rcs || ''} onChange={onChange} placeholder="RCS" className={inputClass('rcs')} style={inputStyle} />
           </FormField>
-          <FormField label="N° TVA" icon={<Shield size={14} />} isDark={isDark} theme={theme} className="border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+
+          <FormField label="N° TVA" icon={<Shield size={14} />} isDark={isDark} theme={theme} className="border-r border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
             <input type="text" name="vatNumber" value={formData.vatNumber || ''} onChange={onChange} placeholder="N° TVA" className={inputClass('vatNumber')} style={inputStyle} />
           </FormField>
+
+          <FormField label="Site internet" icon={<Globe size={14} />} isDark={isDark} theme={theme} className="border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+            <input type="text" name="website" value={formData.website || ''} onChange={onChange} placeholder="Site internet" className={inputClass('website')} style={inputStyle} />
+          </FormField>
+
+          <FormField label="Adresse" icon={<MapPin size={14} />} isDark={isDark} theme={theme} className="sm:col-span-2 lg:col-span-3 border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+            <input type="text" name="address" value={formData.address || ''} onChange={onChange} placeholder="Adresse" className={inputClass('address')} style={inputStyle} />
+          </FormField>
+
+          <FormField label="Téléphone" icon={<Phone size={14} />} isDark={isDark} theme={theme} className="border-r border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+            <input type="text" name="phone" value={formData.phone || ''} onChange={onChange} placeholder="Téléphone" className={inputClass('phone')} style={inputStyle} />
+          </FormField>
+
+          <FormField label="Email" icon={<Mail size={14} />} isDark={isDark} theme={theme} className="sm:col-span-2 lg:col-span-2 border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+            <input type="email" name="email" value={formData.email || ''} onChange={onChange} placeholder="Email" className={inputClass('email')} style={inputStyle} />
+          </FormField>
+
           <FormField label="Mode de paiement" icon={<CreditCard size={14} />} isDark={isDark} theme={theme} className="border-r border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
             <div className="relative">
               <button type="button" onClick={() => setIsPaymentMethodOpen(v => !v)} className="flex h-10 w-full items-center justify-between rounded-lg border px-3 text-left text-[14px] font-medium outline-none transition-all" style={{ background: theme.input, color: theme.text, borderColor: isPaymentMethodOpen ? theme.primary : theme.border }}>
                 <span className="flex min-w-0 items-center gap-2">
-                  {SelectedPaymentIcon ? (<><SelectedPaymentIcon size={16} style={{ color: theme.primary }} /><span className="truncate">{selectedPayment?.label || 'Espèces'}</span></>) : (<span className="truncate">Espèces</span>)}
+                  {SelectedPaymentIcon ? (<><SelectedPaymentIcon size={16} style={{ color: theme.primary }} /><span className="truncate">{selectedPayment?.label || 'Mode de paiement'}</span></>) : (<span className="truncate">Mode de paiement</span>)}
                 </span>
                 <ChevronDown size={15} className={`shrink-0 transition-transform ${isPaymentMethodOpen ? 'rotate-180' : ''}`} style={{ color: theme.subMuted }} />
               </button>
@@ -98,7 +136,8 @@ const CompanySettingsForm: React.FC<CompanySettingsFormProps> = ({ formData, err
               )}
             </div>
           </FormField>
-          <FormField label="Conditions de paiement" icon={<Clock size={14} />} isDark={isDark} theme={theme} className="border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+
+          <FormField label="Conditions de paiement" icon={<Clock size={14} />} isDark={isDark} theme={theme} className="sm:col-span-2 lg:col-span-2 border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
             <div className="relative">
               <select name="paymentTerms" value={formData.paymentTerms || 'Sous 30 jours'} onChange={onChange} className="h-10 w-full appearance-none rounded-lg border px-3 pr-9 text-[14px] font-medium outline-none" style={{ background: theme.input, color: theme.text, borderColor: theme.border }}>
                 <option value="Sous 30 jours">Sous 30 jours</option>
@@ -109,6 +148,43 @@ const CompanySettingsForm: React.FC<CompanySettingsFormProps> = ({ formData, err
               </select>
               <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" style={{ color: theme.subMuted }} />
             </div>
+          </FormField>
+        </div>
+      </section>
+
+      {/* ═══ CLIENT ═══ */}
+      <section className="min-w-0 flex-1 overflow-hidden rounded-xl border" style={{ background: theme.card, borderColor: theme.border }}>
+        <div className="border-b px-4 py-2.5 flex items-center gap-2" style={{ borderColor: theme.border, background: theme.primaryBg }}>
+          <Users size={15} style={{ color: theme.primary }} />
+          <h3 className="text-[13px] font-bold" style={{ color: theme.text }}>Informations du client</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <FormField label="Nom du client" icon={<Users size={14} />} isDark={isDark} theme={theme} className="sm:col-span-2 lg:col-span-3 border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+            <input type="text" name="clientName" value={formData.clientName || ''} onChange={onChange} placeholder="Nom du client" className={inputClass('clientName')} style={inputStyle} />
+          </FormField>
+
+          <FormField label="NIF client" icon={<Hash size={14} />} isDark={isDark} theme={theme} className="border-r border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+            <input type="text" name="clientNif" value={formData.clientNif || ''} onChange={onChange} placeholder="NIF client" className={inputClass('clientNif')} style={inputStyle} />
+          </FormField>
+
+          <FormField label="STAT client" icon={<FileText size={14} />} isDark={isDark} theme={theme} className="border-r border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+            <input type="text" name="clientStat" value={formData.clientStat || ''} onChange={onChange} placeholder="STAT client" className={inputClass('clientStat')} style={inputStyle} />
+          </FormField>
+
+          <FormField label="RCS client" icon={<Building size={14} />} isDark={isDark} theme={theme} className="border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+            <input type="text" name="clientRcs" value={formData.clientRcs || ''} onChange={onChange} placeholder="RCS client" className={inputClass('clientRcs')} style={inputStyle} />
+          </FormField>
+
+          <FormField label="CIF client" icon={<Shield size={14} />} isDark={isDark} theme={theme} className="border-r border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+            <input type="text" name="clientCif" value={formData.clientCif || ''} onChange={onChange} placeholder="CIF client" className={inputClass('clientCif')} style={inputStyle} />
+          </FormField>
+
+          <FormField label="Adresse client" icon={<MapPin size={14} />} isDark={isDark} theme={theme} className="sm:col-span-2 border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+            <input type="text" name="clientAddress" value={formData.clientAddress || ''} onChange={onChange} placeholder="Adresse client" className={inputClass('clientAddress')} style={inputStyle} />
+          </FormField>
+
+          <FormField label="Contact client" icon={<Phone size={14} />} isDark={isDark} theme={theme} className="sm:col-span-2 lg:col-span-3 border-b px-4 py-3.5" style={{ borderColor: theme.border }}>
+            <input type="text" name="clientContact" value={formData.clientContact || ''} onChange={onChange} placeholder="Contact client" className={inputClass('clientContact')} style={inputStyle} />
           </FormField>
         </div>
       </section>

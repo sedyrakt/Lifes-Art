@@ -105,3 +105,11 @@
 .react-datepicker__triangle{display:none!important}
 @media(max-width:768px){.react-datepicker{width:300px!important}}
 @media(max-width:420px){.react-datepicker{width:280px!important}}
+
+
+/* ⭐ Force le tooltip Chart.js au-dessus de tout */
+.chartjs-tooltip,
+[id^="chartjs-tooltip"] {
+  z-index: 99999 !important;
+  pointer-events: none !important;
+}

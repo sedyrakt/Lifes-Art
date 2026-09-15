@@ -1,4 +1,6 @@
-
+// src/components/ventes/VentesPagination.tsx
+// ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
+// ⭐ FONT SIZE NAMPITOMBOANA
 
 import React, { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -49,7 +51,7 @@ const VentesPagination: React.FC<VentesPaginationProps> = ({
   return (
     <div className="flex w-full items-center justify-between px-1 py-3">
       
-      <div className={`text-[12px] font-bold uppercase tracking-widest ${textColor}`}>
+      <div className={`text-[14px] font-bold uppercase tracking-widest ${textColor}`}>
         Total : <span className={textColorHighlight}>{totalItems}</span> VENTE{totalItems > 1 ? 'S' : ''}
       </div>
 
@@ -58,11 +60,11 @@ const VentesPagination: React.FC<VentesPaginationProps> = ({
         <button
           onClick={() => goToPage(currentPage - 1)}
           disabled={currentPage === 1}
-          className={`flex h-8 w-8 items-center justify-center rounded-xl border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${borderColor} bg-transparent ${hoverBg}`}
+          className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${borderColor} bg-transparent ${hoverBg}`}
           style={{ color: isDark ? '#B0B0B0' : '#64748B' }}
           aria-label="Page précédente"
         >
-          <ChevronLeft size={15} />
+          <ChevronLeft size={16} />
         </button>
 
         {pages.map((page) => {
@@ -71,7 +73,7 @@ const VentesPagination: React.FC<VentesPaginationProps> = ({
             <button
               key={page}
               onClick={() => goToPage(page)}
-              className={`flex h-8 min-w-[32px] items-center justify-center rounded-xl px-2 text-[13.5px] font-bold transition-all ${
+              className={`flex h-9 min-w-[36px] items-center justify-center rounded-xl px-2 text-[14.5px] font-bold transition-all ${
                 isActive
                   ? 'border-brand-500 bg-brand-500 text-white shadow-sm'
                   : `border bg-transparent ${borderColor} ${hoverBg}`
@@ -86,11 +88,11 @@ const VentesPagination: React.FC<VentesPaginationProps> = ({
         <button
           onClick={() => goToPage(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className={`flex h-8 w-8 items-center justify-center rounded-xl border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${borderColor} bg-transparent ${hoverBg}`}
+          className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-all disabled:opacity-30 disabled:cursor-not-allowed ${borderColor} bg-transparent ${hoverBg}`}
           style={{ color: isDark ? '#B0B0B0' : '#64748B' }}
           aria-label="Page suivante"
         >
-          <ChevronRight size={15} />
+          <ChevronRight size={16} />
         </button>
       </div>
     </div>

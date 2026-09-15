@@ -1,101 +1,55 @@
+// electron/services/license/constants.cjs
+// ⭐ FIX: 3 PACKAGES IHANY (testpro 48h, national 50 ans, centralized à vie)
 'use strict';
 
 const path = require('path');
 const os = require('os');
 
 // ============================================================
-// PACKAGES (with validity info)
+// PACKAGES — 3 IHANY (mitovy amin'ny admin-tools sy ny UI)
 // ============================================================
 
 const PACKAGES = {
-  test: {
-    id: 'test',
-    name: 'Test (30 min)',
-    prefix: 'TS',
-    validityMinutes: 30,          // 30 minitra
-    maxUsers: 1,
-    maxProducts: 5,
-    maxClients: 3,
-    isTest: true,
-    isLifetime: false,
-    defaultQuantity: 100,
-  },
   testpro: {
     id: 'testpro',
-    name: 'Test Pro (24h)',
+    name: 'Test Pro (48h)',
     prefix: 'TP',
-    validityMinutes: 24 * 60,     // 24 ora
+    validityMinutes: 48 * 60,     // 48 ora = 2880 minitra
     maxUsers: 1,
     maxProducts: 100,
     maxClients: 50,
     isTest: true,
     isLifetime: false,
-    defaultQuantity: 100,
-  },
-  basic: {
-    id: 'basic',
-    name: 'Basic',
-    prefix: 'BS',
-    validityDays: 30,             // 30 andro
-    maxUsers: 1,
-    maxProducts: 100,
-    maxClients: 50,
-    isTest: false,
-    isLifetime: false,
-    defaultQuantity: 100,
-  },
-  standard: {
-    id: 'standard',
-    name: 'Standard',
-    prefix: 'ST',
-    validityDays: 60,
-    maxUsers: 3,
-    maxProducts: 500,
-    maxClients: 200,
-    isTest: false,
-    isLifetime: false,
-    defaultQuantity: 100,
-  },
-  premium: {
-    id: 'premium',
-    name: 'Premium',
-    prefix: 'PR',
-    validityDays: 365,
-    maxUsers: 10,
-    maxProducts: -1,
-    maxClients: -1,
-    isTest: false,
-    isLifetime: false,
-    defaultQuantity: 100,
+    defaultQuantity: 1000,
   },
   national: {
     id: 'national',
     name: 'National',
     prefix: 'NA',
-    validityDays: 730,
+    validityDays: 18250,          // 50 ans = 50 × 365
     maxUsers: 25,
     maxProducts: -1,
     maxClients: -1,
     isTest: false,
     isLifetime: false,
-    defaultQuantity: 100,
+    defaultQuantity: 1000,
   },
   centralized: {
     id: 'centralized',
     name: 'Centralized',
     prefix: 'CE',
-    validityDays: -1,             // -1 = lifetime (tsy misy expiration)
+    validityDays: -1,             // -1 = lifetime
     maxUsers: -1,
     maxProducts: -1,
     maxClients: -1,
     isTest: false,
     isLifetime: true,
-    defaultQuantity: 1,
+    defaultQuantity: 1000,
   },
 };
 
 const VALID_PACKAGES = Object.keys(PACKAGES);
-const GRACE_PERIOD_DAYS = 0; // ✅ OVANA: TSY MISY GRACE PERIOD
+const GRACE_PERIOD_DAYS = 0; // ✅ TSY MISY GRACE PERIOD
 const MAX_TAMPER_ATTEMPTS = 5;
 const TAMPER_LOCKOUT_MINUTES = 60;
 const MAX_RESET_ATTEMPTS = 5;
@@ -139,7 +93,8 @@ const PUBLIC_KEY_PATHS = [
   path.join(__dirname, '../../../keys/public.pem'),
   path.join(process.cwd(), 'electron/keys/public.pem'),
   path.join(process.cwd(), 'keys/public.pem'),
-  // ⭐ FIX: Ampiana ny chemin ho an'ny dist-electron
+
+  // 4. dist-electron (build)
   path.join(__dirname, '../../dist-electron/keys/public.pem'),
   path.join(__dirname, '../../../dist-electron/keys/public.pem'),
 ];
@@ -155,7 +110,7 @@ const ACTIVATION_CODE_LENGTH = 17;
 module.exports = {
   PACKAGES,
   VALID_PACKAGES,
-  GRACE_PERIOD_DAYS, // ✅ 0
+  GRACE_PERIOD_DAYS,
   MAX_TAMPER_ATTEMPTS,
   TAMPER_LOCKOUT_MINUTES,
   MAX_RESET_ATTEMPTS,

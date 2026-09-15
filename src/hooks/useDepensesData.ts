@@ -1,10 +1,11 @@
 // useDepensesData.ts
+// ⭐ FIX: topCategories dia SEPARATE STATE (fa tsy ao anaty stats)
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { saveFileWithDialog } from '../utils/saveFileWithDialog'; // ⭐ Import ho an'ny save dialog
-import { Depense, DepensesStats, DepensesFilters } from '../types/depenses';
+import { saveFileWithDialog } from '../utils/saveFileWithDialog';
+import { Depense, DepensesStats, DepensesFilters, TopCategorie } from '../types/depenses';
 
 const ITEMS_PER_PAGE = 8;
 
@@ -15,7 +16,7 @@ const formatNumberNoSlash = (value: number) => {
 };
 
 export const useDepensesData = () => {
-  // ===== 1. TOUS LES useState =====
+  // ===== STATES =====
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);
@@ -40,18 +41,23 @@ export const useDepensesData = () => {
     plusGrande: 0,
     plusPetite: 0,
     nbFournisseurs: 0,
+    topCategories: [],     // ⭐ Ampiana (optional)
   });
+
+  // ⭐⭐⭐ SEPARATE STATE ho an'ny topCategories ⭐⭐⭐
+  const [topCategories, setTopCategories] = useState<TopCategorie[]>([]);
+
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [exportPeriod, setExportPeriod] = useState<ExportPeriod>('mois');
   const [exportCustomDate, setExportCustomDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
-  // ===== 2. TOUS LES useRef =====
+  // ===== REFS =====
   const isMounted = useRef(true);
   const fetchLock = useRef(false);
   const firstLoadDone = useRef(false);
   const loadDataRef = useRef<(isRefresh?: boolean) => Promise<void>>(async () => {});
 
-  // ===== 3. TOUS LES useCallback =====
+  // ===== LOAD =====
   const loadDepenses = useCallback(async (isRefresh = false) => {
     if (fetchLock.current) return;
     fetchLock.current = true;
@@ -87,20 +93,33 @@ export const useDepensesData = () => {
         setTotalPages(1);
       }
 
+      // ⭐ Stats + topCategories
       try {
         const statsResult = await window.api.expenses.getStats();
         if (statsResult?.success && isMounted.current) {
+          const data = statsResult.data || {};
           setStats({
-            total: Number(statsResult.data?.total || 0),
-            nb: Number(statsResult.data?.nb || 0),
-            moyenne: Number(statsResult.data?.moyenne || 0),
-            parCategorie: statsResult.data?.parCategorie || {},
-            parMois: statsResult.data?.parMois || {},
-            parMode: statsResult.data?.parMode || {},
-            plusGrande: Number(statsResult.data?.plusGrande || 0),
-            plusPetite: Number(statsResult.data?.plusPetite || 0),
-            nbFournisseurs: Number(statsResult.data?.nbFournisseurs || 0),
+            total: Number(data.total || 0),
+            nb: Number(data.nb || 0),
+            moyenne: Number(data.moyenne || 0),
+            parCategorie: data.parCategorie || {},
+            parMois: data.parMois || {},
+            parMode: data.parMode || {},
+            plusGrande: Number(data.plusGrande || 0),
+            plusPetite: Number(data.plusPetite || 0),
+            nbFournisseurs: Number(data.nbFournisseurs || 0),
+            topCategories: data.topCategories || [],   // ⭐ Ampiana ao amin'ny stats koa (optional)
           });
+
+          // ⭐ Set ho an'ny SEPARATE state
+          const cats = Array.isArray(data.topCategories) ? data.topCategories : [];
+          setTopCategories(
+            cats.map((c: any) => ({
+              categorie: String(c.categorie || ''),
+              count: Number(c.count || 0),
+              total: Number(c.total || 0),
+            }))
+          );
         }
       } catch (err) {
         console.error('❌ Erreur chargement stats:', err);
@@ -120,13 +139,13 @@ export const useDepensesData = () => {
     }
   }, [currentPage, debouncedSearch, filters.filterCategorie, filters.filterDate, filters.filterMode, filters.sortOption]);
 
-  // Assignation directe
   loadDataRef.current = loadDepenses;
 
   const setFiltersState = useCallback((newFilters: Partial<DepensesFilters>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   }, []);
 
+  // ===== CRUD =====
   const createDepense = useCallback(async (data: any) => {
     const result = await window.api.expenses.create(data);
     if (!result?.success) throw new Error(result?.error || 'Erreur création');
@@ -155,7 +174,7 @@ export const useDepensesData = () => {
     return result;
   }, []);
 
-  // ===== 4. FONCTIONS D'EXPORT (useCallback) =====
+  // ===== EXPORTS =====
   const getExportPeriodRange = useCallback((period: ExportPeriod, customDate: string) => {
     const now = new Date();
     let startDate: string | undefined, endDate: string | undefined;
@@ -202,14 +221,13 @@ export const useDepensesData = () => {
       mode: filters.filterMode || undefined,
       startDate: range.startDate,
       endDate: range.endDate,
-      sort: { field: 'date_depense', direction: 'DESC' }
+      sort: { field: 'date_depense', direction: 'DESC' },
     };
     const result = await window.api.expenses.getAll(options);
     if (result?.success) return result.data || [];
     return [];
   }, [debouncedSearch, filters.filterCategorie, filters.filterMode, getExportPeriodRange]);
 
-  // ⭐ Export Excel – mampiasa saveFileWithDialog, mamorona entête raha tsy misy data
   const exportToExcel = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
     const data = await fetchAllForExport(period, customDate);
     const rows = data.length
@@ -232,7 +250,7 @@ export const useDepensesData = () => {
     const totalSum = data.reduce((sum: number, d: any) => sum + (Number(d.montant) || 0), 0);
     XLSX.utils.sheet_add_json(ws, [{ 'Catégorie': 'TOTAL', 'Description': '', 'Montant': formatNumberNoSlash(totalSum), 'Date': '', 'Mode': '', 'Référence': '', 'Fournisseur': '', 'Observation': '' }], { origin: -1, skipHeader: true });
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const fileName = `depenses_${period}_${customDate || new Date().toISOString().slice(0,10)}.xlsx`;
+    const fileName = `depenses_${period}_${customDate || new Date().toISOString().slice(0, 10)}.xlsx`;
     const result = await saveFileWithDialog(wbout, fileName, [{ name: 'Excel', extensions: ['xlsx'] }]);
     if (!result.success) {
       if (result.canceled) return result;
@@ -241,7 +259,6 @@ export const useDepensesData = () => {
     return result;
   }, [fetchAllForExport]);
 
-  // ⭐ Export PDF – mampiasa saveFileWithDialog, mamorona entête raha tsy misy data
   const exportToPDF = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
     const data = await fetchAllForExport(period, customDate);
     const doc = new jsPDF('landscape', 'mm', 'a4');
@@ -287,7 +304,7 @@ export const useDepensesData = () => {
       footStyles: { fillColor: [226, 232, 240], textColor: [15, 23, 42], fontStyle: 'bold' },
     });
     const pdfArrayBuffer = doc.output('arraybuffer');
-    const fileName = `depenses_${period}_${customDate || new Date().toISOString().slice(0,10)}.pdf`;
+    const fileName = `depenses_${period}_${customDate || new Date().toISOString().slice(0, 10)}.pdf`;
     const result = await saveFileWithDialog(pdfArrayBuffer, fileName, [{ name: 'PDF', extensions: ['pdf'] }]);
     if (!result.success) {
       if (result.canceled) return result;
@@ -296,7 +313,6 @@ export const useDepensesData = () => {
     return result;
   }, [fetchAllForExport]);
 
-  // ⭐ Export CSV – mampiasa saveFileWithDialog, mamorona entête raha tsy misy data
   const exportToCSV = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
     const data = await fetchAllForExport(period, customDate);
     const headers = ['Catégorie', 'Description', 'Montant', 'Date', 'Mode', 'Référence', 'Fournisseur', 'Observation'];
@@ -315,7 +331,7 @@ export const useDepensesData = () => {
     const totalSum = data.reduce((sum: number, d: any) => sum + (Number(d.montant) || 0), 0);
     const totalRow = ['', '', `TOTAL: ${formatNumberNoSlash(totalSum)} Ar`, '', '', '', '', ''];
     const csv = [headers.map(escapeCSV).join(','), ...rows.map(r => r.map(escapeCSV).join(',')).concat([totalRow.map(escapeCSV).join(',')])].join('\n');
-    const fileName = `depenses_${period}_${customDate || new Date().toISOString().slice(0,10)}.csv`;
+    const fileName = `depenses_${period}_${customDate || new Date().toISOString().slice(0, 10)}.csv`;
     const result = await saveFileWithDialog(csv, fileName, [{ name: 'CSV', extensions: ['csv'] }]);
     if (!result.success) {
       if (result.canceled) return result;
@@ -324,14 +340,12 @@ export const useDepensesData = () => {
     return result;
   }, [fetchAllForExport]);
 
-  // ===== 5. TOUS LES useEffect (placés après tous les useCallback) =====
-  // Debounce du terme de recherche
+  // ===== EFFECTS =====
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(filters.searchTerm.trim()), 300);
     return () => clearTimeout(timer);
   }, [filters.searchTerm]);
 
-  // Montage / démontage
   useEffect(() => {
     isMounted.current = true;
     return () => {
@@ -340,7 +354,6 @@ export const useDepensesData = () => {
     };
   }, []);
 
-  // Chargement des fournisseurs
   useEffect(() => {
     let cancelled = false;
     const loadFournisseurs = async () => {
@@ -358,7 +371,6 @@ export const useDepensesData = () => {
     return () => { cancelled = true; };
   }, []);
 
-  // Écoute des changements financiers
   useEffect(() => {
     if (!window.api?.financial?.onChanged) return;
     const unsubscribe = window.api.financial.onChanged(() => {
@@ -367,7 +379,6 @@ export const useDepensesData = () => {
     return () => { if (typeof unsubscribe === 'function') unsubscribe(); };
   }, []);
 
-  // Rechargement quand les filtres changent
   useEffect(() => {
     if (isMounted.current) {
       setCurrentPage(1);
@@ -375,12 +386,11 @@ export const useDepensesData = () => {
     }
   }, [debouncedSearch, filters.filterCategorie, filters.filterDate, filters.filterMode, filters.sortOption]);
 
-  // Rechargement quand la page change
   useEffect(() => {
     if (isMounted.current && firstLoadDone.current) loadDataRef.current(false);
   }, [currentPage]);
 
-  // ===== 6. RETURN FINAL =====
+  // ===== RETURN =====
   return {
     depenses,
     fournisseurs,
@@ -394,6 +404,7 @@ export const useDepensesData = () => {
     filters,
     setFilters: setFiltersState,
     stats,
+    topCategories,          // ⭐ SEPARATE STATE — ampiasain'ny Depenses.tsx
     loadDepenses,
     createDepense,
     updateDepense,

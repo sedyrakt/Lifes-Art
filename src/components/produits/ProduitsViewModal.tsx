@@ -1,8 +1,7 @@
 // src/components/produits/ProduitsViewModal.tsx
 // ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
-// ⭐ DESIGN MITOVY TANTERAKA AMIN'NY VENTES VIEW MODAL
-// ⭐ FIX: NAMPIANA DIVIDERS (border-t) HO AN'NY ANDALANA REHETRA
-// ⭐ NEW: NAMPIANA NY "Créé le" (Date de création) - Format DD/MM/YYYY
+// ⭐ TYPOGRAPHIE alignée sur ProduitsModalForm / ProfilePasswordModal
+// ⭐ FONT SIZE: h2 18px, subtitle 14px, labels 13px, values 15px, buttons 15px
 
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -35,7 +34,6 @@ interface Produit {
   status: string;
   nb_commandes?: number;
   tva_rate?: number | null;
-  // ⭐ NEW: Date de création
   created_at?: string;
 }
 
@@ -99,7 +97,7 @@ const ProduitsViewModal: React.FC<ProduitsViewModalProps> = ({ produit, onClose,
     ? { bg: isDark ? 'rgba(16, 185, 129, 0.12)' : '#D1FAE5', text: isDark ? '#34D399' : '#065F46', border: isDark ? 'rgba(16, 185, 129, 0.3)' : '#A7F3D0' }
     : { bg: isDark ? 'rgba(239, 68, 68, 0.12)' : '#FEE2E2', text: isDark ? '#F87171' : '#991B1B', border: isDark ? 'rgba(239, 68, 68, 0.3)' : '#FECACA' };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
       style={{ background: isDark ? 'rgba(0,0,0,0.80)' : 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}
@@ -108,101 +106,124 @@ const ProduitsViewModal: React.FC<ProduitsViewModalProps> = ({ produit, onClose,
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="relative w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden rounded-2xl border shadow-2xl"
+        className="relative w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden rounded-xl border-[0.5px] shadow-[0_18px_55px_rgba(15,23,42,0.35)]"
         style={{ background: theme.card, borderColor: theme.border }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* HEADER */}
-        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: theme.border, background: theme.card }}>
+        {/* HEADER — ⭐ py-3 → py-3.5 */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: theme.border, background: theme.card }}>
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg" style={{ background: 'rgba(79,70,229,0.06)' }}>
-              <FileText size={19} style={{ color: theme.primary }} />
+            {/* ⭐ Icon container : p-2 → p-2.5, icon 18 → 20 */}
+            <div className="p-2.5 rounded-lg" style={{ background: 'rgba(79,70,229,0.06)' }}>
+              <FileText size={20} strokeWidth={2.2} style={{ color: theme.primary }} />
             </div>
             <div>
-              <h2 className="text-[17px] font-bold" style={{ color: theme.text }}>
+              {/* ⭐ h2 : 16px → 18px */}
+              <h2 className="text-[18px] font-semibold leading-tight" style={{ color: theme.text }}>
                 Détails du produit
               </h2>
-              <p className="text-[13px]" style={{ color: theme.muted }}>
+              {/* ⭐ Subtitle : 13.5px → 14px */}
+              <p className="text-[14px] leading-[1.3] mt-0.5" style={{ color: theme.muted }}>
                 {produit.code || `#${produit.id}`}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>
-            <X size={19} />
+          {/* ⭐ Close button : h-9 w-9 → h-10 w-10, icon 18 → 19 */}
+          <button
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-white/5"
+            style={{ color: theme.muted }}
+          >
+            <X size={19} strokeWidth={2.2} />
           </button>
         </div>
 
-        {/* BODY */}
-        <div className="flex-1 overflow-y-auto p-6">
-          
+        {/* BODY — ⭐ px-4 py-4 → px-5 py-4 */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+
           {/* PRODUIT INFO */}
           <div className="mb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[12px] uppercase font-semibold text-slate-500 dark:text-slate-400">Produit</p>
-                <p className="text-[15px] font-bold" style={{ color: theme.text }}>{produit.nom}</p>
-                {produit.fournisseur_nom && <p className="text-[13px]" style={{ color: theme.muted }}>{produit.fournisseur_nom}</p>}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                {/* ⭐ Label : 12px → 13px */}
+                <p className="text-[13px] uppercase font-semibold tracking-[0.06em] leading-[1.3]" style={{ color: theme.muted }}>
+                  Produit
+                </p>
+                {/* ⭐ Value : 14px → 15px */}
+                <p className="text-[15px] font-semibold leading-tight mt-1" style={{ color: theme.text }}>
+                  {produit.nom}
+                </p>
+                {/* ⭐ Fournisseur : 12.5px → 13.5px */}
+                {produit.fournisseur_nom && (
+                  <p className="text-[13.5px] leading-[1.3] mt-1" style={{ color: theme.muted }}>
+                    {produit.fournisseur_nom}
+                  </p>
+                )}
               </div>
-              <div>
-                <span className="inline-flex items-center rounded-lg border px-3 py-1.5 text-[13px] font-semibold" style={{ background: statusStyle.bg, color: statusStyle.text, borderColor: statusStyle.border }}>
-                  {isActive ? 'Actif' : 'Inactif'}
-                </span>
-              </div>
+              {/* ⭐ Status badge : 12.5px → 13px, px-2 → px-2.5 py-1 → py-1.5 */}
+              <span
+                className="inline-flex shrink-0 items-center rounded-md border px-2.5 py-1.5 text-[13px] font-semibold leading-tight"
+                style={{ background: statusStyle.bg, color: statusStyle.text, borderColor: statusStyle.border }}
+              >
+                {isActive ? 'Actif' : 'Inactif'}
+              </span>
             </div>
           </div>
 
           {/* DETAILS */}
-          <div className="mt-6 flex flex-col">
-            {/* Code */}
-            <div className="flex justify-between text-[14px] py-2 border-b" style={{ borderColor: theme.border }}>
+          <div className="mt-4 flex flex-col">
+            {/* Code — ⭐ 14px → 15px, py-2.5 → py-3 */}
+            <div className="flex justify-between text-[15px] py-3 border-b" style={{ borderColor: theme.border }}>
               <span style={{ color: theme.muted }}>Code</span>
-              <span className="font-semibold" style={{ color: theme.text }}>{produit.code || '—'}</span>
+              <span className="font-semibold font-mono" style={{ color: theme.text }}>{produit.code || '—'}</span>
             </div>
 
-            {/* ⭐ Créé le */}
-            <div className="flex justify-between text-[14px] py-2 border-b" style={{ borderColor: theme.border }}>
+            {/* Créé le */}
+            <div className="flex justify-between text-[15px] py-3 border-b" style={{ borderColor: theme.border }}>
               <span style={{ color: theme.muted }}>Créé le</span>
               <span className="font-semibold" style={{ color: theme.text }}>{formatDateFr(produit.created_at)}</span>
             </div>
 
             {/* Catégorie */}
-            <div className="flex justify-between text-[14px] py-2 border-b" style={{ borderColor: theme.border }}>
+            <div className="flex justify-between text-[15px] py-3 border-b" style={{ borderColor: theme.border }}>
               <span style={{ color: theme.muted }}>Catégorie</span>
               <span className="font-semibold" style={{ color: theme.text }}>{produit.categorie_nom || '—'}</span>
             </div>
 
             {/* Fournisseur */}
-            <div className="flex justify-between text-[14px] py-2 border-b" style={{ borderColor: theme.border }}>
+            <div className="flex justify-between text-[15px] py-3 border-b" style={{ borderColor: theme.border }}>
               <span style={{ color: theme.muted }}>Fournisseur</span>
               <span className="font-semibold" style={{ color: theme.text }}>{produit.fournisseur_nom || '—'}</span>
             </div>
 
             {/* Prix d'achat */}
-            <div className="flex justify-between text-[14px] py-2 border-b" style={{ borderColor: theme.border }}>
+            <div className="flex justify-between text-[15px] py-3 border-b" style={{ borderColor: theme.border }}>
               <span style={{ color: theme.muted }}>Prix d'achat</span>
               <span className="font-semibold" style={{ color: theme.text }}>{Number(produit.prix_achat || 0).toLocaleString('fr-FR')} Ar</span>
             </div>
 
-            {/* Prix de vente */}
-            <div className="flex justify-between text-[16px] font-bold py-3 border-b" style={{ borderColor: theme.border }}>
+            {/* Prix de vente — ⭐ font-semibold + 15px */}
+            <div className="flex justify-between text-[15px] font-semibold py-3 border-b" style={{ borderColor: theme.border }}>
               <span style={{ color: theme.text }}>Prix de vente</span>
               <span style={{ color: theme.primary }}>{Number(produit.prix_vente || 0).toLocaleString('fr-FR')} Ar</span>
             </div>
 
             {/* Taux de TVA */}
-            <div className="flex justify-between text-[14px] py-2 border-b" style={{ borderColor: theme.border }}>
+            <div className="flex justify-between text-[15px] py-3 border-b" style={{ borderColor: theme.border }}>
               <span style={{ color: theme.muted }}>Taux de TVA</span>
               <span className="font-semibold" style={{ color: theme.text }}>{formatTva(produit.tva_rate)}</span>
             </div>
 
             {/* Stock */}
-            <div className="flex justify-between text-[14px] py-2 border-b" style={{ borderColor: theme.border }}>
+            <div className="flex justify-between text-[15px] py-3 border-b" style={{ borderColor: theme.border }}>
               <span style={{ color: theme.muted }}>Stock</span>
-              <span className="font-semibold" style={{ color: stockColor }}>{stock} {produit.unite || 'p.'} ({stockLabel})</span>
+              <span className="font-semibold" style={{ color: stockColor }}>
+                {stock} {produit.unite || 'p.'} <span className="font-normal">({stockLabel})</span>
+              </span>
             </div>
 
             {/* Stock minimum */}
-            <div className="flex justify-between text-[14px] py-2">
+            <div className="flex justify-between text-[15px] py-3">
               <span style={{ color: theme.muted }}>Stock minimum</span>
               <span className="font-semibold" style={{ color: theme.text }}>{stockMin} {produit.unite || 'p.'}</span>
             </div>
@@ -210,26 +231,51 @@ const ProduitsViewModal: React.FC<ProduitsViewModalProps> = ({ produit, onClose,
 
           {/* DESCRIPTION */}
           {produit.description && (
-            <div className="mt-4 border-t pt-3" style={{ borderColor: theme.border }}>
-              <p className="text-[12px] uppercase font-semibold text-slate-500 dark:text-slate-400 mb-2">Description</p>
-              <div className="text-[14px] leading-relaxed" style={{ color: theme.text }}>{produit.description}</div>
+            <div className="mt-4 border-t pt-4" style={{ borderColor: theme.border }}>
+              {/* ⭐ Label : 12px → 13px */}
+              <p className="text-[13px] uppercase font-semibold tracking-[0.06em] leading-[1.3] mb-2" style={{ color: theme.muted }}>
+                Description
+              </p>
+              {/* ⭐ Description text : 14px → 15px, leading 1.5 → 1.6 */}
+              <div className="text-[15px] leading-[1.6]" style={{ color: theme.text }}>
+                {produit.description}
+              </div>
             </div>
           )}
         </div>
 
-        {/* FOOTER */}
-        <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: theme.border, background: theme.softBg }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-[14px] font-medium hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>Fermer</button>
-          <button onClick={onNewCommande} className="px-4 py-2 rounded-lg text-[14px] font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-white/[0.12] hover:bg-slate-100 dark:hover:bg-white/5">
-            <ShoppingBag size={15} className="inline mr-1" />Commande
+        {/* FOOTER — ⭐ py-3 → py-4 */}
+        <div className="flex justify-end gap-2 px-5 py-4 border-t" style={{ borderColor: theme.border, background: theme.softBg }}>
+          {/* ⭐ Fermer button : 14px → 15px, h-9 → h-10, px-3.5 → px-4.5 */}
+          <button
+            onClick={onClose}
+            className="h-10 rounded-lg px-4.5 text-[15px] font-medium transition-colors hover:bg-slate-100 dark:hover:bg-white/5"
+            style={{ color: theme.muted }}
+          >
+            Fermer
           </button>
-          <button onClick={onEdit} className="px-4 py-2 rounded-lg text-[14px] font-semibold text-white" style={{ background: theme.primary }}>
-            <Edit size={15} className="inline mr-1" />Modifier
+          {/* ⭐ Commande button : 14px → 15px, h-9 → h-10, icon 15 → 17 */}
+          <button
+            onClick={onNewCommande}
+            className="h-10 flex items-center gap-2 rounded-lg px-4.5 text-[15px] font-semibold border transition-colors hover:bg-slate-100 dark:hover:bg-white/5"
+            style={{ color: theme.text, borderColor: theme.border }}
+          >
+            <ShoppingBag size={17} strokeWidth={2.2} />
+            Commande
+          </button>
+          {/* ⭐ Modifier button : 14px → 15px, h-9 → h-10, icon 15 → 17 */}
+          <button
+            onClick={onEdit}
+            className="h-10 flex items-center gap-2 rounded-lg px-5 text-[15px] font-semibold text-white transition-colors"
+            style={{ background: theme.primary }}
+          >
+            <Edit size={17} strokeWidth={2.2} />
+            Modifier
           </button>
         </div>
-
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

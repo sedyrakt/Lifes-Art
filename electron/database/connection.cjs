@@ -10,10 +10,11 @@ let dbInstance = null;
 
 function getDbPath() {
   const userDataPath = app.getPath('userData');
-  const dbPath = path.join(userDataPath, 'tahirypro.db');
+
+  const dbPath = path.join(userDataPath, 'lifesart.db');
   
   console.log('============================================================');
-  console.log('📦 TAHIRYPRO DATABASE DEBUG');
+  console.log('📦 LIFESART DATABASE DEBUG');
   console.log('============================================================');
   console.log('📁 app.getPath("userData") :', userDataPath);
   console.log('📁 Database path            :', dbPath);

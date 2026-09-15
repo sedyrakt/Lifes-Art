@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
-import { X, LogOut } from 'lucide-react'; 
+import { X, LogOut } from 'lucide-react';
 import ProfileHeader from '../components/profile/ProfileHeader';
 import ProfileSidebar from '../components/profile/ProfileSidebar';
 import ProfileForm from '../components/profile/ProfileForm';
@@ -20,14 +19,13 @@ interface FormData {
   companyName: string;
 }
 
-
 const ProfileSkeleton = ({ isDark }: { isDark: boolean }) => {
   const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
   const border = isDark ? 'border-white/[0.08]' : 'border-slate-200';
   return (
-    <div className="min-h-[500px] w-full p-5">
-      <div className="space-y-4">
-        <div className={`rounded-xl border p-4 ${border}`}>
+    <div className="min-h-[500px] w-full p-4">
+      <div className="space-y-3.5">
+        <div className={`rounded-lg border p-4 ${border}`}>
           <div className="flex items-center justify-between">
             <div className="space-y-2">
               <div className={`h-5 w-48 rounded ${base} animate-pulse`} />
@@ -36,30 +34,30 @@ const ProfileSkeleton = ({ isDark }: { isDark: boolean }) => {
             <div className={`h-8 w-24 rounded-lg ${base} animate-pulse`} />
           </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[30%_1fr] gap-6">
-          <div className={`rounded-xl border p-4 ${border}`}>
+        <div className="grid grid-cols-1 lg:grid-cols-[30%_1fr] gap-4">
+          <div className={`rounded-lg border p-4 ${border}`}>
             <div className={`h-4 w-24 rounded ${base} animate-pulse`} />
             <div className={`mt-3 h-3 w-32 rounded ${base} animate-pulse`} />
             <div className={`mt-3 h-3 w-28 rounded ${base} animate-pulse`} />
-            <div className={`mt-6 h-4 w-20 rounded ${base} animate-pulse`} />
+            <div className={`mt-5 h-4 w-20 rounded ${base} animate-pulse`} />
             <div className={`mt-2 h-3 w-full rounded ${base} animate-pulse`} />
             <div className={`mt-2 h-3 w-3/4 rounded ${base} animate-pulse`} />
-            <div className={`mt-6 h-9 w-full rounded-lg ${base} animate-pulse`} />
+            <div className={`mt-5 h-9 w-full rounded-lg ${base} animate-pulse`} />
           </div>
-          <div className="flex flex-col gap-6">
-            <div className={`rounded-xl border p-4 ${border}`}>
-              <div className="flex items-center gap-4">
-                <div className={`h-24 w-24 rounded-full ${base} animate-pulse`} />
+          <div className="flex flex-col gap-4">
+            <div className={`rounded-lg border p-4 ${border}`}>
+              <div className="flex items-center gap-3">
+                <div className={`h-20 w-20 rounded-full ${base} animate-pulse`} />
                 <div className="space-y-2">
                   <div className={`h-4 w-32 rounded ${base} animate-pulse`} />
                   <div className={`h-3 w-24 rounded ${base} animate-pulse`} />
                 </div>
               </div>
             </div>
-            <div className={`rounded-xl border p-4 ${border}`}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className={`rounded-lg border p-4 ${border}`}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className={`h-10 rounded-lg ${base} animate-pulse`} />
+                  <div key={i} className={`h-9 rounded-lg ${base} animate-pulse`} />
                 ))}
               </div>
             </div>
@@ -388,18 +386,17 @@ const Profile: React.FC = () => {
     ? new Date(user.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
     : 'N/A';
 
- 
   const bgColor = isDark ? '#0F172A' : '#FFFFFF';
-  const cardColor = isDark ? '#0F172A' : '#FFFFFF'; 
+  const cardColor = isDark ? '#0F172A' : '#FFFFFF';
   const borderColor = isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0';
-  const footerBg = isDark ? 'rgba(51,51,51,0.5)' : '#F8FAFC';
+  const footerBg = isDark ? 'rgba(255,255,255,0.03)' : '#F8FAFC';
   const textColor = isDark ? '#F8FAFC' : '#0F172A';
   const mutedColor = isDark ? '#94A3B8' : '#64748B';
 
   return (
     <div className="min-h-screen font-sans transition-colors duration-300" style={{ background: bgColor }}>
-      <div className="mx-auto w-full max-w-[1600px] space-y-5 px-2 py-5 sm:px-3 lg:px-5">
-        
+      <div className="mx-auto w-full max-w-[1600px] space-y-4 px-2 py-4 sm:px-3 lg:px-5">
+
         {userLoading ? (
           <ProfileSkeleton isDark={isDark} />
         ) : (
@@ -408,11 +405,11 @@ const Profile: React.FC = () => {
               <ProfileHeader role={role} isEditing={isEditing} saving={saving} onEdit={handleEdit} onCancel={handleCancel} onSave={handleSave} />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[30%_1fr] gap-6 pb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-[30%_1fr] gap-4 pb-8">
               <div>
                 <ProfileSidebar role={role} memberSince={memberSince} companyName={formData.companyName} twoFAEnabled={twoFAEnabled} onPasswordChange={() => setShowPasswordModal(true)} onLogout={() => setShowLogoutModal(true)} />
               </div>
-              <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-4">
                 <ProfileAvatar imagePreview={profileImage} uploadingImage={uploadingImage} firstName={formData.firstName} lastName={formData.lastName} onImageUpload={handleImageChange} onImageRemove={handleRemoveImage} uploadProgress={uploadingImage ? 50 : 0} error={imageError ? "Erreur de chargement de l'image" : null} />
                 <input type="file" ref={fileInputRef} accept="image/*" onChange={(e) => { if (e.target.files?.[0]) handleImageChange(e.target.files[0]); }} className="hidden" />
                 <div className="w-full">
@@ -424,35 +421,65 @@ const Profile: React.FC = () => {
         )}
       </div>
 
-      <SuccessModal isOpen={successModal.isOpen} onClose={() => setSuccessModal({ ...successModal, isOpen: false })} title={successModal.title} message={successModal.message} details={successModal.details} autoCloseDelay={successModal.autoClose} isDark={isDark} />
-      <ErrorModal isOpen={errorModal.isOpen} onClose={() => setErrorModal({ ...errorModal, isOpen: false })} title={errorModal.title} message={errorModal.message} details={errorModal.details} autoCloseDelay={errorModal.autoClose} isDark={isDark} />
+      <SuccessModal
+        isOpen={successModal.isOpen}
+        onClose={() => setSuccessModal({ ...successModal, isOpen: false })}
+        title={successModal.title}
+        message={successModal.message}
+        details={successModal.details}
+        autoCloseDelay={successModal.autoClose}
+        isDark={isDark}
+      />
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ ...errorModal, isOpen: false })}
+        title={errorModal.title}
+        message={errorModal.message}
+        details={errorModal.details}
+        autoCloseDelay={errorModal.autoClose}
+        isDark={isDark}
+      />
 
-      
       {showLogoutModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm animate-fadeIn">
           <div className="relative max-w-sm w-full rounded-xl shadow-2xl border overflow-hidden" style={{ background: cardColor, borderColor: borderColor }}>
-            <button onClick={() => setShowLogoutModal(false)} className="absolute top-4 right-4 p-1 rounded-lg transition-colors hover:bg-[#4F46E5]/10 dark:hover:bg-white/[0.06] cursor-pointer z-10" style={{ color: mutedColor }}>
+            <button
+              onClick={() => setShowLogoutModal(false)}
+              className="absolute top-3.5 right-3.5 p-1 rounded-lg transition-colors hover:bg-[#4F46E5]/10 dark:hover:bg-white/[0.06] cursor-pointer z-10"
+              style={{ color: mutedColor }}
+            >
               <X className="w-4 h-4" />
             </button>
-            <div className="flex items-center justify-center pt-6 pb-2">
-              <img src="./images/logolight.png" alt="Logo" className="w-20 h-auto object-contain" />
+
+            <div className="flex items-center justify-center pt-5 pb-2">
+              <img src="./images/logolight.png" alt="Logo" className="w-16 h-auto object-contain" />
             </div>
-            <div className="px-7 py-4 flex items-center justify-center border-b" style={{ borderColor: borderColor }}>
-              <h2 className="text-[15px] font-bold" style={{ color: textColor }}>Déconnexion</h2>
+
+            <div className="px-5 py-3 flex items-center justify-center border-b" style={{ borderColor: borderColor }}>
+              <h2 className="text-[14px] font-bold" style={{ color: textColor }}>Déconnexion</h2>
             </div>
+
             <div className="p-5">
-              <p className="text-[15px] font-medium leading-tight text-center" style={{ color: textColor }}>
+              <p className="text-[14px] font-medium leading-tight text-center" style={{ color: textColor }}>
                 Êtes-vous sûr de vouloir vous déconnecter ?
               </p>
-              <p className="text-[13px] mt-1.5 leading-relaxed text-center" style={{ color: mutedColor }}>
+              <p className="text-[12.5px] mt-1.5 leading-[1.3] text-center" style={{ color: mutedColor }}>
                 Vous devrez entrer vos identifiants pour vous reconnecter.
               </p>
             </div>
+
             <div className="flex gap-2.5 px-5 py-3 border-t" style={{ borderColor: borderColor, background: footerBg }}>
-              <button onClick={() => setShowLogoutModal(false)} className="flex-1 px-4 py-2 rounded-lg border text-[14px] font-medium transition-colors" style={{ borderColor: borderColor, color: mutedColor }}>
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 px-4 py-2 rounded-lg border text-[13px] font-medium transition-colors"
+                style={{ borderColor: borderColor, color: mutedColor }}
+              >
                 Annuler
               </button>
-              <button onClick={handleConfirmLogout} className="flex-1 px-4 py-2 rounded-lg text-[14px] font-medium text-white bg-brand-500 hover:bg-brand-600 transition-colors">
+              <button
+                onClick={handleConfirmLogout}
+                className="flex-1 px-4 py-2 rounded-lg text-[13px] font-medium text-white bg-brand-500 hover:bg-brand-600 transition-colors"
+              >
                 Se déconnecter
               </button>
             </div>
@@ -460,7 +487,15 @@ const Profile: React.FC = () => {
         </div>
       )}
 
-      <ProfilePasswordModal isOpen={showPasswordModal} onClose={() => { setShowPasswordModal(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); }} onSubmit={handlePasswordSubmit} passwordData={passwordData} onPasswordDataChange={setPasswordData} passwordLoading={passwordLoading} isDark={isDark} />
+      <ProfilePasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => { setShowPasswordModal(false); setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }); }}
+        onSubmit={handlePasswordSubmit}
+        passwordData={passwordData}
+        onPasswordDataChange={setPasswordData}
+        passwordLoading={passwordLoading}
+        isDark={isDark}
+      />
     </div>
   );
 };

@@ -1,4 +1,9 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+// src/pages/Fournisseurs.tsx
+// ⭐ FIX: Manampy `globalStats` sy `hasActiveFilter` amin'ny FournisseursTable
+//    → Total global + avecTelephone + avecAdresse
+// ⭐ FIX: reelStats misy avecTelephone, avecAdresse
+
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useFournisseursData, ExportPeriod } from '../hooks/useFournisseursData';
 import FournisseursHeader from '../components/fournisseurs/FournisseursHeader';
@@ -10,7 +15,15 @@ import SuccessModal from '../components/common/SuccessModal';
 import ErrorModal from '../components/common/ErrorModal';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
-const INITIAL_STATS = { total: 0, avecContact: 0, avecEmail: 0 };
+
+// ⭐ VAOVAO: ReelStats misy avecTelephone + avecAdresse
+const INITIAL_STATS = {
+  total: 0,
+  avecContact: 0,
+  avecTelephone: 0,
+  avecEmail: 0,
+  avecAdresse: 0,
+};
 
 const FournisseursSkeleton = ({ isDark }: { isDark: boolean }) => {
   const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
@@ -39,7 +52,6 @@ const FournisseursSkeleton = ({ isDark }: { isDark: boolean }) => {
 
 const Fournisseurs: React.FC = () => {
   const { isDark } = useTheme();
-  // ⭐ NOVAINA: Nakarina ny sortOption sy setSortOption
   const {
     fournisseurs, loading, refreshing, totalItems, totalPages, currentPage, setCurrentPage,
     filters, setFilters, sortOption, setSortOption,
@@ -49,6 +61,9 @@ const Fournisseurs: React.FC = () => {
     exportToExcel, exportToPDF, exportToCSV,
   } = useFournisseursData();
 
+  // ⭐ VAOVAO: reelStats misy avecTelephone + avecAdresse
+  const [reelStats, setReelStats] = useState(INITIAL_STATS);
+
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imagePath, setImagePath] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -56,7 +71,6 @@ const Fournisseurs: React.FC = () => {
   const [imageError, setImageError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [reelStats, setReelStats] = useState(INITIAL_STATS);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -72,6 +86,24 @@ const Fournisseurs: React.FC = () => {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorTitle, setErrorTitle] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+
+  // ⭐ VAOVAO: hasActiveFilter
+  const hasActiveFilter = useMemo(() => Boolean(
+    filters.searchTerm?.trim() ||
+    filters.email?.trim() ||
+    filters.telephone?.trim() ||
+    filters.dateFrom ||
+    filters.dateTo
+  ), [filters]);
+
+  // ⭐ VAOVAO: globalStats ho an'ny footer
+  const globalStats = useMemo(() => ({
+    total: reelStats.total,
+    avecContact: reelStats.avecContact,
+    avecTelephone: reelStats.avecTelephone,
+    avecEmail: reelStats.avecEmail,
+    avecAdresse: reelStats.avecAdresse,
+  }), [reelStats]);
 
   const resetImageState = useCallback(() => {
     setImagePreview((prev) => { if (prev?.startsWith('blob:')) try { URL.revokeObjectURL(prev); } catch {} return null; });
@@ -110,9 +142,21 @@ const Fournisseurs: React.FC = () => {
     try { if (imagePath && window.api?.images?.delete) await window.api.images.delete(imagePath); } catch {} finally { resetImageState(); }
   }, [imagePath, resetImageState]);
 
+  // ⭐⭐⭐ FIX: fetchReelStats misy avecTelephone + avecAdresse ⭐⭐⭐
   const fetchReelStats = useCallback(async () => {
-    try { const data = await getStats(); setReelStats({ total: Number(data?.total || 0), avecContact: Number(data?.avec_contact || 0), avecEmail: Number(data?.avec_email || 0) }); }
-    catch (err) { console.error('❌ Stats:', err); setReelStats(INITIAL_STATS); }
+    try {
+      const data = await getStats();
+      setReelStats({
+        total: Number(data?.total) || 0,
+        avecContact: Number(data?.avec_contact) || 0,
+        avecTelephone: Number(data?.avec_telephone) || 0,
+        avecEmail: Number(data?.avec_email) || 0,
+        avecAdresse: Number(data?.avec_adresse) || 0,
+      });
+    } catch (err) {
+      console.error('❌ Stats:', err);
+      setReelStats(INITIAL_STATS);
+    }
   }, [getStats]);
 
   const showSuccess = useCallback((t: string, m: string) => { setSuccessTitle(t); setSuccessMessage(m); setShowSuccessModal(true); }, []);
@@ -199,6 +243,7 @@ const Fournisseurs: React.FC = () => {
 
   const handleViewFournisseur = useCallback((fournisseur: any) => { if (fournisseur?.id) { setSelectedFournisseur(fournisseur); setShowViewModal(true); } }, []);
   const handleDeleteClick = useCallback((fournisseur: any) => { if (fournisseur?.id) { setDeleteTarget(fournisseur); setShowDeleteModal(true); } }, []);
+
   const handleConfirmDelete = useCallback(async () => {
     if (!deleteTarget?.id) return;
     try {
@@ -220,28 +265,39 @@ const Fournisseurs: React.FC = () => {
   }, [currentPage, setCurrentPage, safeTotalPages]);
 
   useEffect(() => { if (!loading) fetchReelStats(); }, [loading, fournisseurs, fetchReelStats]);
+
   const tauxContact = reelStats.total > 0 ? Math.round((reelStats.avecContact / reelStats.total) * 100) : 0;
 
-  // ⭐ FIX: Ny onSearchChange sy onSortChange dia mampiasa ny Setter tompon'andraikitra!
   return (
     <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
-        <FournisseursHeader onAddFournisseur={handleAddClick} onExport={handleExport} refreshing={refreshing} onRefresh={loadData} isLoading={loading} totalItems={reelStats.total || totalItems} />
-        <FournisseursStats total={reelStats.total} avecContact={reelStats.avecContact} avecEmail={reelStats.avecEmail} tauxContact={tauxContact} />
-        
+        <FournisseursHeader
+          onAddFournisseur={handleAddClick}
+          onExport={handleExport}
+          refreshing={refreshing}
+          onRefresh={loadData}
+          isLoading={loading}
+          totalItems={reelStats.total || totalItems}
+        />
+
+        <FournisseursStats
+          total={reelStats.total}
+          avecContact={reelStats.avecContact}
+          avecEmail={reelStats.avecEmail}
+          tauxContact={tauxContact}
+        />
+
         <FournisseursSearchBar
           searchTerm={filters.searchTerm}
-          onSearchChange={(value) => { 
-            // ⭐ FIX: Mampiasa prev state mba tsy hamafa ny filtres hafa!
-            setFilters(prev => ({ ...prev, searchTerm: value })); 
-            setCurrentPage(1); 
-            setSelectedIds(new Set()); 
+          onSearchChange={(value) => {
+            setFilters(prev => ({ ...prev, searchTerm: value }));
+            setCurrentPage(1);
+            setSelectedIds(new Set());
           }}
-          sortOption={sortOption} // ⭐ FIX: Nampiasa ny sortOption mivantana
-          onSortChange={(value) => { 
-            // ⭐ FIX: Ny sortOption dia state misaraka fa tsy ao amin'ny filters!
-            setSortOption(value); 
-            setCurrentPage(1); 
+          sortOption={sortOption}
+          onSortChange={(value) => {
+            setSortOption(value);
+            setCurrentPage(1);
           }}
         />
 
@@ -250,7 +306,20 @@ const Fournisseurs: React.FC = () => {
           {loading && fournisseurs.length === 0 ? (
             <FournisseursSkeleton isDark={isDark} />
           ) : (
-            <FournisseursTable fournisseurs={fournisseurs} onView={handleViewFournisseur} onEdit={handleEditFournisseur} onDelete={handleDeleteClick} onAdd={handleAddClick} isDark={isDark} selectedIds={selectedIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne} onBulkDelete={handleBulkDelete} />
+            <FournisseursTable
+              fournisseurs={fournisseurs}
+              onView={handleViewFournisseur}
+              onEdit={handleEditFournisseur}
+              onDelete={handleDeleteClick}
+              onAdd={handleAddClick}
+              isDark={isDark}
+              selectedIds={selectedIds}
+              onSelectAll={handleSelectAll}
+              onSelectOne={handleSelectOne}
+              onBulkDelete={handleBulkDelete}
+              globalStats={globalStats}
+              hasActiveFilter={hasActiveFilter}
+            />
           )}
         </section>
 
@@ -261,12 +330,72 @@ const Fournisseurs: React.FC = () => {
         )}
       </div>
 
-      <FournisseursModalForm isOpen={showModal} onClose={() => { setShowModal(false); resetImageState(); setEditingFournisseur(null); }} onSubmit={handleSubmit} editingFournisseur={editingFournisseur} isDark={isDark} imagePreview={imagePreview} uploadingImage={uploadingImage} uploadProgress={uploadProgress} imageError={imageError} onImageChange={handleImageChange} onRemoveImage={handleRemoveImage} />
-      {showViewModal && selectedFournisseur && (<FournisseursViewModal fournisseur={selectedFournisseur} onClose={() => setShowViewModal(false)} onEdit={() => { setShowViewModal(false); handleEditFournisseur(selectedFournisseur); }} isDark={isDark} />)}
-      <ConfirmModal isOpen={showDeleteModal} onClose={() => { setShowDeleteModal(false); setDeleteTarget(null); }} onConfirm={handleConfirmDelete} title="Suppression" message={`Supprimer "${deleteTarget?.nom || ''}" ?`} confirmText="Supprimer" cancelText="Annuler" confirmColor="red" isDark={isDark} />
-      <ConfirmModal isOpen={showBulkDeleteModal} onClose={() => { setShowBulkDeleteModal(false); setBulkDeleteTargetIds([]); }} onConfirm={handleConfirmBulkDelete} title="Suppression en lot" message={`Voulez-vous supprimer ${bulkDeleteTargetIds.length} fournisseur(s) ?`} confirmText="Supprimer" cancelText="Annuler" confirmColor="red" isDark={isDark} />
-      <SuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} title={successTitle} message={successMessage} buttonText="OK" autoCloseDelay={3000} />
-      <ErrorModal isOpen={showErrorModal} onClose={() => setShowErrorModal(false)} title={errorTitle} message={errorMessage} buttonText="OK" autoCloseDelay={4000} />
+      <FournisseursModalForm
+        isOpen={showModal}
+        onClose={() => { setShowModal(false); resetImageState(); setEditingFournisseur(null); }}
+        onSubmit={handleSubmit}
+        editingFournisseur={editingFournisseur}
+        isDark={isDark}
+        imagePreview={imagePreview}
+        uploadingImage={uploadingImage}
+        uploadProgress={uploadProgress}
+        imageError={imageError}
+        onImageChange={handleImageChange}
+        onRemoveImage={handleRemoveImage}
+      />
+
+      {showViewModal && selectedFournisseur && (
+        <FournisseursViewModal
+          fournisseur={selectedFournisseur}
+          onClose={() => setShowViewModal(false)}
+          onEdit={() => { setShowViewModal(false); handleEditFournisseur(selectedFournisseur); }}
+          isDark={isDark}
+        />
+      )}
+
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setDeleteTarget(null); }}
+        onConfirm={handleConfirmDelete}
+        title="Suppression"
+        message={`Supprimer "${deleteTarget?.nom || ''}" ?`}
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        confirmColor="red"
+        isDark={isDark}
+      />
+
+      <ConfirmModal
+        isOpen={showBulkDeleteModal}
+        onClose={() => { setShowBulkDeleteModal(false); setBulkDeleteTargetIds([]); }}
+        onConfirm={handleConfirmBulkDelete}
+        title="Suppression en lot"
+        message={`Voulez-vous supprimer ${bulkDeleteTargetIds.length} fournisseur(s) ?`}
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        confirmColor="red"
+        isDark={isDark}
+      />
+
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title={successTitle}
+        message={successMessage}
+        buttonText="OK"
+        autoCloseDelay={3000}
+        zIndex={100000}
+      />
+
+      <ErrorModal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title={errorTitle}
+        message={errorMessage}
+        buttonText="OK"
+        autoCloseDelay={4000}
+        zIndex={100000}
+      />
     </main>
   );
 };

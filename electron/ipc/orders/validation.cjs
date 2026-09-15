@@ -1,3 +1,4 @@
+// electron/ipc/orders/validation.cjs
 'use strict';
 
 const VALID_PAIEMENT_STATUSES = ['Payé', 'Partiel', 'Non payé'];
@@ -42,11 +43,60 @@ function normalizePaymentValues(totalTTC, montantPaye) {
   };
 }
 
-// ⭐ FIX: Raha 0 dia 0, raha null/undefined/'' dia 0
 function parseTvaRate(value) {
   return (value !== undefined && value !== null && value !== '')
     ? Number(value)
     : 0;
+}
+
+// ⭐ Immediat → datetime ankehitriny
+// ⭐ 5 heures / 30 minutes → datetime feno
+// ⭐ 15 jours / 3 mois / 1 an → date fotsiny
+function calculatePaymentDeadline(modalitePaiement) {
+  const today = new Date();
+  const raw = String(modalitePaiement || '').trim().toLowerCase();
+
+  // Immediat / vide → maintenant (datetime feno)
+  if (!raw || raw === 'immediat' || raw === 'immédiat' || raw === 'immediate' || raw === 'now') {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())} ${pad(today.getHours())}:${pad(today.getMinutes())}:${pad(today.getSeconds())}`;
+  }
+
+  let millisecondsToAdd = 0;
+  let isTimeBased = false;
+
+  const match = raw.match(/(\d+)\s*(minutes?|min|heures?|hrs?|jours?|j|mois|annees?|ans)?/);
+
+  if (match) {
+    const number = parseInt(match[1], 10) || 0;
+    const unit = match[2] || 'j';
+
+    if (unit.startsWith('min') || unit === 'm') {
+      millisecondsToAdd = number * 60 * 1000;
+      isTimeBased = true;
+    } else if (unit.startsWith('h') || unit === 'hrs') {
+      millisecondsToAdd = number * 60 * 60 * 1000;
+      isTimeBased = true;
+    } else if (unit.startsWith('mois')) {
+      millisecondsToAdd = number * 30 * 24 * 60 * 60 * 1000;
+    } else if (unit.startsWith('annee') || unit.startsWith('ans')) {
+      millisecondsToAdd = number * 365 * 24 * 60 * 60 * 1000;
+    } else {
+      millisecondsToAdd = number * 24 * 60 * 60 * 1000;
+    }
+  }
+
+  const deadline = new Date(today.getTime() + millisecondsToAdd);
+  const pad = (n) => String(n).padStart(2, '0');
+  const y = deadline.getFullYear();
+  const m = pad(deadline.getMonth() + 1);
+  const d = pad(deadline.getDate());
+  const hh = pad(deadline.getHours());
+  const mm = pad(deadline.getMinutes());
+  const ss = pad(deadline.getSeconds());
+
+  if (isTimeBased) return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
+  return `${y}-${m}-${d}`;
 }
 
 function validateOrderProduct(product, index) {
@@ -59,7 +109,7 @@ function validateOrderProduct(product, index) {
   const quantity = Number(product.quantity);
   const price = Number(product.price);
   const tvaRate = parseTvaRate(product.tva_rate);
-  
+
   if (!Number.isInteger(id) || id <= 0) errors.push(`Produit #${index + 1}: ID invalide`);
   if (!Number.isInteger(quantity) || quantity <= 0) errors.push(`Produit #${index + 1}: quantité invalide`);
   if (!Number.isFinite(price) || price < 0) errors.push(`Produit #${index + 1}: prix invalide`);
@@ -72,7 +122,7 @@ function validateOrder(data = {}) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     return { valid: false, errors: ['Données commande invalides'] };
   }
-  
+
   const clientId = data.client_id ? Number(data.client_id) : null;
   const clientNom = typeof data.client_nom === 'string' ? data.client_nom.trim() : '';
 
@@ -94,6 +144,7 @@ function validateOrder(data = {}) {
   if (totalHT < 0) errors.push('Total HT invalide');
   if (totalTTC < 0) errors.push('Total TTC invalide');
 
+  const fraisLivraison = Math.max(0, toNumber(data.frais_livraison));
   const montantPaye = Math.max(0, Math.min(totalTTC, toNumber(data.montant_paye)));
   if (montantPaye < 0) errors.push('Montant payé invalide');
   if (montantPaye > totalTTC) errors.push('Le montant payé ne peut pas dépasser le total TTC');
@@ -102,8 +153,15 @@ function validateOrder(data = {}) {
   const requestedStatus = normalizePaiement(data.statut_paiement);
   if (requestedStatus) payment.statutPaiement = requestedStatus;
 
+  const modePaiement = typeof data.mode_paiement === 'string' && data.mode_paiement.trim()
+    ? data.mode_paiement.trim()
+    : 'Espèces';
+  const modalitePaiement = typeof data.modalite_paiement === 'string' && data.modalite_paiement.trim()
+    ? data.modalite_paiement.trim()
+    : 'Immediat';
+
   if (errors.length > 0) return { valid: false, errors };
-  
+
   return {
     valid: true,
     data: {
@@ -120,9 +178,20 @@ function validateOrder(data = {}) {
       total_ttc: payment.totalTTC,
       statut_paiement: payment.statutPaiement,
       montant_paye: payment.montantPaye,
-      montant_restant: payment.montantRestant
+      montant_restant: payment.montantRestant,
+      mode_paiement: modePaiement,
+      modalite_paiement: modalitePaiement,
+      frais_livraison: Number(fraisLivraison.toFixed(2)),
+      date_limite_paiement: calculatePaymentDeadline(modalitePaiement)
     }
   };
 }
 
-module.exports = { VALID_PAIEMENT_STATUSES, normalizePaiement, computePaiementStatus, normalizePaymentValues, validateOrder };
+module.exports = {
+  VALID_PAIEMENT_STATUSES,
+  normalizePaiement,
+  computePaiementStatus,
+  normalizePaymentValues,
+  validateOrder,
+  calculatePaymentDeadline
+};

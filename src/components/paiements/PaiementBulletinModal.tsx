@@ -1,4 +1,11 @@
+// src/components/paiements/PaiementBulletinModal.tsx
+// ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
+// ⭐ TYPOGRAPHIE alignée sur CommandesTable
+// ⭐ fontSize : header 12px, cells 13.5px, footer 12.5px
+// ⭐ PADDING augmenté pour un rendu plus aéré
+
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Printer, Download } from 'lucide-react';
 import { parseDateSafe } from './PaiementsUtils';
 
@@ -58,73 +65,108 @@ const PaiementBulletinModal: React.FC<Props> = ({ isOpen, onClose, paiement, emp
   const handlePrint = () => window.print();
   const handleDownload = () => { window.print(); };
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
-      <div className={`w-full max-w-3xl rounded-2xl border shadow-2xl ${isDark ? 'bg-[#0F172A] border-white/[0.1]' : 'bg-white border-slate-200'}`}>
-        <div className="flex items-center justify-between border-b p-4 dark:border-white/[0.1]">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Bulletin de Paie</h2>
-          <div className="flex gap-2">
-            <button onClick={handlePrint} className="flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-600"><Printer size={14}/> Imprimer</button>
-            <button onClick={handleDownload} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-white/[0.2] dark:text-slate-300"><Download size={14}/> PDF</button>
-            <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.1]"><X size={16}/></button>
+  const modal = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="bulletin-modal-title">
+      <div className={`w-full max-w-3xl overflow-hidden rounded-xl border-[0.5px] shadow-[0_18px_55px_rgba(15,23,42,0.35)] ${isDark ? 'border-white/[0.12] bg-[#0F172A]' : 'border-slate-200 bg-white'}`}>
+        
+        {/* HEADER */}
+        <div className={`flex h-14 shrink-0 items-center justify-between border-b px-4 ${isDark ? 'border-white/[0.08]' : 'border-slate-200'}`}>
+          <h2 id="bulletin-modal-title" className="truncate text-[13.5px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">Bulletin de Paie</h2>
+          <div className="flex items-center gap-2">
+            <button onClick={handlePrint} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-600 active:scale-[0.98]">
+              <Printer size={14} strokeWidth={2.2} /> Imprimer
+            </button>
+            <button onClick={handleDownload} className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3.5 text-[13px] font-semibold text-slate-600 transition-colors hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/[0.06] ${isDark ? 'border-white/[0.12] bg-[#0F172A]' : 'border-slate-200 bg-white'}`}>
+              <Download size={14} strokeWidth={2.2} /> PDF
+            </button>
+            <button onClick={onClose} aria-label="Fermer" className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 dark:hover:bg-white/[0.06]">
+              <X size={16} strokeWidth={2.2} />
+            </button>
           </div>
         </div>
 
-        <div className="p-6 printable-area">
-          <div className="text-center mb-6">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white">{company.nom || 'Entreprise'}</h3>
-            <p className="text-sm text-slate-500">NIF : {company.nif || '—'}</p>
-            <p className="text-sm text-slate-500">{company.adresse || '—'}</p>
+        {/* BODY */}
+        <div className="printable-area px-4 py-4">
+          {/* En-tête entreprise */}
+          <div className="mb-4 text-center">
+            <h3 className="text-[13.5px] font-semibold text-slate-900 dark:text-slate-100">{company.nom || 'Entreprise'}</h3>
+            <p className="mt-0.5 text-[11.5px] leading-[1.3] text-slate-500 dark:text-slate-400">NIF : {company.nif || '—'}</p>
+            <p className="text-[11.5px] leading-[1.3] text-slate-500 dark:text-slate-400">{company.adresse || '—'}</p>
           </div>
 
-          <div className="border-t border-b border-dashed py-4 mb-4 dark:border-white/[0.2]">
+          {/* Infos employé + période */}
+          <div className={`border-y border-dashed py-3 mb-4 ${isDark ? 'border-white/[0.15]' : 'border-slate-300'}`}>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs uppercase font-bold text-slate-400">Employé</p>
-                <p className="font-semibold text-slate-900 dark:text-white">{nomEmploye}</p>
-                <p className="text-sm text-slate-500">{poste}</p>
+              <div className="min-w-0">
+                <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] leading-[1.3] text-slate-400 dark:text-slate-500">Employé</p>
+                <p className="mt-1 truncate text-[13.5px] font-semibold text-slate-900 dark:text-slate-100">{nomEmploye}</p>
+                <p className="mt-0.5 text-[11.5px] leading-[1.3] text-slate-500 dark:text-slate-400">{poste}</p>
               </div>
-              <div className="text-right">
-                <p className="text-xs uppercase font-bold text-slate-400">Période</p>
-                <p className="font-semibold text-slate-900 dark:text-white">{periode}</p>
-                <p className="text-sm text-slate-500">Payé le {datePaiement}</p>
+              <div className="text-right min-w-0">
+                <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] leading-[1.3] text-slate-400 dark:text-slate-500">Période</p>
+                <p className="mt-1 truncate text-[13.5px] font-semibold text-slate-900 dark:text-slate-100">{periode}</p>
+                <p className="mt-0.5 text-[11.5px] leading-[1.3] text-slate-500 dark:text-slate-400">Payé le {datePaiement}</p>
               </div>
             </div>
           </div>
 
-          <table className="w-full text-left border-collapse">
+          {/* Tableau */}
+          <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="text-sm text-slate-500 border-b">
+              <tr className={`border-b text-[11.5px] font-semibold uppercase tracking-[0.06em] text-slate-500 dark:text-slate-400 ${isDark ? 'border-white/[0.08]' : 'border-slate-200'}`}>
                 <th className="py-2">Libellé</th>
                 <th className="py-2 text-right">Montant</th>
               </tr>
             </thead>
-            <tbody className="text-sm">
-              <tr><td className="py-2">Salaire Brut</td><td className="py-2 text-right font-medium">{formatAriary(paiement.salaire_brut)}</td></tr>
-              <tr className="text-red-500"><td className="py-2">CNaPS (1%)</td><td className="py-2 text-right">- {formatAriary(paiement.cnaps)}</td></tr>
-              <tr className="text-red-500"><td className="py-2">OSTIE (5%)</td><td className="py-2 text-right">- {formatAriary(paiement.ostie)}</td></tr>
-              <tr className="text-red-500"><td className="py-2">IRSA</td><td className="py-2 text-right">- {formatAriary(paiement.irsa)}</td></tr>
-              {/* ⭐ NOVAINA: Déduction Absence */}
-              <tr className="text-red-500"><td className="py-2">Déduction Absence</td><td className="py-2 text-right">- {formatAriary(paiement.absences_deduction || 0)}</td></tr>
-              <tr className="text-red-500"><td className="py-2">Avance</td><td className="py-2 text-right">- {formatAriary(paiement.avance)}</td></tr>
-              <tr className="font-bold border-t-2 text-lg mt-2"><td className="py-3">NET À PAYER</td><td className="py-3 text-right text-brand-600">{formatAriary(paiement.montant)}</td></tr>
+            <tbody className="text-[13.5px]">
+              <tr className={isDark ? 'border-b border-white/[0.05]' : 'border-b border-slate-100'}>
+                <td className="py-2.5 text-slate-700 dark:text-slate-300">Salaire Brut</td>
+                <td className="py-2.5 text-right font-semibold text-slate-900 dark:text-slate-100">{formatAriary(paiement.salaire_brut)}</td>
+              </tr>
+              <tr className={`text-red-600 dark:text-red-400 ${isDark ? 'border-b border-white/[0.05]' : 'border-b border-slate-100'}`}>
+                <td className="py-2.5">CNaPS (1%)</td>
+                <td className="py-2.5 text-right">- {formatAriary(paiement.cnaps)}</td>
+              </tr>
+              <tr className={`text-red-600 dark:text-red-400 ${isDark ? 'border-b border-white/[0.05]' : 'border-b border-slate-100'}`}>
+                <td className="py-2.5">OSTIE (5%)</td>
+                <td className="py-2.5 text-right">- {formatAriary(paiement.ostie)}</td>
+              </tr>
+              <tr className={`text-red-600 dark:text-red-400 ${isDark ? 'border-b border-white/[0.05]' : 'border-b border-slate-100'}`}>
+                <td className="py-2.5">IRSA</td>
+                <td className="py-2.5 text-right">- {formatAriary(paiement.irsa)}</td>
+              </tr>
+              <tr className={`text-red-600 dark:text-red-400 ${isDark ? 'border-b border-white/[0.05]' : 'border-b border-slate-100'}`}>
+                <td className="py-2.5">Déduction Absence</td>
+                <td className="py-2.5 text-right">- {formatAriary(paiement.absences_deduction || 0)}</td>
+              </tr>
+              <tr className={`text-red-600 dark:text-red-400 ${isDark ? 'border-b border-white/[0.05]' : 'border-b border-slate-100'}`}>
+                <td className="py-2.5">Avance</td>
+                <td className="py-2.5 text-right">- {formatAriary(paiement.avance)}</td>
+              </tr>
+              <tr className={`font-semibold ${isDark ? 'border-t-2 border-white/[0.12]' : 'border-t-2 border-slate-200'}`}>
+                <td className="py-3 text-[13.5px] text-slate-900 dark:text-slate-100">NET À PAYER</td>
+                <td className="py-3 text-right text-[13.5px] text-brand-600 dark:text-brand-400">{formatAriary(paiement.montant)}</td>
+              </tr>
             </tbody>
           </table>
 
-          <div className="mt-8 flex justify-between">
+          {/* Signatures */}
+          <div className="mt-6 flex justify-between">
             <div className="text-center">
-              <p className="text-xs text-slate-400 mb-8">Signature Employeur</p>
-              <div className="h-10 w-40 border-b border-slate-300"></div>
+              <p className="mb-6 text-[11.5px] leading-[1.3] text-slate-400 dark:text-slate-500">Signature Employeur</p>
+              <div className={`h-10 w-40 border-b ${isDark ? 'border-white/[0.20]' : 'border-slate-300'}`}></div>
             </div>
             <div className="text-center">
-              <p className="text-xs text-slate-400 mb-8">Signature Employé</p>
-              <div className="h-10 w-40 border-b border-slate-300"></div>
+              <p className="mb-6 text-[11.5px] leading-[1.3] text-slate-400 dark:text-slate-500">Signature Employé</p>
+              <div className={`h-10 w-40 border-b ${isDark ? 'border-white/[0.20]' : 'border-slate-300'}`}></div>
             </div>
           </div>
         </div>
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 };
 
 export default PaiementBulletinModal;

@@ -13,13 +13,23 @@ function normalizeSort(sort = {}) {
 function normalizeLimit(limit, fallback = 8) {
   const n = Number(limit);
   if (!Number.isInteger(n) || n <= 0) return fallback;
-  return Math.min(n, 200);
+  return Math.min(n, 200000);
 }
 
 function normalizePage(page) {
   const n = Number(page);
   if (!Number.isFinite(n) || n < 1) return 1;
   return Math.floor(n);
+}
+
+// ⭐ FIX: Alaina foana ny YYYY-MM-DD
+function normalizeDateBoundary(value) {
+  if (value === undefined || value === null) return null;
+  const s = String(value).trim();
+  if (!s) return null;
+  // Alaina ny 10 premiers caractères (YYYY-MM-DD) rehefa misy datetime
+  const match = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : s;
 }
 
 function buildOrdersFilters(options = {}) {
@@ -45,14 +55,17 @@ function buildOrdersFilters(options = {}) {
     }
   }
 
-  if (startDate) {
-    where += ` AND c.date_commande >= ?`;
-    params.push(`${startDate} 00:00:00`);
+  // ⭐⭐⭐ FIX: DATE() amin'ny lafiny roa ⭐⭐⭐
+  const start = normalizeDateBoundary(startDate);
+  if (start) {
+    where += ` AND DATE(c.date_commande) >= DATE(?)`;
+    params.push(start);
   }
 
-  if (endDate) {
-    where += ` AND c.date_commande <= ?`;
-    params.push(`${endDate} 23:59:59`);
+  const end = normalizeDateBoundary(endDate);
+  if (end) {
+    where += ` AND DATE(c.date_commande) <= DATE(?)`;
+    params.push(end);
   }
 
   if (montantMin !== undefined && montantMin !== null && montantMin !== '' && Number.isFinite(Number(montantMin))) {
@@ -66,7 +79,7 @@ function buildOrdersFilters(options = {}) {
   }
 
   if (modePaiement && String(modePaiement).trim()) {
-    where += ` AND EXISTS (SELECT 1 FROM paiements pa WHERE pa.commande_id = c.id AND pa.mode_paiement = ?)`;
+    where += ` AND c.mode_paiement = ?`;
     params.push(String(modePaiement).trim());
   }
 
@@ -83,6 +96,7 @@ function buildOrdersQuery(options = {}) {
   const query = `
     SELECT c.id, c.client_id, c.client_nom, c.total_ht, c.total_ttc, c.total,
       c.statut_paiement, c.montant_paye, c.montant_restant, c.date_limite_paiement,
+      c.mode_paiement, c.modalite_paiement, c.frais_livraison,
       c.date_commande, c.created_at,
       cl.telephone AS client_telephone,
       GROUP_CONCAT(p.nom || ' (x' || dc.quantite || ')', ', ') AS produits_noms

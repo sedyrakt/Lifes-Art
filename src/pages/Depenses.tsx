@@ -1,5 +1,11 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Package, Truck, Wrench, Zap, Users, Megaphone, Home, Tag, Plus, Search, ArrowUpDown, CreditCard, X, SlidersHorizontal } from 'lucide-react';
+// src/pages/Depenses.tsx
+// ⭐ FIX: Alaina avy amin'ny hook ny topCategories
+// ⭐ FIX: globalStats mampiasa topCategories avy amin'ny hook (raha misy)
+//    → Total global (avy amin'ny reelStats) fa tsy per-page
+//    → Top catégories global (avy amin'ny DB rehetra)
+
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { Package, Truck, Wrench, Zap, Users, Megaphone, Home, Tag, Search, ArrowUpDown, CreditCard, X, SlidersHorizontal } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useDepensesData, ExportPeriod } from '../hooks/useDepensesData';
 import DepensesHeader from '../components/depenses/DepensesHeader';
@@ -11,10 +17,12 @@ import ErrorModal from '../components/common/ErrorModal';
 
 const CATEGORIES = ['Achat stock', 'Transport', 'Maintenance', 'Utilités', 'Salaire', 'Marketing', 'Loyer', 'Autre'];
 const MODES_PAIEMENT = ['Espèces', 'Chèque', 'Carte bancaire', 'Virement', 'Mobile Money', 'Autre'];
+
 const categoryIcons: Record<string, any> = {
   'Achat stock': Package, Transport: Truck, Maintenance: Wrench, Utilités: Zap,
   Salaire: Users, Marketing: Megaphone, Loyer: Home, Autre: Tag
 };
+
 const categoryColors = (cat: string) => {
   const colors: Record<string, { light: string; dark: string; text: string; }> = {
     'Achat stock': { light: 'bg-brand-50 border-brand-200', dark: 'dark:bg-brand-500/10 dark:border-brand-500/20', text: 'text-brand-600 dark:text-brand-400' },
@@ -54,7 +62,7 @@ const Depenses: React.FC = () => {
   const {
     depenses, fournisseurs, loading, refreshing, setRefreshing, totalItems, currentPage, setCurrentPage,
     filters, setFilters, loadDepenses, stats, createDepense, updateDepense, deleteDepense, bulkDelete, ITEMS_PER_PAGE,
-    // ⭐ Vaovao avy amin'ny hook
+    topCategories,   // ⭐⭐⭐ VAOVAO: Alaina avy amin'ny hook
     exportPeriod, setExportPeriod, exportCustomDate, setExportCustomDate,
     exportToExcel, exportToPDF, exportToCSV,
   } = useDepensesData();
@@ -86,7 +94,44 @@ const Depenses: React.FC = () => {
     setErrorTitle(title); setErrorMessage(message); setShowErrorModal(true);
   }, []);
 
-  // ⭐ Handle Export – mijery ny result
+  // ⭐ hasActiveFilter
+  const hasActiveFilter = useMemo(() => Boolean(
+    filters.searchTerm ||
+    filters.filterCategorie ||
+    filters.filterMode ||
+    filters.filterDate
+  ), [filters]);
+
+  // ⭐⭐⭐ FIX: globalStats mampiasa `topCategories` avy amin'ny hook (raha misy)
+  //         Raha tsy misy, dia calcul local avy amin'ny `safeDepenses`
+  const globalStats = useMemo(() => {
+    const total = reelStats.nb || safeDepenses.length;
+    const totalMontant = reelStats.total || safeDepenses.reduce((sum, d) => sum + Number(d.montant || 0), 0);
+
+    // ⭐ Avy amin'ny hook ny topCategories (DB global)
+    let effectiveTopCategories = Array.isArray(topCategories) && topCategories.length > 0
+      ? topCategories
+      : null;
+
+    // ⭐ Fallback: calcul local avy amin'ny pejy
+    if (!effectiveTopCategories) {
+      const cats: Record<string, { count: number; total: number }> = {};
+      safeDepenses.forEach(d => {
+        const cat = d.categorie || 'Autre';
+        if (!cats[cat]) cats[cat] = { count: 0, total: 0 };
+        cats[cat].count++;
+        cats[cat].total += Number(d.montant || 0);
+      });
+      effectiveTopCategories = Object.entries(cats)
+        .sort(([, a], [, b]) => b.total - a.total)
+        .slice(0, 3)
+        .map(([categorie, s]) => ({ categorie, count: s.count, total: s.total }));
+    }
+
+    return { total, totalMontant, topCategories: effectiveTopCategories };
+  }, [safeDepenses, reelStats, topCategories]);
+
+  // ⭐ Handle Export
   const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
     try {
       let result;
@@ -132,6 +177,7 @@ const Depenses: React.FC = () => {
     }
   }, [bulkDeleteTargetIds, bulkDelete, showSuccess, showError]);
 
+  // ⭐ Fetch reel stats (nb, total, moyenne, nbFournisseurs)
   const fetchReelStats = useCallback(async () => {
     try {
       if (window.api?.expenses?.getStats) {
@@ -141,7 +187,7 @@ const Depenses: React.FC = () => {
             total: result.data?.total || 0,
             nb: result.data?.nb || 0,
             moyenne: result.data?.moyenne || 0,
-            nbFournisseurs: result.data?.nbFournisseurs || 0
+            nbFournisseurs: result.data?.nbFournisseurs || 0,
           });
           return;
         }
@@ -314,6 +360,8 @@ const Depenses: React.FC = () => {
               onSelectAll={handleSelectAll}
               onSelectOne={handleSelectOne}
               onBulkDelete={handleBulkDelete}
+              globalStats={globalStats}
+              hasActiveFilter={hasActiveFilter}
             />
           )}
         </section>

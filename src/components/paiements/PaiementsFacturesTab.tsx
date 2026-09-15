@@ -93,13 +93,14 @@ const PaiementsFacturesTab: React.FC<Props> = ({
     onBulkDelete('facture'); 
   };
 
+  // ⭐⭐⭐ NOHAVAOZINA: Nesorina ny 'partiels' ⭐⭐⭐
   const stats = useMemo(() => {
     const total = filteredItems.length;
     const totalMontant = filteredItems.reduce((sum, f) => sum + safeNumber(f?.total_ttc ?? f?.total ?? f?.montant ?? 0), 0);
     const payees = filteredItems.filter(f => (f?.statut_paiement ?? 'Non payé') === 'Payé').length;
-    const partiels = filteredItems.filter(f => (f?.statut_paiement ?? '') === 'Partiel').length;
+    // const partiels = ...  ← ESORINA
     const nonPayes = filteredItems.filter(f => (f?.statut_paiement ?? 'Non payé') === 'Non payé').length;
-    return { total, totalMontant, payees, partiels, nonPayes };
+    return { total, totalMontant, payees, nonPayes };
   }, [filteredItems]);
 
   if (mergedItems.length === 0) {
@@ -295,12 +296,7 @@ const PaiementsFacturesTab: React.FC<Props> = ({
                 <span className="max-w-[100px] truncate">Payé</span>
                 <span className="opacity-70">{stats.payees}</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[13px] font-medium"
-                style={{ borderColor: borderColor, background: inputBg, color: textColor }}>
-                <span className="h-1.5 w-1.5 rounded-full bg-warning-500" />
-                <span className="max-w-[100px] truncate">Partiel</span>
-                <span className="opacity-70">{stats.partiels}</span>
-              </span>
+              {/* ⭐⭐⭐ ESORINA ny badge "Partiel" ⭐⭐⭐ */}
               <span className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[13px] font-medium"
                 style={{ borderColor: borderColor, background: inputBg, color: textColor }}>
                 <span className="h-1.5 w-1.5 rounded-full bg-danger-500" />

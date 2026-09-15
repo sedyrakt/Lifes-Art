@@ -2,6 +2,9 @@
 // ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
 // ⭐ PADDING NOHENA (TSY MISY MT-6)
 // ⭐ MISY PAGES FOANA (NA TOTALPAGES = 1 AZA)
+// ⭐ Chevron bold + border-gray-400 en mode light
+// ⭐ FIX: border-gray-400 (#9CA3AF) amin'ny page numbers rehetra (light mode)
+// ⭐ FONT SIZE NAMPITOMBOANA
 
 import React, { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -33,45 +36,67 @@ const CommandesPagination: React.FC<CommandesPaginationProps> = ({
     return numbers;
   }, [currentPage, totalPages]);
 
+  // ⭐ FIX: bordure gray-400 en light, border-white/[0.12] en dark
+  const navButtonClass = `p-1.5 rounded-lg border transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed ${
+    isDark
+      ? 'border-white/[0.12] text-slate-400 hover:bg-brand-500/10 hover:border-brand-300'
+      : 'border-gray-400 text-slate-600 hover:bg-brand-50 hover:border-brand-500 hover:text-brand-600'
+  }`;
+
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-1 py-1 w-full">
-      <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 py-0.5 w-full">
+      {/* Total */}
+      <div className="text-[15px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
         Total : <span className="font-black text-slate-900 dark:text-slate-100">{totalItems}</span> commande{totalItems > 1 ? 's' : ''}
       </div>
-      
-      <div className="flex items-center gap-1.5">
+
+      {/* Pages */}
+      <div className="flex items-center gap-1">
+        {/* Previous */}
         <button
+          type="button"
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
-          className="p-2 rounded-xl border border-slate-200 dark:border-white/[0.12] text-slate-500 dark:text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 hover:bg-brand-50 hover:border-brand-300 dark:hover:bg-brand-500/10"
+          aria-label="Page précédente"
+          className={navButtonClass}
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={16} strokeWidth={2.5} />
         </button>
-        
+
+        {/* Page numbers */}
         {pageNumbers.map(num => {
           const isActive = currentPage === num;
           return (
             <button
               key={num}
+              type="button"
               onClick={() => onPageChange(num)}
-              className="w-9 h-9 rounded-xl transition-all duration-200 text-xs font-bold flex items-center justify-center shadow-sm"
+              className="w-8 h-8 rounded-lg transition-all duration-200 text-[14px] font-bold flex items-center justify-center shadow-sm"
               style={{
                 background: isActive ? '#4F46E5' : (isDark ? 'rgba(255,255,255,0.03)' : '#FFFFFF'),
                 color: isActive ? '#FFFFFF' : (isDark ? '#F8FAFC' : '#0F172A'),
-                border: `1px solid ${isActive ? '#4F46E5' : (isDark ? 'rgba(255,255,255,0.12)' : '#E2E8F0')}`
+                // ⭐ FIX: border-gray-400 (#9CA3AF) en light mode
+                border: `1px solid ${
+                  isActive
+                    ? '#4F46E5'
+                    : (isDark ? 'rgba(255,255,255,0.12)' : '#9CA3AF')
+                }`,
               }}
             >
               {num}
             </button>
           );
         })}
-        
+
+        {/* Next */}
         <button
+          type="button"
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage === totalPages}
-          className="p-2 rounded-xl border border-slate-200 dark:border-white/[0.12] text-slate-500 dark:text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 hover:bg-brand-50 hover:border-brand-300 dark:hover:bg-brand-500/10"
+          aria-label="Page suivante"
+          className={navButtonClass}
         >
-          <ChevronRight size={16} />
+          <ChevronRight size={16} strokeWidth={2.5} />
         </button>
       </div>
     </div>

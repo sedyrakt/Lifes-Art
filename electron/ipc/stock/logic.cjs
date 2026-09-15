@@ -1,9 +1,28 @@
 // ============================================================
 // electron/ipc/stock/logic.cjs
 // ⭐ STOCK BUSINESS LOGIC
+// ⭐ NOUVEAU: snapshot update après entrée/sortie
 // ============================================================
 
 const { log, error } = require('./logger.cjs');
+// ⭐ NOUVEAU: snapshot update
+const { saveTodaySnapshot } = require('../../database/stockSnapshots.cjs');
+
+// ⭐ Trigger snapshot update (fire-and-forget)
+function triggerSnapshotUpdate(reason = 'logic') {
+  try {
+    setImmediate(() => {
+      try {
+        const ok = saveTodaySnapshot();
+        if (ok) log(`📸 Snapshot mis à jour (${reason})`);
+      } catch (err) {
+        error(`❌ Snapshot update [${reason}]:`, err?.message || err);
+      }
+    });
+  } catch (err) {
+    error('❌ triggerSnapshotUpdate:', err?.message || err);
+  }
+}
 
 // ⭐ Fonction pour mettre à jour le statut du stock
 function updateProduitStatutStock(db, produitId) {
@@ -60,7 +79,6 @@ function createEntree(db, data = {}) {
     db.prepare('UPDATE produits SET quantite_stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(nouveauStock, produitId);
     updateProduitStatutStock(db, produitId);
 
-    // ⭐ FIX: Ampiana ny prix_unitaire
     db.prepare(`
       INSERT INTO mouvements_stock 
       (produit_id, type_mouvement, quantite, ancien_stock, nouveau_stock, reference, observation, prix_unitaire, date_mouvement)
@@ -68,6 +86,10 @@ function createEntree(db, data = {}) {
     `).run(produitId, quantite, ancienStock, nouveauStock, data.reference || '', data.observation || `Entrée de stock`, prixUnitaire);
 
     log(`✅ [stock/logic] Entrée créée pour le produit ${produitId}: +${quantite}`);
+
+    // ⭐⭐⭐ SNAPSHOT UPDATE ⭐⭐⭐
+    triggerSnapshotUpdate('logic.createEntree');
+
     return { success: true, data: { produitId, quantite, ancienStock, nouveauStock, prixUnitaire } };
   } catch (err) {
     error('❌ [stock/logic] createEntree:', err.message);
@@ -99,7 +121,6 @@ function createSortie(db, data = {}) {
     db.prepare('UPDATE produits SET quantite_stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(nouveauStock, produitId);
     updateProduitStatutStock(db, produitId);
 
-    // ⭐ FIX: Ampiana ny prix_unitaire
     db.prepare(`
       INSERT INTO mouvements_stock 
       (produit_id, type_mouvement, quantite, ancien_stock, nouveau_stock, reference, observation, prix_unitaire, date_mouvement)
@@ -107,6 +128,10 @@ function createSortie(db, data = {}) {
     `).run(produitId, quantite, ancienStock, nouveauStock, data.reference || '', data.observation || `Sortie de stock`, prixUnitaire);
 
     log(`✅ [stock/logic] Sortie créée pour le produit ${produitId}: -${quantite}`);
+
+    // ⭐⭐⭐ SNAPSHOT UPDATE ⭐⭐⭐
+    triggerSnapshotUpdate('logic.createSortie');
+
     return { success: true, data: { produitId, quantite, ancienStock, nouveauStock, prixUnitaire } };
   } catch (err) {
     error('❌ [stock/logic] createSortie:', err.message);
@@ -114,4 +139,10 @@ function createSortie(db, data = {}) {
   }
 }
 
-module.exports = { updateProduitStatutStock, createEntree, createSortie };
+module.exports = {
+  updateProduitStatutStock,
+  createEntree,
+  createSortie,
+  // ⭐ NOUVEAU
+  triggerSnapshotUpdate,
+};

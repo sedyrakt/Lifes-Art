@@ -1,5 +1,12 @@
+// ============================================================
+// src/components/paiements/PaiementsModals.tsx
+// LIFE'S ART ERP — MODALS WRAPPER
+// ⭐ FIX: Nampiana prop defaultDate ho an'ny PaiementsModalForm
+// ⭐ FIX: Nampiana initialMois sy initialAnnee (avy amin'ny calendar)
+// ============================================================
+
 import React from 'react';
-import PaiementsModalForm, { PaiementEmploye, EmployePaiement } from './PaiementsModalForm';
+import PaiementsModalForm, { PaiementEmploye, EmployePaiement, PayrollMode } from './PaiementsModalForm';
 import CompanySettingsModal from '../company/CompanySettingsModal';
 import ConfirmModal from '../common/ConfirmModal';
 import SuccessModal from '../common/SuccessModal';
@@ -14,7 +21,7 @@ interface PaiementsModalsProps {
   modalEmployeId: number | null;
   setModalEmployeId: (id: number | null) => void;
   employes: EmployePaiement[];
-  allPaiements?: PaiementEmploye[]; // ⭐ NOVAINA
+  allPaiements?: PaiementEmploye[];
   onModalSuccess: (p: PaiementEmploye) => void;
   showCompanyModal: boolean;
   setShowCompanyModal: (value: boolean) => void;
@@ -35,6 +42,14 @@ interface PaiementsModalsProps {
   setWarningModal: (value: any) => void;
   presenceData?: { jours_absences?: number; jours_conges?: number; heures_sup?: number; retards?: number; } | null;
   setPresenceData?: (value: any) => void;
+  /** ⭐ Mode de paie global : 'complet' | 'simplifie' */
+  payrollMode?: PayrollMode;
+  /** ⭐ Date par défaut rehefa avy amin'ny calendrier */
+  defaultDate?: string | null;
+  /** ⭐ NOUVEAU: Mois par défaut rehefa avy amin'ny calendrier */
+  initialMois?: number;
+  /** ⭐ NOUVEAU: Année par défaut rehefa avy amin'ny calendrier */
+  initialAnnee?: number;
 }
 
 export function PaiementsModals({
@@ -43,30 +58,85 @@ export function PaiementsModals({
   isDark, company, buttonLabel, bulletinTargetPaiement, setBulletinTargetPaiement,
   confirmModal, setConfirmModal, successModal, setSuccessModal, errorModal, setErrorModal,
   warningModal, setWarningModal, presenceData, setPresenceData,
+  payrollMode = 'complet',
+  defaultDate = null,
+  initialMois,      // ⭐ NOUVEAU
+  initialAnnee,     // ⭐ NOUVEAU
 }: PaiementsModalsProps) {
   return (
     <>
-      {/* ⭐ Nampiana ny allPaiements mba hanaovana fisafoana eo an-toerana! */}
-      <PaiementsModalForm 
-        isOpen={isModalOpen} 
-        onClose={() => { setIsModalOpen(false); setEditingPaiement(null); setModalEmployeId(null); setPresenceData?.(null); }} 
-        employes={employes} 
-        allPaiements={allPaiements} 
-        paiement={editingPaiement} 
-        employeId={modalEmployeId} 
-        onSuccess={onModalSuccess} 
-        presenceData={presenceData} 
+      <PaiementsModalForm
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingPaiement(null);
+          setModalEmployeId(null);
+          setPresenceData?.(null);
+        }}
+        employes={employes}
+        allPaiements={allPaiements}
+        paiement={editingPaiement}
+        employeId={modalEmployeId}
+        onSuccess={onModalSuccess}
+        presenceData={presenceData}
+        payrollMode={payrollMode}
+        defaultDate={defaultDate}
+        initialMois={initialMois}      // ⭐ NOUVEAU
+        initialAnnee={initialAnnee}    // ⭐ NOUVEAU
       />
-      
-      <CompanySettingsModal isOpen={showCompanyModal} onClose={() => { setShowCompanyModal(false); setBulletinTargetPaiement(null); }} onSave={onCompanySave} onGenerate={onCompanyGenerate} mode="generate" isDark={isDark} initialData={company} buttonLabel={buttonLabel} />
 
-      <ConfirmModal isOpen={confirmModal.isOpen} onClose={() => setConfirmModal((prev: any) => ({ ...prev, isOpen: false }))} onConfirm={confirmModal.onConfirm} title={confirmModal.title} message={confirmModal.message} confirmText={confirmModal.confirmText} cancelText="Annuler" confirmColor="red" isDark={isDark} />
-      
-      <SuccessModal isOpen={successModal.isOpen} onClose={() => setSuccessModal({ isOpen: false, title: '', message: '' })} title={successModal.title} message={successModal.message} buttonText="OK" autoCloseDelay={3000} isDark={isDark} />
-      
-      <ErrorModal isOpen={errorModal.isOpen} onClose={() => setErrorModal({ isOpen: false, title: '', message: '' })} title={errorModal.title} message={errorModal.message} buttonText="OK" autoCloseDelay={4000} isDark={isDark} />
+      <CompanySettingsModal
+        isOpen={showCompanyModal}
+        onClose={() => { setShowCompanyModal(false); setBulletinTargetPaiement(null); }}
+        onSave={onCompanySave}
+        onGenerate={onCompanyGenerate}
+        mode="generate"
+        isDark={isDark}
+        initialData={company}
+        buttonLabel={buttonLabel}
+      />
 
-      <WarningModal isOpen={warningModal.isOpen} onClose={() => setWarningModal({ isOpen: false, title: '', message: '' })} title={warningModal.title} message={warningModal.message} buttonText="OK" autoCloseDelay={4000} isDark={isDark} />
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal((prev: any) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText="Annuler"
+        confirmColor="red"
+        isDark={isDark}
+      />
+
+      <SuccessModal
+        isOpen={successModal.isOpen}
+        onClose={() => setSuccessModal({ isOpen: false, title: '', message: '' })}
+        title={successModal.title}
+        message={successModal.message}
+        buttonText="OK"
+        autoCloseDelay={3000}
+        isDark={isDark}
+      />
+
+      <ErrorModal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, title: '', message: '' })}
+        title={errorModal.title}
+        message={errorModal.message}
+        buttonText="OK"
+        autoCloseDelay={4000}
+        isDark={isDark}
+      />
+
+      <WarningModal
+        isOpen={warningModal.isOpen}
+        onClose={() => setWarningModal({ isOpen: false, title: '', message: '' })}
+        title={warningModal.title}
+        message={warningModal.message}
+        buttonText="OK"
+        autoCloseDelay={4000}
+        isDark={isDark}
+      />
     </>
   );
 }

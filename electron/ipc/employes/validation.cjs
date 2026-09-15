@@ -7,7 +7,7 @@ function normalizeStatus(status) {
   const map = {
     Actif: 'actif', actif: 'actif',
     Inactif: 'inactif', inactif: 'inactif',
-    'En congé': 'en_conge', en_conge: 'en_conge', 'en conge': 'en_conge',
+    'En congé': 'en_conge', en_conge: 'en_conge', 'en conge': 'en_conge', 'en congé': 'en_conge',
     Licencié: 'licencie', licencie: 'licencie',
   };
   return map[status] || 'actif';
@@ -23,7 +23,13 @@ function validateEmploye(data) {
   const departement = data.departement?.trim() || null;
   const date_embauche = data.date_embauche || null;
   const salaire = Number(data.salaire) || 0;
-  const status = data.status?.toLowerCase() || 'actif';
+  // ⭐⭐⭐ VAOVAO: Mampiasa normalizeStatus fa tsy toLowerCase() ⭐⭐⭐
+  const status = normalizeStatus(data.status);
+  
+  // ⭐ CNaPS, OSTIE, IRSA (optionnels, 0 par défaut)
+  const cnaps = Math.max(0, Number(data.cnaps) || 0);
+  const ostie = Math.max(0, Number(data.ostie) || 0);
+  const irsa = Math.max(0, Number(data.irsa) || 0);
 
   if (!nom) errors.push('Le nom est obligatoire');
   else if (nom.length < 2) errors.push('Le nom doit contenir au moins 2 caractères');
@@ -52,8 +58,7 @@ function validateEmploye(data) {
   return {
     valid: errors.length === 0,
     errors,
-    // ⭐ NESORINA NY image
-    data: { nom, prenom, email, telephone, poste, departement, date_embauche, salaire, status },
+    data: { nom, prenom, email, telephone, poste, departement, date_embauche, salaire, cnaps, ostie, irsa, status },
   };
 }
 

@@ -1,3 +1,8 @@
+// electron/ipc/ventes/queries.cjs
+// ⭐ FIX: Date filter misy DATE() normalization
+//         → Mandaitra na "2026-09-14" na "2026-09-14 00:00:00" ny date_commande/date_devis/date_facture
+// ⭐ FIX: Nampiana startDate / endDate ary koa filterPeriod
+
 'use strict';
 
 const SORTS = {
@@ -21,7 +26,7 @@ function normalizeSort(table, sort = {}) {
 function normalizeLimit(limit, fallback = 20) {
   const n = Number(limit);
   if (!Number.isInteger(n) || n <= 0) return fallback;
-  return Math.min(n, 200);
+  return Math.min(n, 200000);
 }
 
 function normalizePage(page) {
@@ -30,8 +35,18 @@ function normalizePage(page) {
   return Math.floor(n);
 }
 
+// ⭐ FIX: Alaina foana ny YYYY-MM-DD (esorina ny ora raha misy)
+function normalizeDateBoundary(value) {
+  if (value === undefined || value === null) return null;
+  const s = String(value).trim();
+  if (!s) return null;
+  // Alaina ny 10 premiers caractères (YYYY-MM-DD)
+  const match = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : s;
+}
+
 function buildVentesFilters(table, options = {}) {
-  const { search, statutPaiement, clientId } = options;
+  const { search, statutPaiement, clientId, startDate, endDate } = options;
   const params = [];
   let where = ' WHERE 1=1 ';
 
@@ -41,7 +56,7 @@ function buildVentesFilters(table, options = {}) {
     params.push(value, value);
   }
 
-  if (statutPaiement) {
+  if (statutPaiement && statutPaiement !== 'Tous') {
     where += ` AND ${table}.statut_paiement = ?`;
     params.push(String(statutPaiement));
   }
@@ -49,6 +64,21 @@ function buildVentesFilters(table, options = {}) {
   if (clientId !== undefined && clientId !== null && Number(clientId) > 0) {
     where += ` AND ${table}.client_id = ?`;
     params.push(Number(clientId));
+  }
+
+  // ⭐⭐⭐ FIX: Date filters misy DATE() normalization ⭐⭐⭐
+  const dateCol = table === 'devis' ? 'date_devis' : 'date_facture';
+
+  const start = normalizeDateBoundary(startDate);
+  if (start) {
+    where += ` AND DATE(${table}.${dateCol}) >= DATE(?)`;
+    params.push(start);
+  }
+
+  const end = normalizeDateBoundary(endDate);
+  if (end) {
+    where += ` AND DATE(${table}.${dateCol}) <= DATE(?)`;
+    params.push(end);
   }
 
   return { where, params };
@@ -90,5 +120,6 @@ module.exports = {
   buildVentesFilters,
   normalizeSort,
   normalizeLimit,
-  normalizePage
+  normalizePage,
+  normalizeDateBoundary
 };

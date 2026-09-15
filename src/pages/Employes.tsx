@@ -1,5 +1,5 @@
-// Employes.tsx (feno) - NOVAINA
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'; // ⭐ Nampiana useMemo
+// Employes.tsx 
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Users, Wallet, UserCheck, Activity, Timer, TrendingUp, Loader2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useEmployesData, ExportPeriod } from '../hooks/useEmployesData';
@@ -11,11 +11,13 @@ import EmployesViewModal from '../components/employes/EmployesViewModal';
 import EmployesPresenceModal from '../components/employes/EmployesPresenceModal';
 import EmployesSalaryModal from '../components/employes/EmployesSalaryModal';
 import EmployesCalendrier from '../components/employes/EmployesCalendrier';
-import EmployesStats from '../components/employes/EmployesStats'; // ⭐ Nampiana ny import
+import EmployesStats from '../components/employes/EmployesStats';
 import ConfirmModal from '../components/common/ConfirmModal';
 import SuccessModal from '../components/common/SuccessModal';
 import ErrorModal from '../components/common/ErrorModal';
 import EmployesSearchBar from '../components/employes/EmployesSearchBar';
+// ⭐ VAOVAO: Modal paiement
+import PaiementsModalForm from '../components/paiements/PaiementsModalForm';
 
 const moisLabels = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const moisLabelsCourt = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
@@ -60,6 +62,10 @@ const Employes: React.FC = () => {
   const [showPresenceModal, setShowPresenceModal] = useState(false);
   const [showSalaryModal, setShowSalaryModal] = useState(false);
 
+  // ⭐ VAOVAO: State ho an'ny paiement modal
+  const [showPaiementModal, setShowPaiementModal] = useState(false);
+  const [paiementEmployeId, setPaiementEmployeId] = useState<number | null>(null);
+
   const [derniersPaiements, setDerniersPaiements] = useState<Record<number, any>>({});
   const isMounted = useRef(false);
 
@@ -70,10 +76,9 @@ const Employes: React.FC = () => {
     setErrorTitle(title); setErrorMessage(message); setShowErrorModal(true);
   }, []);
 
-  // ⭐ Kajy ny salaire total avy amin'ny employes
   const totalSalaire = useMemo(() => {
-    return employes.reduce((sum, e) => sum + (Number(e.salaire) || 0), 0);
-  }, [employes]);
+    return Number(stats?.totalSalaire) || 0;
+  }, [stats]);
 
   const fetchDerniersPaiements = useCallback(async (employesList: any[]) => {
     if (!employesList.length) return;
@@ -166,13 +171,50 @@ const Employes: React.FC = () => {
     setShowModal(true);
   }, []);
 
+  // ⭐ VAOVAO: Handler manokatra ny paiement modal
+  const handleNouveauPaiement = useCallback((employe: any) => {
+    setPaiementEmployeId(Number(employe.id));
+    setShowPaiementModal(true);
+  }, []);
+
+  // ⭐ VAOVAO: Rehefa vita ny paiement
+  const handlePaiementSuccess = useCallback(async (_paiement: any) => {
+    showSuccess('Paiement créé', 'Le paiement a été enregistré avec succès.');
+    await loadData();
+    await fetchDerniersPaiements(employes);
+  }, [loadData, fetchDerniersPaiements, employes, showSuccess]);
+
+  const handleClosePaiementModal = useCallback(() => {
+    setShowPaiementModal(false);
+    setPaiementEmployeId(null);
+  }, []);
+
   const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget; const fd = new FormData(form);
     const statusValue = (fd.get('status') as string) || 'Actif';
     const dbStatus = statusValue === 'Actif' ? 'actif' : statusValue === 'Inactif' ? 'inactif' : statusValue === 'En congé' ? 'en_conge' : 'actif';
     const salaire = parseFloat((fd.get('salaire') as string) || '0') || 0;
-    const data: any = { nom: fd.get('nom'), prenom: fd.get('prenom'), email: fd.get('email'), telephone: fd.get('telephone'), poste: fd.get('poste'), departement: fd.get('departement'), date_embauche: fd.get('date_embauche'), salaire, status: dbStatus };
+
+    const cnaps = parseFloat((fd.get('cnaps') as string) || '0') || 0;
+    const ostie = parseFloat((fd.get('ostie') as string) || '0') || 0;
+    const irsa = parseFloat((fd.get('irsa') as string) || '0') || 0;
+
+    const data: any = {
+      nom: fd.get('nom'),
+      prenom: fd.get('prenom'),
+      email: fd.get('email'),
+      telephone: fd.get('telephone'),
+      poste: fd.get('poste'),
+      departement: fd.get('departement'),
+      date_embauche: fd.get('date_embauche'),
+      salaire,
+      cnaps,
+      ostie,
+      irsa,
+      status: dbStatus
+    };
+
     if (!data.nom || !data.prenom) { showError('Champs requis', 'Le nom et le prénom sont obligatoires.'); return; }
     if (!data.email) { showError('Champ requis', 'L\'adresse email est obligatoire.'); return; }
     if (!data.date_embauche) { showError('Champ requis', 'La date d\'embauche est obligatoire.'); return; }
@@ -243,7 +285,6 @@ const Employes: React.FC = () => {
     return moisList;
   }, []);
 
-  // ⭐ Handle Export misy période + date
   const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
     try {
       let result;
@@ -297,12 +338,11 @@ const Employes: React.FC = () => {
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
         <EmployesHeader onAddEmploye={handleOpenAddModal} onExport={handleExport} refreshing={refreshing} onRefresh={loadData} totalItems={totalItems} />
 
-        {/* ⭐ Nampiasa ny component EmployesStats */}
-        <EmployesStats 
+        <EmployesStats
           totalItems={totalItems}
           totalSalaire={totalSalaire}
           actifs={stats.actifs ?? 0}
-          tauxActif={stats.tauxActif ?? stats.tauxPresence ?? 0}
+          tauxActif={stats.tauxActif ?? 0}
         />
 
         <EmployesSearchBar
@@ -337,6 +377,7 @@ const Employes: React.FC = () => {
                 selectedIds={selectedIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne}
                 onBulkUpdateStatus={handleBulkUpdateStatus} onBulkDelete={handleBulkDelete}
                 onGererPresence={handleOpenPresence} onFisondrotana={handleOpenSalary}
+                onNouveauPaiement={handleNouveauPaiement}  // ⭐ VAOVAO
               />
 
               {!loading && !refreshing && employes.length === 0 && searchTerm !== '' && (
@@ -382,6 +423,18 @@ const Employes: React.FC = () => {
 
       {showSalaryModal && selectedEmploye && (
         <EmployesSalaryModal isOpen={showSalaryModal} onClose={() => setShowSalaryModal(false)} employe={selectedEmploye} onSave={handleSaveSalary} />
+      )}
+
+      {/* ⭐ VAOVAO: Modal paiement */}
+      {showPaiementModal && paiementEmployeId !== null && (
+        <PaiementsModalForm
+          isOpen={showPaiementModal}
+          onClose={handleClosePaiementModal}
+          employeId={paiementEmployeId}
+          employes={employes as any}
+          onSuccess={handlePaiementSuccess}
+          payrollMode="simplifie"
+        />
       )}
 
       <SuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} title={successTitle} message={successMessage} buttonText="OK" autoCloseDelay={3000} />

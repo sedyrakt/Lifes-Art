@@ -1,11 +1,11 @@
+// electron/ipc/orders/handlers.cjs
 'use strict';
 
 const { getDb } = require('../../database/connection.cjs');
 const { initDatabase } = require('../../database/init.cjs');
-
 const { log, error } = require('../../database/utils.cjs');
 const { BrowserWindow } = require('electron');
-const { validateOrder, normalizePaiement, computePaiementStatus } = require('./validation.cjs');
+const { validateOrder, normalizePaiement, computePaiementStatus, calculatePaymentDeadline } = require('./validation.cjs');
 const { buildOrdersQuery, buildOrdersCountQuery } = require('./queries.cjs');
 const { prepareStatements, getStatements } = require('./statements.cjs');
 
@@ -85,8 +85,6 @@ function registerOrdersHandlers(ipcMain) {
   log('📦 [orders.handlers] ENREGISTREMENT HANDLERS COMMANDES');
   if (!ipcMain) { error('❌ ipcMain est null/undefined!'); return false; }
 
-  // ⭐ 1. Ataovy toy ny clients ny withDbCheck
-  //     Hamarino ny DB, atombohy indray raha mikatona, ary amboary ny statements.
   const withDbCheck = (fn) => async (event, ...args) => {
     try {
       let db = getDb();
@@ -101,7 +99,6 @@ function registerOrdersHandlers(ipcMain) {
         }
       }
 
-      // Raha tsy misy statements na tsy vonona, dia amboary izy ireo
       if (!prepareStatements()) {
         error('❌ [orders] prepareStatements failed!');
         return { success: false, error: 'Failed to prepare orders statements' };
@@ -111,7 +108,6 @@ function registerOrdersHandlers(ipcMain) {
         return { success: false, error: 'Orders statements not available' };
       }
 
-      // Ampiasao ny fn
       return await fn(db, stmts, event, ...args);
     } catch (err) {
       error('❌ [orders] IPC error:', err?.message);
@@ -125,11 +121,11 @@ function registerOrdersHandlers(ipcMain) {
     'orders:get-by-status', 'orders:get-by-date-range', 'orders:get-stats',
     'orders:get-products', 'orders:update-paiement', 'orders:update-status',
     'orders:get-with-details', 'orders:get-total', 'orders:get-by-number',
-    'orders:get-journalieres', 'orders:get-dette-stats'
+    'orders:get-journalieres', 'orders:get-dette-stats',
+    'orders:get-overdue'
   ];
   channels.forEach(channel => { try { ipcMain.removeHandler(channel); } catch (_) {} });
 
-  // ⭐ 2. Rakitro ny handlers rehetra amin'ny withDbCheck
   ipcMain.handle('orders:get-all', withDbCheck(async (db, stmts, event, options = {}) => {
     try {
       const result = buildOrdersQuery(options || {});
@@ -188,7 +184,8 @@ function registerOrdersHandlers(ipcMain) {
         const result = stmts.stmtCreate.run(
           validated.client_id || null, validated.client_nom,
           validated.total_ht, payment.totalTTC, payment.totalTTC,
-          payment.statutPaiement, payment.montantPaye, payment.montantRestant
+          payment.statutPaiement, payment.montantPaye, payment.montantRestant,
+          validated.mode_paiement, validated.modalite_paiement, validated.frais_livraison, validated.date_limite_paiement
         );
         commandeId = Number(result.lastInsertRowid);
         if (!commandeId) throw new Error('Impossible de créer la commande');
@@ -277,7 +274,14 @@ function registerOrdersHandlers(ipcMain) {
         }
 
         db.prepare(`DELETE FROM details_commandes WHERE commande_id = ?`).run(normalizedId);
-        stmts.stmtUpdate.run(validated.client_id || null, validated.client_nom, validated.total_ht, payment.totalTTC, payment.totalTTC, payment.statutPaiement, payment.montantPaye, payment.montantRestant, normalizedId);
+
+        stmts.stmtUpdate.run(
+          validated.client_id || null, validated.client_nom,
+          validated.total_ht, payment.totalTTC, payment.totalTTC,
+          payment.statutPaiement, payment.montantPaye, payment.montantRestant,
+          validated.mode_paiement, validated.modalite_paiement, validated.frais_livraison, validated.date_limite_paiement,
+          normalizedId
+        );
 
         for (const product of validated.products) {
           const qty = Number(product.quantity);
@@ -434,10 +438,33 @@ function registerOrdersHandlers(ipcMain) {
     }
   }));
 
+  // ⭐⭐⭐ FIX: orders:get-stats misy nbCommandesEnRetard ⭐⭐⭐
   ipcMain.handle('orders:get-stats', withDbCheck(async (db, stmts) => {
     try {
-      const data = stmts.stmtGetStats.get();
-      return { success: true, data: data || { total: 0, total_ca: 0, total_ht: 0, moyenne_panier: 0, clients_uniques: 0, total_dette: 0, nb_commandes_non_payees: 0 } };
+      const data = stmts.stmtGetStats.get() || {};
+      return {
+        success: true,
+        data: {
+          total: Number(data.total || 0),
+          totalCA: Number(data.total_ca || 0),
+          totalHT: Number(data.total_ht || 0),
+          totalPaye: Number(data.total_paye || 0),
+          totalDette: Number(data.total_dette || 0),
+          nbCommandesNonPayees: Number(data.nb_commandes_non_payees || 0),
+          nbCommandesPayees: Number(data.nb_commandes_payees || 0),
+          nbCommandesPartielles: Number(data.nb_commandes_partielles || 0),
+          nbCommandesEnRetard: Number(data.nb_commandes_en_retard || 0),   // ⭐ NOUVEAU
+          moyennePanier: Number(data.moyenne_panier || 0),
+          clientsUniques: Number(data.clients_uniques || 0),
+          totalItems: Number(data.total_items || 0),
+          // Aliases snake_case (compatibilité)
+          total_ca: Number(data.total_ca || 0),
+          total_ht: Number(data.total_ht || 0),
+          total_paye: Number(data.total_paye || 0),
+          total_dette: Number(data.total_dette || 0),
+          nb_commandes_non_payees: Number(data.nb_commandes_non_payees || 0),
+        },
+      };
     } catch (err) {
       error('❌ [orders:get-stats]', err.message);
       return { success: false, error: err.message };
@@ -450,6 +477,36 @@ function registerOrdersHandlers(ipcMain) {
       return { success: true, data: data || { total_dette: 0, nb_commandes_non_payees: 0 } };
     } catch (err) {
       error('❌ [orders:get-dette-stats]', err.message);
+      return { success: false, error: err.message };
+    }
+  }));
+
+  ipcMain.handle('orders:get-overdue', withDbCheck(async (db, stmts) => {
+    try {
+      if (!stmts.stmtGetOverdue) {
+        return { success: true, data: [], count: 0, total_dette: 0 };
+      }
+
+      const rows = stmts.stmtGetOverdue.all() || [];
+
+      const data = rows.map((row) => ({
+        ...row,
+        late_seconds: Number(row.late_seconds || 0),
+        montant_restant: Number(row.montant_restant || 0),
+        montant_paye: Number(row.montant_paye || 0),
+        total_ttc: Number(row.total_ttc || 0),
+      }));
+
+      const totalDette = data.reduce((sum, r) => sum + Math.max(0, r.montant_restant), 0);
+
+      return {
+        success: true,
+        data,
+        count: data.length,
+        total_dette: Number(totalDette.toFixed(2)),
+      };
+    } catch (err) {
+      error('❌ [orders:get-overdue]', err.message);
       return { success: false, error: err.message };
     }
   }));
@@ -535,7 +592,9 @@ function registerOrdersHandlers(ipcMain) {
 
   log('✅ Orders handlers enregistrés avec succès');
   log('💳 Statuts paiement actifs: Payé | Partiel | Non payé');
-  log('🧾 TVA Dynamique: 0% / 10% / 20% prête');
+  log('🚚 Frais de livraison inclus!');
+  log('⏰ orders:get-overdue disponible');
+  log('📊 orders:get-stats misy nbCommandesEnRetard');
   return true;
 }
 

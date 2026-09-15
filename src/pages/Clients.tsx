@@ -1,3 +1,5 @@
+// src/pages/Clients.tsx
+// ⭐ FIX: manampy `total_commandes` + `globalStats` + `hasActiveFilter`
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useClientsData, ExportPeriod } from '../hooks/useClientsData';
@@ -46,12 +48,21 @@ const Clients: React.FC = () => {
     filters, setFilters, sortOption, setSortOption, refresh, loadData, getStats,
     getTypeColor, getTypeIcon, ITEMS_PER_PAGE,
     createClient, updateClient, deleteClient, bulkDelete, bulkUpdateType,
-    getClientById, // ⭐ NOVAINA: Ampiasaina amin'ny View
+    getClientById,
     exportPeriod, setExportPeriod, exportCustomDate, setExportCustomDate,
     exportToExcel, exportToPDF, exportToCSV,
   } = useClientsData();
 
-  const [reelStats, setReelStats] = useState({ total: 0, particuliers: 0, entreprises: 0, avec_telephone: 0, total_achats: 0 });
+  // ⭐ VAOVAO: `total_commandes`
+  const [reelStats, setReelStats] = useState({
+    total: 0,
+    particuliers: 0,
+    entreprises: 0,
+    avec_telephone: 0,
+    total_achats: 0,
+    total_commandes: 0,   // ⭐ NOUVEAU
+  });
+
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -77,7 +88,7 @@ const Clients: React.FC = () => {
     setErrorTitle(t); setErrorMessage(m); setShowErrorModal(true);
   }, []);
 
-  // ⭐ FIX: Ny Stats dia ny clients efa enrichit (izy no manana total_achats)
+  // ⭐ Fetch reel stats
   const fetchReelStats = useCallback(async () => {
     try {
       const data = await getStats();
@@ -87,7 +98,8 @@ const Clients: React.FC = () => {
           particuliers: Number(data.particuliers) || 0,
           entreprises: Number(data.entreprises) || 0,
           avec_telephone: Number(data.avec_telephone) || 0,
-          total_achats: Number(data.total_achats) || clients.reduce((sum, c) => sum + (Number(c.total_achats) || 0), 0)
+          total_achats: Number(data.total_achats) || clients.reduce((sum, c) => sum + (Number(c.total_achats) || 0), 0),
+          total_commandes: Number(data.total_commandes) || 0,   // ⭐ NOUVEAU
         });
       } else {
         setReelStats({
@@ -95,7 +107,8 @@ const Clients: React.FC = () => {
           particuliers: clients.filter(c => c.type === 'Particulier').length,
           entreprises: clients.filter(c => c.type === 'Entreprise').length,
           avec_telephone: clients.filter(c => c.email || c.telephone).length,
-          total_achats: clients.reduce((sum, c) => sum + (Number(c.total_achats) || 0), 0)
+          total_achats: clients.reduce((sum, c) => sum + (Number(c.total_achats) || 0), 0),
+          total_commandes: 0,
         });
       }
     } catch (err) {
@@ -105,12 +118,33 @@ const Clients: React.FC = () => {
         particuliers: clients.filter(c => c.type === 'Particulier').length,
         entreprises: clients.filter(c => c.type === 'Entreprise').length,
         avec_telephone: clients.filter(c => c.email || c.telephone).length,
-        total_achats: clients.reduce((sum, c) => sum + (Number(c.total_achats) || 0), 0)
+        total_achats: clients.reduce((sum, c) => sum + (Number(c.total_achats) || 0), 0),
+        total_commandes: 0,
       });
     }
   }, [getStats, clients]);
 
   useEffect(() => { if (!loading) fetchReelStats(); }, [loading, clients, fetchReelStats]);
+
+  // ⭐ hasActiveFilter
+  const hasActiveFilter = useMemo(() => Boolean(
+    filters.searchTerm ||
+    filters.filterType !== 'Tous' ||
+    filters.filterVille ||
+    filters.filterPays ||
+    filters.filterDateFrom ||
+    filters.filterDateTo
+  ), [filters]);
+
+  // ⭐ globalStats ho an'ny footer
+  const globalStats = useMemo(() => ({
+    total: reelStats.total,
+    particuliers: reelStats.particuliers,
+    entreprises: reelStats.entreprises,
+    avecContact: reelStats.avec_telephone,
+    totalAchats: reelStats.total_achats,
+    totalCommandes: reelStats.total_commandes,   // ⭐ NOUVEAU
+  }), [reelStats]);
 
   const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
     try {
@@ -137,7 +171,6 @@ const Clients: React.FC = () => {
     setSelectedIds(prev => { const n = new Set(prev); if (checked) n.add(id); else n.delete(id); return n; });
   }, []);
 
-  // ⭐ FIX: Raha tsy misy stats ny client (avy amin'ny table), dia miantso ny getClientById mba hahazoana azy
   const handleViewClient = useCallback(async (client: any) => {
     if (client.nb_commandes !== undefined) {
       setSelectedClient(client); setShowViewModal(true);
@@ -176,7 +209,7 @@ const Clients: React.FC = () => {
       ville: String(fd.get('ville') || '').trim(),
       code_postal: String(fd.get('code_postal') || '').trim(),
       pays: String(fd.get('pays') || '').trim() || 'Madagascar',
-      type: String(fd.get('type') || '').trim() || 'Particulier'
+      type: String(fd.get('type') || '').trim() || 'Particulier',
     };
     if (!data.nom) { showError('Champ requis', 'Le nom est obligatoire.'); return; }
     try {
@@ -201,11 +234,16 @@ const Clients: React.FC = () => {
   }, [deleteTarget, deleteClient, showSuccess, showError, fetchReelStats]);
 
   const handleBulkUpdateType = useCallback((ids: number[], newType: string) => {
-    if (ids.length) { setBulkTargetIds(ids); setBulkTargetType(newType); setBulkActionType('update_type'); setShowBulkConfirmModal(true); }
+    if (ids.length) {
+      setBulkTargetIds(ids); setBulkTargetType(newType);
+      setBulkActionType('update_type'); setShowBulkConfirmModal(true);
+    }
   }, []);
 
   const handleBulkDelete = useCallback((ids: number[]) => {
-    if (ids.length) { setBulkTargetIds(ids); setBulkActionType('delete'); setShowBulkConfirmModal(true); }
+    if (ids.length) {
+      setBulkTargetIds(ids); setBulkActionType('delete'); setShowBulkConfirmModal(true);
+    }
   }, []);
 
   const handleConfirmBulkAction = useCallback(async () => {
@@ -222,11 +260,15 @@ const Clients: React.FC = () => {
       }
       await fetchReelStats();
     } catch (err: any) { showError("Erreur", err.message); }
-    finally { setShowBulkConfirmModal(false); setBulkTargetIds([]); setBulkTargetType(''); setBulkActionType('delete'); }
+    finally {
+      setShowBulkConfirmModal(false); setBulkTargetIds([]);
+      setBulkTargetType(''); setBulkActionType('delete');
+    }
   }, [bulkTargetIds, bulkActionType, bulkTargetType, bulkDelete, bulkUpdateType, showSuccess, showError, fetchReelStats]);
 
   const handleRefresh = useCallback(async () => {
-    try { await refresh(); await fetchReelStats(); } catch (err) { console.error('❌ Refresh:', err); }
+    try { await refresh(); await fetchReelStats(); }
+    catch (err) { console.error('❌ Refresh:', err); }
   }, [refresh, fetchReelStats]);
 
   const handleSearchChange = useCallback((v: string) => {
@@ -246,26 +288,36 @@ const Clients: React.FC = () => {
   }, [setFilters]);
 
   const handleResetFilters = useCallback(() => {
-    setFilters({ searchTerm: '', filterType: 'Tous', filterVille: '', filterPays: '', filterDateFrom: '', filterDateTo: '' });
+    setFilters({
+      searchTerm: '', filterType: 'Tous', filterVille: '',
+      filterPays: '', filterDateFrom: '', filterDateTo: '',
+    });
     setCurrentPage(1);
   }, [setFilters, setCurrentPage]);
 
-  const totalAchats = reelStats.total_achats > 0 ? reelStats.total_achats : clients.reduce((sum: number, c: any) => sum + Number(c.total_achats || 0), 0);
-  const tauxContact = reelStats.total > 0 ? Math.round((reelStats.avec_telephone / reelStats.total) * 100) : 0;
+  const totalAchats = reelStats.total_achats > 0
+    ? reelStats.total_achats
+    : clients.reduce((sum: number, c: any) => sum + Number(c.total_achats || 0), 0);
 
   return (
     <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
-        <ClientsHeader 
-          onAddClient={handleOpenAddModal} 
+        <ClientsHeader
+          onAddClient={handleOpenAddModal}
           onExport={handleExport}
-          refreshing={refreshing} 
-          onRefresh={handleRefresh} 
-          isLoading={loading} 
-          totalItems={reelStats.total || totalItems} 
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          isLoading={loading}
+          totalItems={reelStats.total || totalItems}
         />
-        <ClientsStats totalClients={reelStats.total} particuliers={reelStats.particuliers} entreprises={reelStats.entreprises} totalAchats={totalAchats} refreshing={refreshing} />
-        
+        <ClientsStats
+          totalClients={reelStats.total}
+          particuliers={reelStats.particuliers}
+          entreprises={reelStats.entreprises}
+          totalAchats={totalAchats}
+          refreshing={refreshing}
+        />
+
         <ClientsSearchBar
           searchTerm={filters.searchTerm ?? ''}
           onSearchChange={handleSearchChange}
@@ -273,8 +325,6 @@ const Clients: React.FC = () => {
           onFilterTypeChange={handleFilterTypeChange}
           sortOption={sortOption}
           onSortChange={handleSortChange}
-          filterDateFrom={filters.filterDateFrom ?? ''}
-          onFilterDateFromChange={handleDateFromChange}
         />
 
         <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_4px_20px_-4px_rgba(79,70,229,0.08)] transition-all duration-300 dark:border-white/[0.1] dark:bg-[#0F172A] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.35)]">
@@ -300,13 +350,20 @@ const Clients: React.FC = () => {
               onSelectOne={handleSelectOne}
               onBulkDelete={handleBulkDelete}
               onBulkUpdateType={handleBulkUpdateType}
+              globalStats={globalStats}       // ⭐ VAOVAO
+              hasActiveFilter={hasActiveFilter}  // ⭐ VAOVAO
             />
           )}
         </section>
 
         {!loading && totalItems > 0 && (
           <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_2px_10px_-2px_rgba(79,70,229,0.06)] transition-all duration-300 dark:border-white/[0.1] dark:bg-[#0F172A] dark:shadow-[0_2px_12px_-2px_rgba(0,0,0,0.25)]">
-            <ClientsPagination currentPage={currentPage} totalPages={totalPages} totalItems={totalItems} onPageChange={setCurrentPage} />
+            <ClientsPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
 
@@ -319,16 +376,73 @@ const Clients: React.FC = () => {
         )}
       </div>
 
-      <ClientsModalForm isOpen={showModal} onClose={handleCloseModal} onSubmit={handleSubmit} editingClient={editingClient} isDark={isDark} />
+      <ClientsModalForm
+        isOpen={showModal}
+        onClose={handleCloseModal}
+        onSubmit={handleSubmit}
+        editingClient={editingClient}
+        isDark={isDark}
+      />
 
       {showViewModal && selectedClient && (
-        <ClientsViewModal client={selectedClient} onClose={() => setShowViewModal(false)} onEdit={() => { setShowViewModal(false); handleEditClient(selectedClient); }} getTypeColor={getTypeColor} getTypeIcon={getTypeIcon} isDark={isDark} />
+        <ClientsViewModal
+          client={selectedClient}
+          onClose={() => setShowViewModal(false)}
+          onEdit={() => { setShowViewModal(false); handleEditClient(selectedClient); }}
+          getTypeColor={getTypeColor}
+          getTypeIcon={getTypeIcon}
+          isDark={isDark}
+        />
       )}
 
-      <ConfirmModal isOpen={showDeleteModal} onClose={() => { setShowDeleteModal(false); setDeleteTarget(null); }} onConfirm={handleConfirmDelete} title="Suppression" message={`Supprimer "${deleteTarget?.nom || ''}" ?`} confirmText="Supprimer" cancelText="Annuler" confirmColor="red" isDark={isDark} />
-      <ConfirmModal isOpen={showBulkConfirmModal} onClose={() => { setShowBulkConfirmModal(false); setBulkTargetIds([]); setBulkTargetType(''); setBulkActionType('delete'); }} onConfirm={handleConfirmBulkAction} title="Opération en lot" message={bulkActionType === 'delete' ? `Supprimer ${bulkTargetIds.length} client(s) ?` : `Changer ${bulkTargetIds.length} client(s) en "${bulkTargetType}" ?`} confirmText="Confirmer" cancelText="Annuler" confirmColor={bulkActionType === 'delete' ? 'red' : 'green'} isDark={isDark} />
-      <SuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} title={successTitle} message={successMessage} buttonText="OK" autoCloseDelay={3000} />
-      <ErrorModal isOpen={showErrorModal} onClose={() => setShowErrorModal(false)} title={errorTitle} message={errorMessage} buttonText="OK" autoCloseDelay={4000} />
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setDeleteTarget(null); }}
+        onConfirm={handleConfirmDelete}
+        title="Suppression"
+        message={`Supprimer "${deleteTarget?.nom || ''}" ?`}
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        confirmColor="red"
+        isDark={isDark}
+      />
+
+      <ConfirmModal
+        isOpen={showBulkConfirmModal}
+        onClose={() => {
+          setShowBulkConfirmModal(false); setBulkTargetIds([]);
+          setBulkTargetType(''); setBulkActionType('delete');
+        }}
+        onConfirm={handleConfirmBulkAction}
+        title="Opération en lot"
+        message={bulkActionType === 'delete'
+          ? `Supprimer ${bulkTargetIds.length} client(s) ?`
+          : `Changer ${bulkTargetIds.length} client(s) en "${bulkTargetType}" ?`}
+        confirmText="Confirmer"
+        cancelText="Annuler"
+        confirmColor={bulkActionType === 'delete' ? 'red' : 'green'}
+        isDark={isDark}
+      />
+
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title={successTitle}
+        message={successMessage}
+        buttonText="OK"
+        autoCloseDelay={3000}
+        zIndex={100000}
+      />
+
+      <ErrorModal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title={errorTitle}
+        message={errorMessage}
+        buttonText="OK"
+        autoCloseDelay={4000}
+        zIndex={100000}
+      />
     </main>
   );
 };

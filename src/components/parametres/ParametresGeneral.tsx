@@ -1,4 +1,7 @@
-
+// src/components/parametres/ParametresGeneral.tsx
+// ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
+// ⭐ TYPOGRAPHIE alignée sur ProfileForm
+// ⭐ FONT SIZE: h2 15px, subtitle 13px, labels 12px, inputs 14px
 
 import React from 'react';
 
@@ -26,10 +29,11 @@ interface FormCellProps {
 
 const FormCell: React.FC<FormCellProps> = ({ label, icon, children, borderRight = true, borderBottom = true }) => {
   return (
-    <div className={`group relative flex flex-col px-4 py-4 bg-white dark:bg-[#0F172A] transition-colors duration-200 ${borderRight ? 'border-r border-slate-200 dark:border-white/[0.08]' : ''} ${borderBottom ? 'border-b border-slate-200 dark:border-white/[0.08]' : ''} hover:bg-slate-50 dark:hover:bg-white/[0.03]`}>
+    <div className={`group relative flex flex-col px-3.5 py-3 bg-white dark:bg-[#0F172A] transition-colors duration-200 ${borderRight ? 'border-r border-slate-200 dark:border-white/[0.08]' : ''} ${borderBottom ? 'border-b border-slate-200 dark:border-white/[0.08]' : ''} hover:bg-slate-50 dark:hover:bg-white/[0.03]`}>
       <div className="absolute left-0 top-0 h-full w-[2px] bg-brand-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-      <div className="mb-2 flex items-center gap-1.5">
-        <span className="text-[13px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
+      <div className="mb-1.5 flex items-center gap-1.5">
+        {/* ⭐ Label : 11.5px → 12px */}
+        <span className="text-[12px] font-semibold uppercase tracking-[0.06em] leading-[1.3] text-slate-500 dark:text-slate-400">{label}</span>
         {icon && <span className="text-brand-500 dark:text-brand-400">{icon}</span>}
       </div>
       <div className="w-full">{children}</div>
@@ -42,15 +46,18 @@ const ParametresGeneral: React.FC<ParametresGeneralProps> = ({ settings, onSetti
     onSettingsChange({ ...settings, [key]: value });
   };
 
+  // ⭐ Field : h-9 → h-10, text-[13.5px] → text-[14px]
   const fieldClass = `w-full h-10 rounded-lg border px-3 text-[14px] font-medium outline-none transition-all duration-150 bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 hover:border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:bg-[#0F172A] dark:border-white/[0.12] dark:text-slate-100 dark:placeholder:text-slate-500 dark:hover:border-white/[0.18] dark:focus:border-brand-500 dark:focus:ring-brand-500/10`;
 
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-white/[0.12] dark:bg-[#0F172A] dark:shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
-      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-white/[0.08]">
+    <section className="overflow-hidden rounded-xl border-[0.5px] border-slate-200 bg-white shadow-sm dark:border-white/[0.12] dark:bg-[#0F172A]">
+      <div className="flex items-center justify-between border-b border-slate-200 px-3.5 py-2.5 dark:border-white/[0.08]">
         <div className="flex items-center gap-3">
           <div className="min-w-0">
-            <h2 className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">Paramètres généraux</h2>
-            <p className="mt-0.5 text-[13px] text-slate-500 dark:text-slate-400">Configurez les informations principales de votre application</p>
+            {/* ⭐ h2 : 13.5px → 15px */}
+            <h2 className="text-[15px] font-semibold leading-tight text-slate-900 dark:text-slate-100">Paramètres généraux</h2>
+            {/* ⭐ Subtitle : 11.5px → 13px */}
+            <p className="mt-0.5 text-[13px] leading-[1.3] text-slate-500 dark:text-slate-400">Configurez les informations principales de votre application</p>
           </div>
         </div>
       </div>

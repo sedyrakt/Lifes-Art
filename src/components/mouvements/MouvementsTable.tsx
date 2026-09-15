@@ -1,6 +1,15 @@
+// src/components/mouvements/MouvementsTable.tsx
+// ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
+// ⭐ TYPOGRAPHIE alignée sur les autres tables et SearchBars
+// ⭐ FONT SIZE: header 12.5px, cells 14px, badges 12.5px, footer 13px
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../../contexts/ThemeContext';
+import {
+  Download,
+  Trash2,
+} from 'lucide-react';
 
 interface Mouvement {
   id: number;
@@ -24,7 +33,7 @@ interface Mouvement {
 interface MouvementsTableProps {
   mouvements: Mouvement[];
   getTypeColor: (type: string) => string;
-  getTypeIcon?: (type: string) => React.ReactNode; // non utilisé
+  getTypeIcon?: (type: string) => React.ReactNode;
   getTypeLabel: (type: string) => string;
   selectedIds?: Set<number>;
   onSelectAll?: (checked: boolean) => void;
@@ -81,7 +90,6 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
 }) => {
   const { isDark } = useTheme();
 
-
   const bg = isDark ? 'bg-[#0F172A]' : 'bg-white';
   const secondaryBg = isDark ? 'bg-[#0F172A]' : 'bg-slate-50';
   const border = isDark ? 'border-white/[0.12]' : 'border-slate-200';
@@ -94,7 +102,6 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
   const safeMouvements = mouvements || [];
   const safeSelectedIds = selectedIds || new Set<number>();
 
-  // Stats
   const stats = useMemo(() => {
     let entrees = 0, sorties = 0, ajustements = 0;
     safeMouvements.forEach((m) => {
@@ -127,7 +134,7 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
     e.stopPropagation();
     if (openMenuId === id) { closeMenu(); return; }
     const r = e.currentTarget.getBoundingClientRect();
-    const W = 205, H = 180, P = 12;
+    const W = 220, H = 180, P = 12;
     const vw = window.innerWidth, vh = window.innerHeight;
     const pos: MenuPosition = {};
     const below = vh - r.bottom, above = r.top;
@@ -149,8 +156,10 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
   if (safeMouvements.length === 0) {
     return (
       <div className={`flex min-h-[270px] flex-col items-center justify-center overflow-hidden rounded-xl border-[0.5px] px-6 py-10 text-center shadow-sm ${bg} ${border} dark:shadow-[0_14px_40px_rgba(0,0,0,0.20)]`}>
-        <h3 className="text-[15.5px] font-semibold text-slate-900 dark:text-slate-100">Aucun mouvement</h3>
-        <p className="mt-2 max-w-[390px] text-[14.5px] leading-6 text-slate-500 dark:text-slate-400">Aucun mouvement de stock n'a été enregistré pour le moment.</p>
+        {/* ⭐ h3 : 15.5px → 16px */}
+        <h3 className="text-[16px] font-semibold text-slate-900 dark:text-slate-100">Aucun mouvement</h3>
+        {/* ⭐ p : 14.5px → 14px */}
+        <p className="mt-2 max-w-[390px] text-[14px] leading-6 text-slate-500 dark:text-slate-400">Aucun mouvement de stock n'a été enregistré pour le moment.</p>
       </div>
     );
   }
@@ -159,22 +168,24 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
     <div className={`relative overflow-hidden rounded-xl border-[0.5px] shadow-[0_2px_12px_rgba(15,23,42,0.04)] dark:shadow-[0_14px_40px_rgba(0,0,0,0.20)] ${bg} ${border}`}>
 
       {safeSelectedIds.size > 0 && (
-        <div className={`flex flex-wrap items-center justify-between gap-2 border-b px-3.5 py-2 ${isDark ? 'border-white/[0.08] bg-brand-500/[0.065]' : 'border-slate-200 bg-brand-50'}`}>
+        <div className={`flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2 ${isDark ? 'border-white/[0.08] bg-brand-500/[0.065]' : 'border-slate-200 bg-brand-50/50'}`}>
+          {/* ⭐ Selection text : 14px → 14.5px */}
           <span className="text-[14.5px] font-semibold text-brand-600 dark:text-brand-400">
             {safeSelectedIds.size} mouvement{safeSelectedIds.size > 1 ? 's' : ''} sélectionné{safeSelectedIds.size > 1 ? 's' : ''}
           </span>
           <div className="flex items-center gap-1.5">
+            {/* ⭐ Bulk buttons : 14px → 14.5px */}
             <button
               type="button"
               onClick={() => onBulkDelete?.(Array.from(safeSelectedIds))}
-              className="rounded-lg bg-danger-500 px-2.5 py-1.5 text-[13.5px] font-semibold text-white shadow-sm transition hover:bg-danger-600 active:scale-[0.98]"
+              className="rounded-lg bg-danger-500 px-2.5 py-1.5 text-[14.5px] font-semibold text-white shadow-sm transition hover:bg-danger-600 active:scale-[0.98]"
             >
               Supprimer
             </button>
             <button
               type="button"
               onClick={() => onSelectAll?.(false)}
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[13.5px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-300 dark:hover:bg-slate-800"
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[14.5px] font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-300 dark:hover:bg-slate-800"
             >
               Désélectionner
             </button>
@@ -184,18 +195,19 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
 
       <div className="custom-scrollbar overflow-x-auto overflow-y-auto scrollbar-gutter-stable">
         <table className={`w-full min-w-[900px] table-fixed border-collapse text-left ${border}`}>
-          <thead className={`sticky top-0 z-20 backdrop-blur-xl ${isDark ? 'bg-[#0F172A]/97' : 'bg-slate-50'}`}>
-            <tr className="text-[12.5px] font-semibold uppercase tracking-[0.055em] text-slate-500 dark:text-slate-400">
-              <th className={`w-[40px] border-b px-2 py-2.5 align-middle ${headerBorder}`}>
-                <input type="checkbox" checked={allSelected} ref={el => { if (el) el.indeterminate = someSelected; }} onChange={e => onSelectAll?.(e.target.checked)} className="h-[15px] w-[15px] cursor-pointer accent-brand-500" aria-label="Sélectionner tous les mouvements" />
+          <thead className={`sticky top-0 z-20 backdrop-blur-xl ${isDark ? 'bg-[#0F172A]/97' : 'bg-slate-50/97'}`}>
+            {/* ⭐ Header : 12px → 12.5px */}
+            <tr className="text-[12.5px] font-semibold uppercase tracking-[0.05em] text-slate-500 dark:text-slate-400">
+              <th className={`w-[36px] border-b px-1.5 py-2.5 align-middle ${headerBorder}`}>
+                <input type="checkbox" checked={allSelected} ref={el => { if (el) el.indeterminate = someSelected; }} onChange={e => onSelectAll?.(e.target.checked)} className="h-[14px] w-[14px] cursor-pointer accent-brand-500" aria-label="Sélectionner tous les mouvements" />
               </th>
-              <th className={`w-[180px] border-b px-2 py-2.5 align-middle ${headerBorder}`}>Produit</th>
-              <th className={`w-[110px] border-b px-2 py-2.5 align-middle ${headerBorder}`}>Type</th>
-              <th className={`w-[90px] border-b px-2 py-2.5 align-middle ${headerBorder}`}>Quantité</th>
-              <th className={`w-[120px] border-b px-2 py-2.5 align-middle ${headerBorder}`}>Prix unitaire</th>
-              <th className={`w-[140px] border-b px-2 py-2.5 align-middle ${headerBorder}`}>Stock</th>
-              <th className={`w-[130px] border-b px-2 py-2.5 align-middle ${headerBorder}`}>Référence</th>
-              <th className={`w-[60px] border-b px-2 py-2.5 text-right align-middle ${headerBorder}`}>Actions</th>
+              <th className={`w-[180px] border-b px-1.5 py-2.5 align-middle ${headerBorder}`}>Produit</th>
+              <th className={`w-[110px] border-b px-1.5 py-2.5 align-middle ${headerBorder}`}>Type</th>
+              <th className={`w-[90px] border-b px-1.5 py-2.5 align-middle ${headerBorder}`}>Quantité</th>
+              <th className={`w-[120px] border-b px-1.5 py-2.5 align-middle ${headerBorder}`}>Prix unitaire</th>
+              <th className={`w-[140px] border-b px-1.5 py-2.5 align-middle ${headerBorder}`}>Stock</th>
+              <th className={`w-[130px] border-b px-1.5 py-2.5 align-middle ${headerBorder}`}>Référence</th>
+              <th className={`w-[54px] border-b px-1.5 py-2.5 text-right align-middle ${headerBorder}`}>Actions</th>
             </tr>
           </thead>
           <tbody className={bg}>
@@ -217,7 +229,6 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
 
               const prefix = isEntree ? '+' : isSortie ? '-' : '±';
 
-       
               const isFirstRow = index === 0;
               const firstRowShadow = isFirstRow
                 ? 'shadow-[inset_0_1px_0_0_rgba(107,114,128,0.5)] dark:shadow-[inset_0_1px_0_0_rgba(107,114,128,0.3)]'
@@ -227,69 +238,83 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
                 <tr
                   key={m.id}
                   onClick={() => onView?.(m)}
-                  className={`group h-[60px] cursor-pointer transition-colors duration-150 ${selected ? (isDark ? 'bg-brand-500/[0.08]' : 'bg-brand-50') : isDark ? 'hover:bg-white/[0.025]' : 'hover:bg-slate-50'} ${firstRowShadow}`}
+                  className={`group h-[58px] cursor-pointer transition-colors duration-150 ${selected ? (isDark ? 'bg-brand-500/[0.08]' : 'bg-brand-50') : isDark ? 'hover:bg-white/[0.025]' : 'hover:bg-slate-50'} ${firstRowShadow}`}
                 >
-                  <td className={`border-b px-2 py-2 align-middle ${cellBorder}`} onClick={e => e.stopPropagation()}>
-                    <input type="checkbox" checked={selected} onChange={e => onSelectOne?.(m.id, e.target.checked)} className="h-[15px] w-[15px] cursor-pointer accent-brand-500" aria-label={`Sélectionner ${m.produit_nom || 'ce mouvement'}`} />
+                  <td className={`border-b px-1.5 py-2 align-middle ${cellBorder}`} onClick={e => e.stopPropagation()}>
+                    <input type="checkbox" checked={selected} onChange={e => onSelectOne?.(m.id, e.target.checked)} className="h-[14px] w-[14px] cursor-pointer accent-brand-500" aria-label={`Sélectionner ${m.produit_nom || 'ce mouvement'}`} />
                   </td>
 
-                  <td className={`border-b px-2 py-2 align-middle ${cellBorder}`}>
+                  <td className={`border-b px-1.5 py-2 align-middle ${cellBorder}`}>
                     <div className="min-w-0 leading-tight">
-                      <div title={m.produit_nom || 'Produit inconnu'} className="max-w-[150px] truncate text-[14.5px] font-semibold text-slate-900 group-hover:text-brand-600 dark:text-slate-100 dark:group-hover:text-brand-400">
+                      {/* ⭐ Product name : 14px → 14.5px */}
+                      <div title={m.produit_nom || 'Produit inconnu'} className="max-w-[160px] truncate text-[14.5px] font-semibold text-slate-900 group-hover:text-brand-600 dark:text-slate-100 dark:group-hover:text-brand-400">
                         {m.produit_nom || 'Produit inconnu'}
                       </div>
-                      <div className="mt-2 truncate font-mono text-[12.5px] text-slate-500 dark:text-slate-400">
+                      {/* ⭐ Product code : 12.5px → 13px */}
+                      <div className="mt-0.5 truncate font-mono text-[13px] text-slate-500 dark:text-slate-400">
                         {m.produit_code || 'Sans code'}
                       </div>
                     </div>
                   </td>
 
-                  <td className={`border-b px-2 py-2 align-middle ${cellBorder}`}>
-                    <span className={`inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-[12.5px] font-semibold leading-tight ${getTypeColor(m.type_mouvement)}`}>
+                  <td className={`border-b px-1.5 py-2 align-middle ${cellBorder}`}>
+                    {/* ⭐ Type badge : 12.5px → 13px */}
+                    <span className={`inline-flex items-center whitespace-nowrap rounded border px-1.5 py-0.5 text-[13px] font-semibold leading-tight ${getTypeColor(m.type_mouvement)}`}>
                       {getTypeLabel(m.type_mouvement)}
                     </span>
                   </td>
 
-                  <td className={`border-b px-2 py-2 align-middle ${cellBorder}`}>
-                    <span className={`inline-flex min-w-[40px] items-center justify-center rounded-md border px-1.5 py-0.5 text-[13.5px] font-semibold ${quantityClass}`}>
+                  <td className={`border-b px-1.5 py-2 align-middle ${cellBorder}`}>
+                    {/* ⭐ Quantity badge : 13.5px → 14px */}
+                    <span className={`inline-flex min-w-[44px] items-center justify-center rounded border px-1.5 py-0.5 text-[14px] font-semibold leading-tight ${quantityClass}`}>
                       {prefix}{formatNumber(Number(m.quantite) || 0)}
                     </span>
                   </td>
 
-                  <td className={`border-b px-2 py-2 align-middle ${cellBorder}`}>
+                  <td className={`border-b px-1.5 py-2 align-middle ${cellBorder}`}>
+                    {/* ⭐ Price : 14px → 14.5px */}
                     <span className="whitespace-nowrap text-[14.5px] font-semibold text-slate-900 dark:text-slate-100">
                       {price > 0 ? `${Number(price).toLocaleString('fr-FR')} Ar` : '—'}
                     </span>
                   </td>
 
-                  <td className={`border-b px-2 py-2 align-middle ${cellBorder}`}>
+                  <td className={`border-b px-1.5 py-2 align-middle ${cellBorder}`}>
                     <div className="flex items-center gap-1.5">
-                      <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[12.5px] font-medium text-slate-600 dark:bg-white/[0.06] dark:text-slate-300">
+                      {/* ⭐ Stock badges : 12.5px → 13px */}
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[13px] font-medium text-slate-600 dark:bg-white/[0.06] dark:text-slate-300">
                         {formatNumber(ancien)}
                       </span>
-                      <span className="text-slate-400 dark:text-slate-500">→</span>
-                      <span className="rounded-md bg-brand-50 px-1.5 py-0.5 text-[12.5px] font-semibold text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
+                      {/* ⭐ Arrow : 13px → 13.5px */}
+                      <span className="text-[13.5px] text-slate-400 dark:text-slate-500">→</span>
+                      <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[13px] font-semibold text-brand-600 dark:bg-brand-500/10 dark:text-brand-400">
                         {formatNumber(nouveau)}
                       </span>
                     </div>
                   </td>
 
-                  <td className={`border-b px-2 py-2 align-middle ${cellBorder}`}>
-                    <span className="block max-w-[110px] truncate font-mono text-[12.5px] text-slate-500 dark:text-slate-400" title={effectiveRef}>
+                  <td className={`border-b px-1.5 py-2 align-middle ${cellBorder}`}>
+                    {/* ⭐ Reference : 12.5px → 13px */}
+                    <span className="block max-w-[110px] truncate font-mono text-[13px] text-slate-500 dark:text-slate-400" title={effectiveRef}>
                       {effectiveRef}
                     </span>
                   </td>
 
-                  <td className={`border-b px-1.5 py-2 align-middle text-right ${cellBorder}`} onClick={e => e.stopPropagation()}>
+                  <td className={`border-b px-1 py-2 align-middle text-right ${cellBorder}`} onClick={e => e.stopPropagation()}>
+                    {/* ⭐ Actions button : h-7 w-7, nampiana bg-slate-100 / border-slate-200 ho an'ny light mode */}
                     <button
                       type="button"
                       title="Actions"
                       aria-label={`Actions pour ${m.produit_nom || 'ce mouvement'}`}
                       aria-expanded={openMenuId === m.id}
                       onClick={(e) => toggleMenu(m.id, e)}
-                      className={`flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-slate-400 transition-all duration-150 ${openMenuId === m.id ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400' : 'hover:border-slate-200 hover:bg-slate-50 hover:text-brand-600 dark:hover:border-white/[0.12] dark:hover:bg-slate-800 dark:hover:text-slate-200'}`}
+                      className={`flex h-7 w-7 items-center justify-center rounded border transition-all duration-150 ${
+                        openMenuId === m.id
+                          ? 'bg-brand-50 border-brand-200 text-brand-600 dark:bg-brand-500/10 dark:border-brand-500/20 dark:text-brand-400'
+                          : 'border-slate-200 bg-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-200 hover:text-brand-600 dark:border-transparent dark:bg-transparent dark:text-slate-400 dark:hover:border-white/[0.12] dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                      }`}
                     >
-                      <span className="font-bold tracking-widest">...</span>
+                      {/* ⭐ Actions ... : 14px → 14.5px */}
+                      <span className="text-[14.5px] font-bold tracking-widest">...</span>
                     </button>
                   </td>
                 </tr>
@@ -299,10 +324,9 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
         </table>
       </div>
 
-
       {openMenuId !== null && createPortal(
         <div
-          className={`fixed z-[99999] w-[205px] overflow-hidden rounded-lg border-[0.5px] py-1 shadow-[0_18px_55px_rgba(15,23,42,0.18)] backdrop-blur-2xl ${isDark ? 'border-white/[0.10] bg-[#0F172A]/98' : 'border-slate-200 bg-white/98'}`}
+          className={`fixed z-[99999] w-[230px] overflow-hidden rounded-xl border-[0.5px] py-1.5 shadow-[0_18px_55px_rgba(15,23,42,0.35)] ${isDark ? 'border-white/[0.10] bg-[#0F172A]' : 'border-slate-200 bg-white'}`}
           style={{
             top: menuPosition.top !== undefined ? `${menuPosition.top}px` : undefined,
             bottom: menuPosition.bottom !== undefined ? `${menuPosition.bottom}px` : undefined,
@@ -316,23 +340,44 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
             const current = safeMouvements.find((m) => m.id === openMenuId);
             if (!current) return null;
             return (
+              /* ⭐ Menu text : 14px → 14.5px */
               <div className="flex flex-col text-[14.5px]">
-                {/* ⭐ FIX: ESORINA NY "Voir les détails" SY "Modifier" */}
-                {/* <button type="button" onMouseDown={(e) => menuAction(() => onView?.(current), e)} className="flex w-full items-center px-3 py-2 text-left font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.06]">
-                  Voir les détails
-                </button>
-                <button type="button" onMouseDown={(e) => menuAction(() => onEdit?.(current), e)} className="flex w-full items-center px-3 py-2 text-left font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.06]">
-                  Modifier
-                </button> */}
+                <div className={`border-b px-3 py-2.5 ${isDark ? 'border-white/[0.08]' : 'border-slate-200'}`}>
+                  <div className="min-w-0">
+                    {/* ⭐ Product name : 14px → 14.5px */}
+                    <div className="max-w-[180px] truncate text-[14.5px] font-semibold text-slate-900 dark:text-slate-100">{current.produit_nom || 'Mouvement'}</div>
+                    {/* ⭐ ID : 12px → 12.5px */}
+                    <div className="mt-0.5 font-mono text-[12.5px] text-slate-400">ID #{current.id}</div>
+                  </div>
+                </div>
 
-                {/* ⭐ FIX: ATAOVY MANDÉHA NY "Exporter" SY "Supprimer" */}
-                <button type="button" onMouseDown={(e) => menuAction(() => onExport?.(current), e)} className="flex w-full items-center px-3 py-2 text-left font-medium text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-white/[0.06]">
-                  Exporter
-                </button>
-                <div className={`mx-3 my-1 border-t ${isDark ? 'border-white/[0.08]' : 'border-slate-200'}`} />
-                <button type="button" onMouseDown={(e) => menuAction(() => onBulkDelete?.([current.id]), e)} className="flex w-full items-center px-3 py-2 text-left font-semibold text-danger-500 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-500/10">
-                  Supprimer
-                </button>
+                <div className="py-0.5">
+                  <button
+                    type="button"
+                    onMouseDown={(e) => menuAction(() => onExport?.(current), e)}
+                    className="group flex w-full items-center gap-2.5 px-3 py-2 text-left font-medium text-slate-700 transition-colors hover:bg-brand-50 dark:text-slate-200 dark:hover:bg-brand-500/10"
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-100 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400 shrink-0">
+                      {/* ⭐ Icon : 14 → 15 */}
+                      <Download size={15} strokeWidth={2.2} />
+                    </span>
+                    <span>Exporter</span>
+                  </button>
+
+                  <div className={`mx-2 my-1 border-t ${isDark ? 'border-white/[0.07]' : 'border-slate-200'}`} />
+
+                  <button
+                    type="button"
+                    onMouseDown={(e) => menuAction(() => onBulkDelete?.([current.id]), e)}
+                    className="group flex w-full items-center gap-2.5 px-3 py-2 text-left font-semibold text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-red-100 text-red-600 dark:bg-red-500/15 dark:text-red-400 shrink-0">
+                      {/* ⭐ Icon : 14 → 15 */}
+                      <Trash2 size={15} strokeWidth={2.2} />
+                    </span>
+                    <span>Supprimer</span>
+                  </button>
+                </div>
               </div>
             );
           })()}
@@ -341,17 +386,19 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
       )}
 
       {/* Footer */}
-      <div className={`flex flex-wrap items-center justify-between gap-3 border-t px-3.5 py-2 ${secondaryBg} ${border}`}>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
+      <div className={`flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2 ${secondaryBg} ${border}`}>
+        {/* ⭐ Footer stats : 13px → 13.5px */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
           <span><span className="font-semibold text-slate-900 dark:text-slate-100">{stats.total}</span> mouvement{stats.total > 1 ? 's' : ''}</span>
           <span className="hidden h-3.5 w-px bg-slate-300 sm:block dark:bg-white/[0.12]" />
-          <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-success-500" /><span>Entrée</span><span className="text-slate-400 dark:text-slate-500">{stats.entrees}</span></span>
-          <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-danger-500" /><span>Sortie</span><span className="text-slate-400 dark:text-slate-500">{stats.sorties}</span></span>
+          <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-success-500" /><span>Entrée</span><span className="text-slate-400 dark:text-slate-500">{stats.entrees}</span></span>
+          <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-danger-500" /><span>Sortie</span><span className="text-slate-400 dark:text-slate-500">{stats.sorties}</span></span>
           {stats.ajustements > 0 && (
-            <span className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-warning-500" /><span>Ajustement</span><span className="text-slate-400 dark:text-slate-500">{stats.ajustements}</span></span>
+            <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-warning-500" /><span>Ajustement</span><span className="text-slate-400 dark:text-slate-500">{stats.ajustements}</span></span>
           )}
         </div>
-        <span className="text-[12.5px] font-medium text-slate-400 dark:text-slate-500">Gestion des mouvements</span>
+        {/* ⭐ Footer label : 12.5px → 13px */}
+        <span className="text-[13px] font-medium text-slate-400 dark:text-slate-500">Gestion des mouvements</span>
       </div>
 
       <style>{`

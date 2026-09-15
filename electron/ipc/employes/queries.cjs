@@ -70,8 +70,8 @@ function buildEmployesQuery(options = {}) {
   const { where, params } = buildEmployesFilters(options); 
   const sort = normalizeSort(options.sort);
 
-  // ⭐ NESORINA NY e.image
-  const query = `SELECT e.id, e.nom, e.prenom, e.email, e.telephone, e.poste, e.departement, e.date_embauche, e.salaire, e.status, e.created_at, e.updated_at 
+  // ⭐ VAOVAO: Nampiana e.cnaps, e.ostie, e.irsa
+  const query = `SELECT e.id, e.nom, e.prenom, e.email, e.telephone, e.poste, e.departement, e.date_embauche, e.salaire, e.cnaps, e.ostie, e.irsa, e.status, e.created_at, e.updated_at 
   FROM employes e ${where} 
   ORDER BY e.${sort.field} ${sort.direction}, e.id ASC 
   LIMIT ? OFFSET ?`;

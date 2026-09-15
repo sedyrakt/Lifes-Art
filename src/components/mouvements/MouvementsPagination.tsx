@@ -1,3 +1,10 @@
+// src/components/stock/MouvementsPagination.tsx
+// ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
+// ⭐ TYPOGRAPHY alignée sur CommandesPagination
+// ⭐ fontSize : total 15px bold, numéro 14px bold
+// ⭐ Chevron bold + border-gray-400 en mode light
+// ⭐ DESIGN aligned with pagination family (Produits/Categories/etc.)
+// ⭐ FONT SIZE NAMPITOMBOANA
 
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -11,37 +18,65 @@ interface MouvementsPaginationProps {
   onPrevious: () => void;
 }
 
-const MouvementsPagination: React.FC<MouvementsPaginationProps> = ({ 
-  currentPage, totalItems, hasMore, onNext, onPrevious 
+const MouvementsPagination: React.FC<MouvementsPaginationProps> = ({
+  currentPage,
+  totalItems,
+  hasMore,
+  onNext,
+  onPrevious,
 }) => {
   const { isDark } = useTheme();
 
   if (totalItems === 0) return null;
 
-  const borderClass = isDark ? 'border-white/[0.12]' : 'border-slate-200';
-  const bgClass = isDark ? 'bg-slate-900' : 'bg-white';
-  const textMuted = isDark ? 'text-slate-400' : 'text-slate-500';
-  const textStrong = isDark ? 'text-slate-100' : 'text-slate-900';
-  const btnHover = isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-50';
-  const disabledClass = 'opacity-40 cursor-not-allowed';
+  // ⭐ FIX: bordure gray-400 en light, border-white/[0.12] en dark
+  const navButtonClass = `p-1.5 rounded-lg border transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed ${
+    isDark
+      ? 'border-white/[0.12] text-slate-400 hover:bg-brand-500/10 hover:border-brand-300'
+      : 'border-gray-400 text-slate-600 hover:bg-brand-50 hover:border-brand-500 hover:text-brand-600'
+  }`;
 
   return (
-    <div className={`mt-1 flex w-full items-center justify-between rounded-xl border px-4 py-3 shadow-sm transition-all duration-200 ${bgClass} ${borderClass}`}>
-      <div className={`text-[13px] font-bold uppercase tracking-wider ${textMuted}`}>
-        TOTAL : <span className={`font-black ${textStrong}`}>{totalItems}</span> mouvement{totalItems > 1 ? 's' : ''}
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 py-0.5 w-full">
+      {/* Total */}
+      <div className="text-[15px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+        Total : <span className="font-black text-slate-900 dark:text-slate-100">{totalItems}</span> mouvement{totalItems > 1 ? 's' : ''}
       </div>
 
-      <div className="flex items-center gap-1.5">
-        <button onClick={onPrevious} disabled={currentPage === 1} className={`flex h-9 w-9 items-center justify-center rounded-lg border ${borderClass} bg-transparent transition-colors ${textMuted} ${currentPage === 1 ? disabledClass : btnHover}`} aria-label="Page précédente">
-          <ChevronLeft size={16} />
+      {/* Pages */}
+      <div className="flex items-center gap-1">
+        {/* Previous */}
+        <button
+          type="button"
+          onClick={onPrevious}
+          disabled={currentPage === 1}
+          aria-label="Page précédente"
+          className={navButtonClass}
+        >
+          <ChevronLeft size={16} strokeWidth={2.5} />
         </button>
 
-        <div className="flex h-9 min-w-[36px] items-center justify-center rounded-lg px-3 text-[13px] font-bold text-white shadow-sm bg-brand-500">
+        {/* Current page (active indigo) */}
+        <div
+          className="w-8 h-8 rounded-lg transition-all duration-200 text-[14px] font-bold flex items-center justify-center shadow-sm"
+          style={{
+            background: '#4F46E5',
+            color: '#FFFFFF',
+            border: '1px solid #4F46E5',
+          }}
+        >
           {currentPage}
         </div>
 
-        <button onClick={onNext} disabled={!hasMore} className={`flex h-9 w-9 items-center justify-center rounded-lg border ${borderClass} bg-transparent transition-colors ${textMuted} ${!hasMore ? disabledClass : btnHover}`} aria-label="Page suivante">
-          <ChevronRight size={16} />
+        {/* Next */}
+        <button
+          type="button"
+          onClick={onNext}
+          disabled={!hasMore}
+          aria-label="Page suivante"
+          className={navButtonClass}
+        >
+          <ChevronRight size={16} strokeWidth={2.5} />
         </button>
       </div>
     </div>

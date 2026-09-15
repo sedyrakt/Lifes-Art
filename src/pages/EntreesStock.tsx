@@ -11,15 +11,13 @@ import ConfirmModal from '../components/common/ConfirmModal';
 import SuccessModal from '../components/common/SuccessModal';
 import ErrorModal from '../components/common/ErrorModal';
 import { Entree, ITEMS_PER_PAGE } from '../types/EntreesTypes';
-import { ExportPeriod } from '../types/exportPeriod'; // ⭐ Type avy amin'ny fichier misaraka
+import { ExportPeriod } from '../types/exportPeriod';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { saveFileWithDialog } from '../utils/saveFileWithDialog';
 
-const formatNumberNoSlash = (value: number) => {
-  return value.toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
-};
+const formatNumberNoSlash = (value: number) => value.toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
 
 const EntreesStock: React.FC = () => {
   const { isDark } = useTheme();
@@ -51,7 +49,7 @@ const EntreesStock: React.FC = () => {
     try {
       const [produitsRes, entreesRes] = await Promise.all([
         window.api.products.getAll({ limit: 500, status: 'actif' }),
-        window.api.stock.getEntrees({ limit: 500 })
+        window.api.stock.getEntrees({ limit: 500 }),
       ]);
       if (produitsRes?.success) setProduits(produitsRes.data || []);
       if (entreesRes?.success) setEntrees(entreesRes.data || []);
@@ -88,7 +86,7 @@ const EntreesStock: React.FC = () => {
     totalEntries: filteredEntrees.length,
     totalQty: filteredEntrees.reduce((acc, item) => acc + Number(item.quantite || 0), 0),
     totalValue: filteredEntrees.reduce((acc, item) => acc + (Number(item.quantite || 0) * Number(item.prix_unitaire || 0)), 0),
-    uniqueProducts: new Set(filteredEntrees.map(item => item.produit_id)).size
+    uniqueProducts: new Set(filteredEntrees.map(item => item.produit_id)).size,
   }), [filteredEntrees]);
 
   const handleSelectAll = (checked: boolean) => setSelectedIds(checked ? new Set(pagedEntrees.map(item => item.id)) : new Set());

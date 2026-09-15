@@ -1,4 +1,7 @@
 // src/hooks/useCategoriesData.ts
+// ⭐ VAOVAO: `getStats()` fonction mba hampiasain'ny Categories.tsx
+//    → Mamerina { total, avecDescription, sansDescription, totalProduits, categoriesVides, totalStock, valeurStock }
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -18,8 +21,47 @@ const SORT_MAP = {
 // ⭐ Type export period
 export type ExportPeriod = 'aujourdhui' | 'hier' | 'semaine' | 'mois' | 'annee' | 'custom';
 
+// ⭐ VAOVAO: Type ho an'ny stats global
+export interface CategoryStats {
+  total: number;
+  avecDescription: number;
+  sansDescription: number;
+  totalProduits: number;
+  categoriesVides: number;
+  totalStock: number;
+  valeurStock: number;
+}
+
+// ⭐ Format nombre tsotra (space mahazatra)
+const formatNumberNoSlash = (value: number) => {
+  return (Number(value) || 0).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
+};
+
+// ⭐ Local date helper (YYYY-MM-DD) — tsy UTC
+const toLocalDateString = (d: Date = new Date()): string => {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+// ⭐ Label période amin'ny teny français (ho an'ny PDF)
+const getPeriodLabel = (period: ExportPeriod, customDate: string): string => {
+  switch (period) {
+    case 'aujourdhui': return "Aujourd'hui";
+    case 'hier': return 'Hier';
+    case 'semaine': return 'Cette semaine';
+    case 'mois': return 'Ce mois';
+    case 'annee': return 'Cette année';
+    case 'custom': {
+      if (!customDate) return 'Personnalisé';
+      const [y, m, d] = customDate.split('-');
+      return `Personnalisé : ${d}/${m}/${y}`;
+    }
+    default: return String(period);
+  }
+};
+
 export const useCategoriesData = () => {
-  // ===== HOOKS – rehetra ato ambony, tsy misy condition =====
+  // ===== HOOKS =====
   const isMounted = useRef(true);
   const fetchLock = useRef(false);
   const firstLoadDone = useRef(false);
@@ -36,11 +78,10 @@ export const useCategoriesData = () => {
 
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // ⭐ Vaovao: Export period sy customDate
   const [exportPeriod, setExportPeriod] = useState<ExportPeriod>('mois');
-  const [exportCustomDate, setExportCustomDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [exportCustomDate, setExportCustomDate] = useState<string>(() => toLocalDateString());
 
-  // ===== EFFECTS – rehetra ato ambony =====
+  // ===== EFFECTS =====
   useEffect(() => {
     isMounted.current = true;
     return () => {
@@ -105,7 +146,6 @@ export const useCategoriesData = () => {
     }
   }, [currentPage, debouncedSearch, sortOption]);
 
-  // ===== EFFECTS (mampiasa loadDataRef) =====
   useEffect(() => {
     loadDataRef.current = loadCategories;
   }, [loadCategories]);
@@ -123,7 +163,7 @@ export const useCategoriesData = () => {
     }
   }, [currentPage]);
 
-  // CRUD operations (tsy misy hooks, fa callbacks)
+  // CRUD operations
   const createCategorie = useCallback(async (data: Omit<Categorie, 'id' | 'created_at'>) => {
     if (!window.api?.categories?.create) throw new Error('API categories.create indisponible');
     const result = await window.api.categories.create(data);
@@ -156,6 +196,27 @@ export const useCategoriesData = () => {
     return result;
   }, []);
 
+  // ⭐⭐⭐ VAOVAO: getStats — fonction ho an'ny Categories.tsx ⭐⭐⭐
+  const getStats = useCallback(async (): Promise<CategoryStats> => {
+    if (!window.api?.categories?.getStats) {
+      throw new Error('API categories.getStats indisponible');
+    }
+    const result = await window.api.categories.getStats();
+    if (!result?.success || !result.data) {
+      throw new Error(result?.error || 'Erreur stats.');
+    }
+    const data = result.data;
+    return {
+      total: Number(data.total) || 0,
+      avecDescription: Number(data.avecDescription ?? data.avec_description) || 0,
+      sansDescription: Number(data.sansDescription ?? data.sans_description) || 0,
+      totalProduits: Number(data.totalProduits ?? data.total_produits) || 0,
+      categoriesVides: Number(data.categoriesVides ?? data.categories_vides) || 0,
+      totalStock: Number(data.totalStock ?? data.total_stock) || 0,
+      valeurStock: Number(data.valeurStock ?? data.valeur_stock) || 0,
+    };
+  }, []);
+
   const getCategoryColor = useCallback((id: number) => {
     const colors = [
       'from-[#6366F1] to-[#818CF8]',
@@ -185,38 +246,45 @@ export const useCategoriesData = () => {
   }, []);
 
   // ============================================================
-  // ⭐ EXPORT FUNCTIONS – misy période + save dialog
+  // ⭐ EXPORT FUNCTIONS
   // ============================================================
 
   const getExportPeriodRange = useCallback((period: ExportPeriod, customDate: string) => {
     const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const toLocalDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
     let startDate: string | undefined, endDate: string | undefined;
+
     if (period === 'aujourdhui') {
-      startDate = now.toISOString().split('T')[0] + ' 00:00:00';
-      endDate = now.toISOString().split('T')[0] + ' 23:59:59';
+      const today = toLocalDate(now);
+      startDate = today + ' 00:00:00';
+      endDate = today + ' 23:59:59';
     } else if (period === 'hier') {
       const yest = new Date(now);
       yest.setDate(now.getDate() - 1);
-      startDate = yest.toISOString().split('T')[0] + ' 00:00:00';
-      endDate = yest.toISOString().split('T')[0] + ' 23:59:59';
+      const y = toLocalDate(yest);
+      startDate = y + ' 00:00:00';
+      endDate = y + ' 23:59:59';
     } else if (period === 'semaine') {
       const day = now.getDay();
       const diff = now.getDate() - day + (day === 0 ? -6 : 1);
       const monday = new Date(now);
       monday.setDate(diff);
-      startDate = monday.toISOString().split('T')[0] + ' 00:00:00';
       const sunday = new Date(monday);
       sunday.setDate(monday.getDate() + 6);
-      endDate = sunday.toISOString().split('T')[0] + ' 23:59:59';
+      startDate = toLocalDate(monday) + ' 00:00:00';
+      endDate = toLocalDate(sunday) + ' 23:59:59';
     } else if (period === 'mois') {
-      startDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01 00:00:00`;
-      const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-      endDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')} 23:59:59`;
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      startDate = toLocalDate(firstDay) + ' 00:00:00';
+      endDate = toLocalDate(lastDay) + ' 23:59:59';
     } else if (period === 'annee') {
       startDate = `${now.getFullYear()}-01-01 00:00:00`;
       endDate = `${now.getFullYear()}-12-31 23:59:59`;
     } else if (period === 'custom') {
-      const dateStr = customDate || now.toISOString().split('T')[0];
+      const dateStr = customDate || toLocalDate(now);
       startDate = dateStr + ' 00:00:00';
       endDate = dateStr + ' 23:59:59';
     }
@@ -257,8 +325,14 @@ export const useCategoriesData = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Catégories');
     ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+    const totalProduits = data.reduce((sum: number, c: any) => sum + (Number(c.produits_count) || 0), 0);
+    XLSX.utils.sheet_add_json(ws, [{
+      'Nom': 'TOTAL', 'Description': '', 'Nb Produits': formatNumberNoSlash(totalProduits), 'Créé le': ''
+    }], { origin: -1, skipHeader: true });
+
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const fileName = `categories_${period}_${customDate || new Date().toISOString().slice(0,10)}.xlsx`;
+    const fileName = `categories_${period}_${customDate || toLocalDateString()}.xlsx`;
     const result = await saveFileWithDialog(wbout, fileName, [{ name: 'Excel', extensions: ['xlsx'] }]);
     if (!result.success) {
       if (result.canceled) return result;
@@ -267,50 +341,124 @@ export const useCategoriesData = () => {
     return result;
   }, [fetchAllForExport]);
 
-  // ⭐ Export PDF
+  // ⭐ PDF
   const exportToPDF = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
     const data = await fetchAllForExport(period, customDate);
+
     const doc = new jsPDF('landscape', 'mm', 'a4');
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, 297, 15, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(12);
-    doc.text('LifesArt - Catégories', 14, 10);
-    doc.setTextColor(15, 23, 42);
-    doc.setFontSize(18);
-    doc.text(`Rapport des catégories - ${period}${period === 'custom' ? ' (' + (customDate || new Date().toISOString().split('T')[0]) + ')' : ''}`, 14, 28);
-    doc.setFontSize(10);
-    doc.setTextColor(100, 116, 139);
-    doc.text(`Généré le: ${new Date().toLocaleString('fr-FR')}`, 14, 36);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+
+    const nowStr = new Date().toLocaleString('fr-FR');
+    const periodLabel = getPeriodLabel(period, customDate);
+
+    const TABLE_STYLE = {
+      styles: {
+        fontSize: 9,
+        cellPadding: 2.2,
+        textColor: [0, 0, 0] as [number, number, number],
+        fillColor: [255, 255, 255] as [number, number, number],
+        lineColor: [0, 0, 0] as [number, number, number],
+        lineWidth: 0.25,
+      },
+      headStyles: {
+        fillColor: [255, 255, 255] as [number, number, number],
+        textColor: [0, 0, 0] as [number, number, number],
+        fontStyle: 'bold' as const,
+        lineColor: [0, 0, 0] as [number, number, number],
+        lineWidth: 0.5,
+      },
+      alternateRowStyles: { fillColor: [255, 255, 255] as [number, number, number] },
+    };
 
     const columns = ['Nom', 'Description', 'Nb Produits', 'Créé le'];
+
     const rows = data.length
       ? data.map((cat: any) => [
           cat.nom || '',
           cat.description || '',
-          cat.produits_count || 0,
+          formatNumberNoSlash(Number(cat.produits_count || 0)),
           cat.created_at ? new Date(cat.created_at).toLocaleDateString('fr-FR') : '',
         ])
-      : [['Aucune catégorie', '', 0, '']];
+      : [['Aucune catégorie', '', '0', '']];
+
+    const totalProduits = data.reduce((sum: number, c: any) => sum + (Number(c.produits_count) || 0), 0);
+
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageWidth, 16, 'F');
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.4);
+    doc.line(0, 16, pageWidth, 16);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('LifesArt — Catégories', margin, 10);
+
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Généré le ${nowStr}`, pageWidth - margin, 10, { align: 'right' });
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(15);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Rapport des catégories', margin, 26);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Période : ${periodLabel}`, margin, 32);
 
     autoTable(doc, {
+      ...TABLE_STYLE,
+      startY: 38,
       head: [columns],
       body: rows,
-      startY: 42,
-      styles: { fontSize: 9, cellPadding: 4 },
-      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
       theme: 'grid',
-      showHead: 'firstPage',
-      didDrawPage: (data) => {
-        const pageNumber = doc.getNumberOfPages();
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text(`Page ${pageNumber}`, data.settings.margin.left, doc.internal.pageSize.getHeight() - 10);
+      margin: { left: margin, right: margin },
+      columnStyles: {
+        0: { cellWidth: 70 },
+        1: { cellWidth: 110 },
+        2: { cellWidth: 40, halign: 'right', fontStyle: 'bold' },
+        3: { cellWidth: 49, halign: 'center' },
       },
+      foot: [[
+        { content: '', colSpan: 2 },
+        {
+          content: `TOTAL PRODUITS : ${formatNumberNoSlash(totalProduits)}`,
+          colSpan: 2,
+          styles: { halign: 'right' as const, fontStyle: 'bold' as const, fontSize: 9 },
+        },
+      ]],
+      footStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: 9,
+        halign: 'right',
+        lineColor: [0, 0, 0],
+        lineWidth: 0.5,
+        cellPadding: { top: 2.2, right: 2.5, bottom: 2.2, left: 2.5 },
+      },
+      showHead: 'firstPage',
+      showFoot: 'lastPage',
     });
+
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(80, 80, 80);
+      doc.text(
+        `LifesArt ERP — Page ${i} / ${pageCount}`,
+        pageWidth / 2,
+        pageHeight - 6,
+        { align: 'center' }
+      );
+    }
+
     const pdfArrayBuffer = doc.output('arraybuffer');
-    const fileName = `categories_${period}_${customDate || new Date().toISOString().slice(0,10)}.pdf`;
+    const fileName = `categories_${period}_${customDate || toLocalDateString()}.pdf`;
     const result = await saveFileWithDialog(pdfArrayBuffer, fileName, [{ name: 'PDF', extensions: ['pdf'] }]);
     if (!result.success) {
       if (result.canceled) return result;
@@ -319,7 +467,7 @@ export const useCategoriesData = () => {
     return result;
   }, [fetchAllForExport]);
 
-  // ⭐ Export CSV
+  // ⭐ CSV
   const exportToCSV = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
     const data = await fetchAllForExport(period, customDate);
     const headers = ['Nom', 'Description', 'Nb Produits', 'Créé le'];
@@ -336,8 +484,15 @@ export const useCategoriesData = () => {
         ])
       : [['Aucune catégorie', '', 0, '']];
 
-    const csv = [headers.map(escapeCSV).join(','), ...rows.map(r => r.map(escapeCSV).join(','))].join('\n');
-    const fileName = `categories_${period}_${customDate || new Date().toISOString().slice(0,10)}.csv`;
+    const totalProduits = data.reduce((sum: number, c: any) => sum + (Number(c.produits_count) || 0), 0);
+    const totalRow = ['', '', `TOTAL PRODUITS : ${formatNumberNoSlash(totalProduits)}`, ''];
+
+    const csv = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map(r => r.map(escapeCSV).join(',')).concat([totalRow.map(escapeCSV).join(',')])
+    ].join('\n');
+
+    const fileName = `categories_${period}_${customDate || toLocalDateString()}.csv`;
     const result = await saveFileWithDialog(csv, fileName, [{ name: 'CSV', extensions: ['csv'] }]);
     if (!result.success) {
       if (result.canceled) return result;
@@ -364,6 +519,7 @@ export const useCategoriesData = () => {
     updateCategorie,
     deleteCategorie,
     bulkDelete,
+    getStats,             // ⭐ VAOVAO
     getCategoryColor,
     getCategoryBg,
     ITEMS_PER_PAGE,

@@ -1,3 +1,4 @@
+// electron/ipc/orders/statements.cjs
 'use strict';
 
 const { getDb } = require('../../database/connection.cjs');
@@ -8,21 +9,18 @@ let statements = null;
 function prepareStatements() {
   try {
     const db = getDb();
-    if (!db || !db.open) {
-      error('❌ [orders.statements] Database indisponible');
-      statements = null;
-      return false;
-    }
+    if (!db || !db.open) { error('❌ [orders.statements] Database indisponible'); statements = null; return false; }
 
     const stmtCreate = db.prepare(`
-      INSERT INTO commandes (client_id, client_nom, total_ht, total_ttc, total, statut_paiement, montant_paye, montant_restant)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO commandes (client_id, client_nom, total_ht, total_ttc, total, statut_paiement, montant_paye, montant_restant, mode_paiement, modalite_paiement, frais_livraison, date_limite_paiement)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const stmtUpdate = db.prepare(`
       UPDATE commandes
       SET client_id = ?, client_nom = ?, total_ht = ?, total_ttc = ?, total = ?,
-          statut_paiement = ?, montant_paye = ?, montant_restant = ?
+          statut_paiement = ?, montant_paye = ?, montant_restant = ?,
+          mode_paiement = ?, modalite_paiement = ?, frais_livraison = ?, date_limite_paiement = ?
       WHERE id = ?
     `);
 
@@ -93,14 +91,38 @@ function prepareStatements() {
       ORDER BY c.date_commande DESC
     `);
 
+    // ⭐⭐⭐ FIX: stmtGetStats misy kajy dynamique (tsy misy fifanindry intsony) ⭐⭐⭐
     const stmtGetStats = db.prepare(`
       SELECT COUNT(*) AS total,
         COALESCE(SUM(total_ttc), 0) AS total_ca,
         COALESCE(SUM(total_ht), 0) AS total_ht,
+        COALESCE(SUM(montant_paye), 0) AS total_paye,
         COALESCE(AVG(total_ttc), 0) AS moyenne_panier,
         COUNT(DISTINCT client_id) AS clients_uniques,
         COALESCE(SUM(montant_restant), 0) AS total_dette,
-        COALESCE(SUM(CASE WHEN montant_restant > 0 THEN 1 ELSE 0 END), 0) AS nb_commandes_non_payees
+        
+        -- ⭐ FIX: Kajy dynamique mifototra amin'ny montant_paye sy total_ttc
+        COALESCE(SUM(CASE WHEN COALESCE(montant_paye, 0) <= 0 THEN 1 ELSE 0 END), 0) AS nb_commandes_non_payees,
+        COALESCE(SUM(CASE WHEN COALESCE(montant_paye, 0) >= COALESCE(total_ttc, 0) AND COALESCE(total_ttc, 0) > 0 THEN 1 ELSE 0 END), 0) AS nb_commandes_payees,
+        COALESCE(SUM(CASE WHEN COALESCE(montant_paye, 0) > 0 AND COALESCE(montant_paye, 0) < COALESCE(total_ttc, 0) THEN 1 ELSE 0 END), 0) AS nb_commandes_partielles,
+        
+        -- ⭐ NOUVEAU: nb_commandes_en_retard (calcul global)
+        COALESCE(SUM(CASE
+          WHEN COALESCE(statut_paiement, 'Non payé') != 'Payé'
+            AND COALESCE(montant_restant, 0) > 0
+            AND date_limite_paiement IS NOT NULL
+            AND TRIM(date_limite_paiement) != ''
+            AND datetime(
+              CASE
+                WHEN length(TRIM(date_limite_paiement)) <= 10
+                  THEN datetime(TRIM(date_limite_paiement) || ' 23:59:59')
+                ELSE datetime(TRIM(date_limite_paiement))
+              END
+            ) < datetime('now', 'localtime')
+          THEN 1 ELSE 0
+        END), 0) AS nb_commandes_en_retard,
+        
+        (SELECT COALESCE(SUM(dc.quantite), 0) FROM details_commandes dc) AS total_items
       FROM commandes
     `);
 
@@ -176,16 +198,55 @@ function prepareStatements() {
       FROM commandes
     `);
 
+    const stmtGetOverdue = db.prepare(`
+      SELECT
+        c.*,
+        'CMD-' || printf('%06d', c.id) AS numero,
+        cl.telephone AS client_telephone,
+        CASE
+          WHEN c.date_limite_paiement IS NULL THEN NULL
+          WHEN length(TRIM(c.date_limite_paiement)) <= 10
+            THEN datetime(TRIM(c.date_limite_paiement) || ' 23:59:59')
+          ELSE datetime(TRIM(c.date_limite_paiement))
+        END AS deadline_dt,
+        CAST(
+          (julianday('now', 'localtime') - julianday(
+            CASE
+              WHEN c.date_limite_paiement IS NULL THEN NULL
+              WHEN length(TRIM(c.date_limite_paiement)) <= 10
+                THEN datetime(TRIM(c.date_limite_paiement) || ' 23:59:59')
+              ELSE datetime(TRIM(c.date_limite_paiement))
+            END
+          )) * 86400
+        AS INTEGER) AS late_seconds
+      FROM commandes c
+      LEFT JOIN clients cl ON cl.id = c.client_id
+      WHERE
+        COALESCE(c.statut_paiement, 'Non payé') != 'Payé'
+        AND COALESCE(c.montant_restant, 0) > 0
+        AND c.date_limite_paiement IS NOT NULL
+        AND TRIM(c.date_limite_paiement) != ''
+        AND datetime(
+          CASE
+            WHEN length(TRIM(c.date_limite_paiement)) <= 10
+              THEN datetime(TRIM(c.date_limite_paiement) || ' 23:59:59')
+            ELSE datetime(TRIM(c.date_limite_paiement))
+          END
+        ) < datetime('now', 'localtime')
+      ORDER BY deadline_dt ASC
+    `);
+
     statements = {
       stmtCreate, stmtUpdate, stmtGetById, stmtDelete, stmtGetDetails,
       stmtGetProducts, stmtGetByClient, stmtGetByStatus, stmtGetByDateRange,
       stmtGetStats, stmtGetTotal, stmtGetJournalieres, stmtInsertDetail,
       stmtCheckStock, stmtUpdateStock, stmtRestoreStock, stmtInsertMouvement,
       stmtInsertMouvementRestore, stmtGetDetailsForRestore, stmtMarkStockRestored,
-      stmtUpdatePaiement, stmtGetDetteStats
+      stmtUpdatePaiement, stmtGetDetteStats,
+      stmtGetOverdue
     };
 
-    log('✅ [orders.statements] Statements préparés (TVA dynamique)');
+    log('✅ [orders.statements] Statements préparés (TVA + Frais livraison + Modalités + Overdue + Stats globales + En retard)');
     return true;
 
   } catch (err) {

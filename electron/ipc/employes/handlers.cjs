@@ -1,3 +1,8 @@
+// ============================================================
+// electron/ipc/employes/handlers.cjs — Lifes-Art ERP
+// ⭐ VERSION FINALE — RH + Présence + Planning
+// ⭐ NEW: payments:get-last-batch (dans les channels enregistrés)
+// ============================================================
 'use strict';
 
 const { getDb } = require('../../database/connection.cjs');
@@ -18,6 +23,9 @@ function emitEmployesChanged(data) {
   });
 }
 
+// ⭐ RH Pro: statuts autorisés ho an'ny presence journalière
+const VALID_PRESENCE_STATUTS = ['present', 'absent', 'conge'];
+
 function registerEmployesHandlers(ipcMain) {
   log('👷 [employes.handlers] ENREGISTREMENT');
   if (!ipcMain) { error('❌ ipcMain null'); return false; }
@@ -33,8 +41,9 @@ function registerEmployesHandlers(ipcMain) {
     'employes:get-presence-journaliere', 'employes:update-presence-journaliere', 'employes:delete-presence-journaliere',
     'employes:get-presence-journaliere-mois', 'employes:bulk-update-presence-journaliere',
     'employes:get-presence-historique',
-    // ⭐ VAOVAO: PLANNING
-    'employes:get-planning', 'employes:update-planning', 'employes:delete-planning'
+    'employes:get-planning', 'employes:update-planning', 'employes:delete-planning',
+    // ⭐⭐⭐ NEW: batch paiement (efa misy ao amin'ny payments.cjs fa ampiana eto mba tsy hisy "channel not found")
+    'payments:get-last-batch'
   ];
   for (const ch of channels) { try { ipcMain.removeHandler(ch); } catch (_) {} }
 
@@ -72,10 +81,10 @@ function registerEmployesHandlers(ipcMain) {
     try {
       const validation = validateEmploye(data);
       if (!validation.valid) return { success: false, error: validation.errors.join(', ') };
-      const { nom, prenom, email, telephone, poste, departement, date_embauche, salaire, status } = validation.data;
+      const { nom, prenom, email, telephone, poste, departement, date_embauche, salaire, cnaps, ostie, irsa, status } = validation.data;
       const existing = statements.stmtCheckEmail.get(email);
       if (existing) return { success: false, error: 'Cet email est déjà utilisé' };
-      const result = statements.stmtCreate.run(nom, prenom, email, telephone, poste, departement, date_embauche, salaire, status);
+      const result = statements.stmtCreate.run(nom, prenom, email, telephone, poste, departement, date_embauche, salaire, cnaps, ostie, irsa, status);
       const id = Number(result.lastInsertRowid);
       const auditUser = userId || event.sender?.user?.id || null;
       if (auditUser) logAudit('create', id, `${prenom} ${nom}`, auditUser, `Poste: ${poste}`);
@@ -90,10 +99,10 @@ function registerEmployesHandlers(ipcMain) {
     try {
       const validation = validateEmploye(data);
       if (!validation.valid) return { success: false, error: validation.errors.join(', ') };
-      const { nom, prenom, email, telephone, poste, departement, date_embauche, salaire, status } = validation.data;
+      const { nom, prenom, email, telephone, poste, departement, date_embauche, salaire, cnaps, ostie, irsa, status } = validation.data;
       const existing = statements.stmtCheckEmailExcept.get(email, id);
       if (existing) return { success: false, error: 'Cet email est déjà utilisé' };
-      statements.stmtUpdate.run(nom, prenom, email, telephone, poste, departement, date_embauche, salaire, status, id);
+      statements.stmtUpdate.run(nom, prenom, email, telephone, poste, departement, date_embauche, salaire, cnaps, ostie, irsa, status, id);
       const auditUser = userId || event.sender?.user?.id || null;
       if (auditUser) logAudit('update', id, `${prenom} ${nom}`, auditUser, 'Mise à jour');
       emitEmployesChanged({ type: 'update', id });
@@ -298,29 +307,59 @@ function registerEmployesHandlers(ipcMain) {
   });
 
   // ============================================================
-  // ⭐ PRESENCE JOURNALIERE HANDLERS (RH & PAIE)
+  // ⭐ PRESENCE JOURNALIERE HANDLERS (RH PRO)
   // ============================================================
 
-  ipcMain.handle('employes:get-presence-journaliere', async (_event, employeId, mois, annee) => {
+  ipcMain.handle('employes:get-presence-journaliere', async (_event, employeId, date) => {
     try {
-      const moisStr = `${annee}-${String(mois).padStart(2, '0')}`;
-      const data = statements.stmtGetPresenceJournaliereByEmployeMois.all(employeId, moisStr);
+      if (!employeId || !date) {
+        return { success: false, error: 'Paramètres invalides (employeId, date requis)', data: null };
+      }
+      const data = statements.stmtGetPresenceJournaliereByEmployeDate?.get(Number(employeId), String(date));
+      if (!data) {
+        return { success: true, data: null };
+      }
       return { success: true, data };
     } catch (err) {
       error('❌ [employes:get-presence-journaliere]', err.message);
-      return { success: false, error: err.message };
+      return { success: false, error: err.message, data: null };
     }
   });
 
-  // ✅ UPDATE PRESENCE JOURNALIERE (avec calculs persistants)
   ipcMain.handle('employes:update-presence-journaliere', async (_event, data) => {
     try {
-      const { employe_id, date, statut, heure_arrivee, heure_depart, heure_debut_planifiee, heure_fin_planifiee, retard, heures_travaillees, heures_sup, observation } = data;
+      const {
+        employe_id, date, statut,
+        heure_arrivee, heure_depart,
+        heure_debut_planifiee, heure_fin_planifiee,
+        retard, heures_travaillees, heures_sup,
+        observation
+      } = data;
+
+      if (!employe_id || !date || !statut) {
+        return { success: false, error: 'Champs obligatoires manquants' };
+      }
+
+      if (!VALID_PRESENCE_STATUTS.includes(statut)) {
+        return { success: false, error: 'Statut invalide (present, absent, conge)' };
+      }
+
+      const isPresent = statut === 'present';
+
       statements.stmtUpsertPresenceJournaliere.run(
-        employe_id, date, statut, heure_arrivee || '', heure_depart || '',
-        heure_debut_planifiee || '08:00', heure_fin_planifiee || '17:00',
-        retard || 0, heures_travaillees || 0, heures_sup || 0, observation || ''
+        Number(employe_id),
+        String(date),
+        statut,
+        isPresent ? (heure_arrivee || null) : null,
+        isPresent ? (heure_depart || null) : null,
+        isPresent ? (heure_debut_planifiee || '08:00') : null,
+        isPresent ? (heure_fin_planifiee || '17:00') : null,
+        isPresent ? Math.max(0, Number(retard) || 0) : 0,
+        isPresent ? Math.max(0, Number(heures_travaillees) || 0) : 0,
+        isPresent ? Math.max(0, Number(heures_sup) || 0) : 0,
+        observation || ''
       );
+
       emitEmployesChanged({ type: 'presence_journaliere', employe_id, date, statut });
       return { success: true };
     } catch (err) {
@@ -353,15 +392,33 @@ function registerEmployesHandlers(ipcMain) {
   ipcMain.handle('employes:bulk-update-presence-journaliere', async (_event, payload) => {
     try {
       const { employe_ids, date, statut } = payload;
-      if (!Array.isArray(employe_ids) || !date || !statut) return { success: false, error: 'Payload invalide' };
+
+      if (!Array.isArray(employe_ids) || !date || !statut) {
+        return { success: false, error: 'Payload invalide' };
+      }
+
+      if (!VALID_PRESENCE_STATUTS.includes(statut)) {
+        return { success: false, error: 'Statut invalide (present, absent, conge)' };
+      }
+
       const db = getDb();
       const transaction = db.transaction(() => {
         for (const id of employe_ids) {
-          statements.stmtBulkUpsertPresenceJournaliere.run(id, date, statut);
+          statements.stmtBulkUpsertPresenceJournaliere.run(
+            Number(id),
+            String(date),
+            statut
+          );
         }
       });
       transaction();
-      emitEmployesChanged({ type: 'bulk_presence_journaliere', date, statut, count: employe_ids.length });
+
+      emitEmployesChanged({
+        type: 'bulk_presence_journaliere',
+        date,
+        statut,
+        count: employe_ids.length
+      });
       return { success: true, count: employe_ids.length };
     } catch (err) {
       error('❌ [employes:bulk-update-presence-journaliere]', err.message);
@@ -373,8 +430,11 @@ function registerEmployesHandlers(ipcMain) {
     try {
       const db = getDb();
       let query = `
-        SELECT pj.date, pj.statut, pj.heure_arrivee, pj.heure_depart, pj.heure_debut_planifiee, pj.heure_fin_planifiee,
-               pj.retard, pj.heures_travaillees, pj.heures_sup, pj.observation,
+        SELECT pj.date, pj.statut,
+               pj.heure_arrivee, pj.heure_depart,
+               pj.heure_debut_planifiee, pj.heure_fin_planifiee,
+               pj.retard, pj.heures_travaillees, pj.heures_sup,
+               pj.observation,
                e.id as employe_id, e.nom, e.prenom, e.poste
         FROM presence_journaliere pj
         JOIN employes e ON pj.employe_id = e.id
@@ -392,7 +452,10 @@ function registerEmployesHandlers(ipcMain) {
         query += ' AND pj.date LIKE ?';
         params.push(`${options.annee}-%`);
       }
-      if (options.statut && options.statut !== 'Tous') { query += ' AND pj.statut = ?'; params.push(options.statut); }
+      if (options.statut && options.statut !== 'Tous') {
+        query += ' AND pj.statut = ?';
+        params.push(options.statut);
+      }
       query += ' ORDER BY pj.date DESC, e.nom ASC';
       const data = db.prepare(query).all(...params);
       return { success: true, data };
@@ -403,7 +466,7 @@ function registerEmployesHandlers(ipcMain) {
   });
 
   // ============================================================
-  // ⭐ NOVAINA: PLANNING (Workflow Hebdomadaire)
+  // ⭐ PLANNING (Workflow Hebdomadaire)
   // ============================================================
   ipcMain.handle('employes:get-planning', async (_event, employeId) => {
     try {

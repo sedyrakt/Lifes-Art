@@ -1,88 +1,40 @@
 // src/hooks/useRapportsData.ts
+// ⭐ FIX: getBenefice mandray { year, startDate, endDate } → mifanaraka amin'ny période
+// ⭐ FIX: getCommandesRecentes mandray période
+// ⭐ FIX: getCommandesStatut mandray période
+// ⭐ FIX: getEntreesStock / getSortiesStock mandray période
+
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { saveFileWithDialog } from '../utils/saveFileWithDialog';
+import type {
+  RapportsStats,
+  TopProduit,
+  VenteParMois,
+  CategorieRepartition,
+  CommandeRecente,
+  Periode,
+  ExportPeriod,
+} from './rapports/types';
+import {
+  toNumber,
+  sanitizeMoney,
+  toLocalDateString,
+  getPeriodLabel,
+  computeExportPeriodRange,
+  isDateInRange,
+  getReportsApi,
+} from './rapports/helpers';
+import {
+  useRapportsExport,
+} from './rapports/useRapportsExport';
 
-export interface RapportsStats {
-  totalProduits: number;
-  totalVentes: number;
-  totalEntrees: number;
-  totalSorties: number;
-  chiffreAffaires: number;
-  benefice: number;
-  nbCommandes: number;
-  nbClients: number;
-  tauxBenefice: number;
-}
-
-export interface TopProduit {
-  id: number;
-  nom: string;
-  code: string;
-  total_vendu: number;
-  total_ventes: number;
-  nb_commandes: number;
-  prix_vente: number;
-  categorie_nom: string;
-  pourcentage?: number;
-}
-
-export interface VenteParMois {
-  mois: string | number;
-  moisLabel?: string;
-  jour?: string;
-  nb_commandes: number;
-  total_ventes: number;
-  panier_moyen?: number;
-}
-
-export interface CategorieRepartition {
-  id: number;
-  nom: string;
-  total_produits: number;
-  total_stock: number;
-  valeur_vente: number;
-  valeur_achat: number;
-  pourcentage?: number;
-}
-
-export interface CommandeRecente {
-  id: number;
-  commande_numero: string;
-  client_nom: string;
-  date_commande: string;
-  total_ttc: number;
-  statut: string;
-  nb_produits: number;
-}
-
-export type Periode = 'jour' | 'semaine' | 'mois' | 'trimestre' | 'annee';
-
-// ⭐ Type export period
-export type ExportPeriod = 'aujourdhui' | 'hier' | 'semaine' | 'mois' | 'annee' | 'custom';
-
-const toNumber = (value: unknown): number => {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const sanitizeMoney = (value: string): string => {
-  return value.replace(/[\u202F\u00A0]/g, ' ').replace(/,/g, '.');
-};
-
-const getReportsApi = () => {
-  if (typeof window === 'undefined') return null;
-  return (window as any)?.api?.reports || null;
-};
+export type { RapportsStats, TopProduit, VenteParMois, CategorieRepartition, CommandeRecente, Periode, ExportPeriod };
 
 export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
-  // ===== HOOKS – rehetra ato ambony, tsy misy condition =====
   const isMounted = useRef(true);
   const fetchLock = useRef(false);
   const firstLoadDone = useRef(false);
   const loadDataRef = useRef<(isRefresh?: boolean) => Promise<void>>(async () => {});
+  const prevPeriodRef = useRef<{ period: ExportPeriod; date: string } | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -101,9 +53,8 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
   const [depensesParCategorie, setDepensesParCategorie] = useState<any[]>([]);
   const [commandesStatut, setCommandesStatut] = useState<any[]>([]);
 
-  // ⭐ Vaovao: Export period sy customDate
   const [exportPeriod, setExportPeriod] = useState<ExportPeriod>('mois');
-  const [exportCustomDate, setExportCustomDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [exportCustomDate, setExportCustomDate] = useState<string>(() => toLocalDateString());
 
   useEffect(() => {
     isMounted.current = true;
@@ -134,6 +85,7 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     };
   }, [summary, beneficeData, stockValue, entreesStock, sortiesStock]);
 
+  // ⭐⭐⭐ LOADDATA — mampiasa exportPeriod ho an'ny date range ⭐⭐⭐
   const loadData = useCallback(async (isRefresh = false) => {
     if (fetchLock.current) return;
     fetchLock.current = true;
@@ -150,23 +102,29 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
 
       const now = selectedDate || new Date();
       const year = now.getFullYear();
-      const endDate = now.toISOString().split('T')[0];
-      const startDate = `${year}-01-01`;
+
+      // ⭐ Période mifanaraka amin'ny CA sy Bénéfice
+      const { startDate, endDate } = computeExportPeriodRange(exportPeriod, exportCustomDate);
+      const dateOptions = { startDate, endDate };
 
       const results = await Promise.allSettled([
-        api.getSummary ? api.getSummary() : Promise.resolve({ success: false }),
+        api.getSummary ? api.getSummary(dateOptions) : Promise.resolve({ success: false }),
         api.getVentesParMois ? api.getVentesParMois(year) : Promise.resolve({ success: false }),
-        api.getTopProduits ? api.getTopProduits({ limit: 10 }) : Promise.resolve({ success: false }),
+        api.getTopProduits ? api.getTopProduits({ limit: 10, ...dateOptions }) : Promise.resolve({ success: false }),
         api.getRepartitionCategorie ? api.getRepartitionCategorie() : Promise.resolve({ success: false }),
-        api.getCommandesRecentes ? api.getCommandesRecentes(5) : Promise.resolve({ success: false }),
-        api.getBenefice ? api.getBenefice(year) : Promise.resolve({ success: false }),
+        // ⭐ FIX: getCommandesRecentes mandray période
+        api.getCommandesRecentes ? api.getCommandesRecentes({ limit: 5, ...dateOptions }) : Promise.resolve({ success: false }),
+        // ⭐ FIX: getBenefice mandray période (mifanaraka amin'ny CA)
+        api.getBenefice ? api.getBenefice({ year, startDate, endDate }) : Promise.resolve({ success: false }),
         api.getStockValue ? api.getStockValue() : Promise.resolve({ success: false }),
         api.getStockStatus ? api.getStockStatus() : Promise.resolve({ success: false }),
-        api.getEntreesStock ? api.getEntreesStock({ startDate, endDate }) : Promise.resolve({ success: false }),
-        api.getSortiesStock ? api.getSortiesStock({ startDate, endDate }) : Promise.resolve({ success: false }),
-        api.getTopClients ? api.getTopClients({ limit: 5, startDate, endDate }) : Promise.resolve({ success: false }),
-        api.getDepensesParCategorie ? api.getDepensesParCategorie({ startDate, endDate }) : Promise.resolve({ success: false }),
-        api.getCommandesStatut ? api.getCommandesStatut() : Promise.resolve({ success: false }),
+        // ⭐ FIX: getEntreesStock / getSortiesStock mandray période
+        api.getEntreesStock ? api.getEntreesStock(dateOptions) : Promise.resolve({ success: false }),
+        api.getSortiesStock ? api.getSortiesStock(dateOptions) : Promise.resolve({ success: false }),
+        api.getTopClients ? api.getTopClients({ limit: 5, ...dateOptions }) : Promise.resolve({ success: false }),
+        api.getDepensesParCategorie ? api.getDepensesParCategorie(dateOptions) : Promise.resolve({ success: false }),
+        // ⭐ FIX: getCommandesStatut mandray période
+        api.getCommandesStatut ? api.getCommandesStatut(dateOptions) : Promise.resolve({ success: false }),
       ]);
 
       const extract = (result: any) => {
@@ -190,15 +148,18 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
       const depensesResult = extract(results[11]);
       const commandesStatutResult = extract(results[12]);
 
-      const recentCommands = Array.isArray(recentOrdersResult)
-        ? recentOrdersResult.map((command: any) => {
-            const numero = command?.commande_numero;
-            return {
-              ...command,
-              commande_numero: typeof numero === 'string' && numero.trim() ? numero : `CMD-${String(command?.id || 0).padStart(6, '0')}`,
-            };
-          })
-        : [];
+      const recentCommandsRaw = Array.isArray(recentOrdersResult) ? recentOrdersResult : [];
+      const recentCommands = recentCommandsRaw
+        .filter((cmd: any) => isDateInRange(cmd?.date_commande, startDate, endDate))
+        .map((command: any) => {
+          const numero = command?.commande_numero;
+          return {
+            ...command,
+            commande_numero: typeof numero === 'string' && numero.trim()
+              ? numero
+              : `CMD-${String(command?.id || 0).padStart(6, '0')}`,
+          };
+        });
 
       if (!isMounted.current) return;
 
@@ -236,9 +197,28 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
         fetchLock.current = false;
       }
     }
-  }, [selectedDate, granularity]);
+  }, [selectedDate, granularity, exportPeriod, exportCustomDate]);
 
-  // ⭐ EFFECTS – rehetra ato ambony
+  useEffect(() => {
+    loadDataRef.current = loadData;
+  }, [loadData]);
+
+  useEffect(() => {
+    const current = { period: exportPeriod, date: exportCustomDate };
+    if (prevPeriodRef.current === null) {
+      prevPeriodRef.current = current;
+      return;
+    }
+    if (
+      prevPeriodRef.current.period !== exportPeriod ||
+      prevPeriodRef.current.date !== exportCustomDate
+    ) {
+      prevPeriodRef.current = current;
+      if (firstLoadDone.current) loadDataRef.current(true);
+      else loadDataRef.current(false);
+    }
+  }, [exportPeriod, exportCustomDate]);
+
   useEffect(() => {
     const api = getReportsApi();
     if (!api?.onChanged) return;
@@ -255,211 +235,29 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
   }, []);
 
   useEffect(() => {
-    loadDataRef.current = loadData;
-  }, [loadData]);
-
-  useEffect(() => {
     if (!firstLoadDone.current) {
       loadData(false);
     }
   }, [loadData]);
 
-  // ============================================================
-  // ⭐ EXPORT FUNCTIONS – misy période + save dialog
-  // ============================================================
-
-  const getExportPeriodRange = useCallback((period: ExportPeriod, customDate: string) => {
-    const now = new Date();
-    let startDate: string | undefined, endDate: string | undefined;
-    if (period === 'aujourdhui') {
-      startDate = now.toISOString().split('T')[0] + ' 00:00:00';
-      endDate = now.toISOString().split('T')[0] + ' 23:59:59';
-    } else if (period === 'hier') {
-      const yest = new Date(now);
-      yest.setDate(now.getDate() - 1);
-      startDate = yest.toISOString().split('T')[0] + ' 00:00:00';
-      endDate = yest.toISOString().split('T')[0] + ' 23:59:59';
-    } else if (period === 'semaine') {
-      const day = now.getDay();
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(now);
-      monday.setDate(diff);
-      startDate = monday.toISOString().split('T')[0] + ' 00:00:00';
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-      endDate = sunday.toISOString().split('T')[0] + ' 23:59:59';
-    } else if (period === 'mois') {
-      startDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01 00:00:00`;
-      const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-      endDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')} 23:59:59`;
-    } else if (period === 'annee') {
-      startDate = `${now.getFullYear()}-01-01 00:00:00`;
-      endDate = `${now.getFullYear()}-12-31 23:59:59`;
-    } else if (period === 'custom') {
-      const dateStr = customDate || now.toISOString().split('T')[0];
-      startDate = dateStr + ' 00:00:00';
-      endDate = dateStr + ' 23:59:59';
-    }
-    return { startDate, endDate };
-  }, []);
-
-  const exportToExcel = useCallback(async (data: any[], filename: string, sheetName = 'Rapport', period: ExportPeriod = 'mois', customDate: string = '') => {
-    if (!data.length) return { success: true, canceled: false };
-    try {
-      const worksheet = XLSX.utils.json_to_sheet(data);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-      const fileName = `${filename}_${period}_${customDate || new Date().toISOString().slice(0, 10)}.xlsx`;
-      const result = await saveFileWithDialog(wbout, fileName, [{ name: 'Excel', extensions: ['xlsx'] }]);
-      if (!result.success) {
-        if (result.canceled) return result;
-        throw new Error(result.error || 'Impossible d\'enregistrer le fichier Excel.');
-      }
-      return result;
-    } catch (error) {
-      console.error('❌ Erreur export Excel:', error);
-      throw error;
-    }
-  }, []);
-
-  const exportToPDF = useCallback(async (data: any[], filename: string, title: string, columns: string[], companyName?: string, period: ExportPeriod = 'mois', customDate: string = '') => {
-    if (!data.length) return { success: true, canceled: false };
-    try {
-      const doc = new jsPDF('landscape', 'mm', 'a4');
-      doc.setFillColor(15, 23, 42);
-      doc.rect(0, 0, 297, 15, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(12);
-      doc.text(`${companyName || "LifesArt"} - Rapport Officiel`, 14, 10);
-      doc.setTextColor(15, 23, 42);
-      doc.setFontSize(18);
-      doc.text(title, 14, 28);
-      doc.setFontSize(10);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Généré le: ${new Date().toLocaleString('fr-FR')}`, 14, 36);
-
-      const rows = data.map(item => columns.map(column => {
-        const value = item?.[column];
-        return value !== undefined && value !== null ? value : '';
-      }));
-
-      autoTable(doc, {
-        head: [columns],
-        body: rows,
-        startY: 42,
-        styles: { fontSize: 9, cellPadding: 5 },
-        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        theme: 'grid',
-      });
-
-      const pdfArrayBuffer = doc.output('arraybuffer');
-      const fileName = `${filename}_${period}_${customDate || new Date().toISOString().slice(0, 10)}.pdf`;
-      const result = await saveFileWithDialog(pdfArrayBuffer, fileName, [{ name: 'PDF', extensions: ['pdf'] }]);
-      if (!result.success) {
-        if (result.canceled) return result;
-        throw new Error(result.error || 'Impossible d\'enregistrer le PDF.');
-      }
-      return result;
-    } catch (error) {
-      console.error('❌ Erreur export PDF:', error);
-      throw error;
-    }
-  }, []);
-
-  const exportToCSV = useCallback(async (data: any[], filename: string, period: ExportPeriod = 'mois', customDate: string = '') => {
-    if (!data.length) return { success: true, canceled: false };
-    try {
-      const headers = Object.keys(data[0]);
-      const escapeCSV = (value: any) => {
-        if (value === undefined || value === null) return '""';
-        const stringValue = String(value).replace(/"/g, '""');
-        return `"${stringValue}"`;
-      };
-
-      const csv = [
-        headers.map(escapeCSV).join(','),
-        ...data.map(item => headers.map(header => escapeCSV(item?.[header])).join(',')),
-      ].join('\n');
-
-      const fileName = `${filename}_${period}_${customDate || new Date().toISOString().slice(0, 10)}.csv`;
-      const result = await saveFileWithDialog(csv, fileName, [{ name: 'CSV', extensions: ['csv'] }]);
-      if (!result.success) {
-        if (result.canceled) return result;
-        throw new Error(result.error || 'Impossible d\'enregistrer le CSV.');
-      }
-      return result;
-    } catch (error) {
-      console.error('❌ Erreur export CSV:', error);
-      throw error;
-    }
-  }, []);
-
-  const handleExportStats = useCallback(async (formatMoneyFn: (value: number) => string, period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = [
-      { Indicateur: "Chiffre d'affaires", Valeur: sanitizeMoney(formatMoneyFn(stats.chiffreAffaires)) },
-      { Indicateur: 'Bénéfice Net', Valeur: sanitizeMoney(formatMoneyFn(stats.benefice)) },
-      { Indicateur: 'Total entrées', Valeur: stats.totalEntrees },
-      { Indicateur: 'Total sorties', Valeur: stats.totalSorties },
-      { Indicateur: 'Commandes', Valeur: stats.nbCommandes },
-      { Indicateur: 'Clients Actifs', Valeur: stats.nbClients },
-      { Indicateur: 'Taux de marge', Valeur: stats.tauxBenefice.toFixed(2) + '%' },
-    ];
-    return await exportToExcel(data, 'Rapport_Statistiques', 'Stats', period, customDate);
-  }, [stats, exportToExcel]);
-
-  const handleExportTopProduits = useCallback(async (formatMoneyFn: (value: number) => string, period: ExportPeriod = 'mois', customDate: string = '') => {
-    if (!topProduits.length) return { success: true, canceled: false };
-    const data = topProduits.map((product, index) => ({
-      Rang: `#${index + 1}`,
-      Produit: product.nom || 'N/A',
-      Code: product.code || 'N/A',
-      'Quantité vendue': product.total_vendu || 0,
-      'Total ventes': sanitizeMoney(formatMoneyFn(product.total_ventes || 0)),
-      Pourcentage: product.pourcentage ? `${product.pourcentage}%` : '0%',
-    }));
-    return await exportToExcel(data, 'Top_Produits', 'Top', period, customDate);
-  }, [topProduits, exportToExcel]);
-
-  const handleExportCommandes = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
-    if (!commandesRecentes.length) return { success: true, canceled: false };
-    const data = commandesRecentes.map(command => ({
-      'N° Commande': command.commande_numero || `CMD-${String(command.id || 0).padStart(6, '0')}`,
-      Client: command.client_nom || 'N/A',
-      Date: command.date_commande ? new Date(command.date_commande).toLocaleDateString('fr-FR') : 'N/A',
-      'Total TTC': command.total_ttc || 0,
-      Statut: command.statut || 'N/A',
-      'Nb Produits': command.nb_produits || 0,
-    }));
-    return await exportToExcel(data, 'Commandes_Recentes', 'Commandes', period, customDate);
-  }, [commandesRecentes, exportToExcel]);
-
-  const handleExportPDF = useCallback(async (formatMoneyFn: (value: number) => string, companyName = "LifesArt", period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = [
-      { Indicateur: "Chiffre d'affaires", Valeur: sanitizeMoney(formatMoneyFn(stats.chiffreAffaires)) },
-      { Indicateur: 'Bénéfice Net', Valeur: sanitizeMoney(formatMoneyFn(stats.benefice)) },
-      { Indicateur: 'Total entrées', Valeur: stats.totalEntrees },
-      { Indicateur: 'Total sorties', Valeur: stats.totalSorties },
-      { Indicateur: 'Commandes', Valeur: stats.nbCommandes },
-      { Indicateur: 'Clients Actifs', Valeur: stats.nbClients },
-      { Indicateur: 'Taux de marge', Valeur: stats.tauxBenefice.toFixed(2) + '%' },
-    ];
-    return await exportToPDF(data, 'Rapport_Statistiques', `Rapport d'analyse financière - ${companyName}`, ['Indicateur', 'Valeur'], companyName, period, customDate);
-  }, [stats, exportToPDF]);
-
-  const handleExportCSV = useCallback(async (formatMoneyFn: (value: number) => string, period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = [
-      { Indicateur: "Chiffre d'affaires", Valeur: sanitizeMoney(formatMoneyFn(stats.chiffreAffaires)) },
-      { Indicateur: 'Bénéfice Net', Valeur: sanitizeMoney(formatMoneyFn(stats.benefice)) },
-      { Indicateur: 'Total entrées', Valeur: stats.totalEntrees },
-      { Indicateur: 'Total sorties', Valeur: stats.totalSorties },
-      { Indicateur: 'Commandes', Valeur: stats.nbCommandes },
-      { Indicateur: 'Clients Actifs', Valeur: stats.nbClients },
-      { Indicateur: 'Taux de marge', Valeur: stats.tauxBenefice.toFixed(2) + '%' },
-    ];
-    return await exportToCSV(data, 'Rapport_Statistiques', period, customDate);
-  }, [stats, exportToCSV]);
+  // ⭐ Export hooks
+  const {
+    exportToExcel,
+    exportToPDF,
+    exportToCSV,
+    handleExportStats,
+    handleExportTopProduits,
+    handleExportCommandes,
+    handleExportPDF,
+    handleExportCSV,
+  } = useRapportsExport({
+    stats,
+    topProduits,
+    commandesRecentes,
+    exportToExcelBase: null,
+    exportToPDFBase: null,
+    exportToCSVBase: null,
+  });
 
   return {
     loading,
@@ -492,5 +290,8 @@ export const useRapportsData = (selectedDate?: Date, granularity?: string) => {
     setExportPeriod,
     exportCustomDate,
     setExportCustomDate,
+    exportToExcel,
+    exportToPDF,
+    exportToCSV,
   };
 };

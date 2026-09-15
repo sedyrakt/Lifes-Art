@@ -14,6 +14,13 @@ export interface Depense {
   created_at: string;
 }
 
+// ⭐ Top catégorie ho an'ny footer global
+export interface TopCategorie {
+  categorie: string;
+  count: number;
+  total: number;
+}
+
 export interface DepensesStats {
   total: number;
   nb: number;
@@ -24,6 +31,11 @@ export interface DepensesStats {
   plusGrande: number;
   plusPetite: number;
   nbFournisseurs: number;
+  // ⭐ VAOVAO — Top 3 catégories global (avy amin'ny DB)
+  topCategories?: TopCategorie[];
+  // ⭐ Optional: récap mois
+  mois_en_cours?: number;
+  mois_dernier?: number;
 }
 
 export interface DepensesFilters {

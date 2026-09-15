@@ -1,5 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { X, Plus, Wallet, ChevronLeft, ChevronRight, CheckCircle2, Mail, Phone, Building2, Briefcase } from 'lucide-react'; 
+// src/components/paiements/PaiementsHistoriqueModal.tsx
+// ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
+// ⭐ TYPOGRAPHIE alignée sur CommandesTable
+// ⭐ fontSize : header 12px, cells 13.5px, footer 12.5px
+// ⭐ PADDING augmenté pour un rendu plus aéré
+
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { X, Plus, Wallet, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react'; 
 import { useTheme } from '../../contexts/ThemeContext';
 import { format, addDays, startOfMonth, startOfWeek, isSameMonth, isToday } from 'date-fns';
 import { fr as frLocale } from 'date-fns/locale';
@@ -48,7 +55,7 @@ const COLORS = {
 };
 
 const PaiementsHistoriqueModal: React.FC<PaiementsHistoriqueModalProps> = ({
-  isOpen, onClose, onAddPaiement, historiqueData, moisLabels, employe,
+  isOpen, onClose, onAddPaiement, historiqueData, employe,
 }) => {
   const { isDark } = useTheme();
   const theme = isDark ? COLORS.dark : COLORS.light;
@@ -99,94 +106,109 @@ const PaiementsHistoriqueModal: React.FC<PaiementsHistoriqueModalProps> = ({
   const isPaid = (day: Date) => historiqueData.some(p => p.mois === day.getMonth() + 1 && p.annee === day.getFullYear());
 
   const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-[14px] font-medium" style={{ color: theme.muted }}>{label}</span>
-      <span className="min-w-0 text-[15px] font-semibold" style={{ color: theme.text }}>{value}</span>
+    <div className="flex flex-col gap-1">
+      <span className="text-[11.5px] font-semibold uppercase tracking-[0.06em] leading-[1.3]" style={{ color: theme.muted }}>{label}</span>
+      <span className="min-w-0 text-[13.5px] font-semibold" style={{ color: theme.text }}>{value}</span>
     </div>
   );
 
-  return (
+  const modal = (
     <div
       className="fixed inset-0 z-[99990] flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm"
       style={{ background: isDark ? 'rgba(0,0,0,0.80)' : 'rgba(15,23,42,0.55)' }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="historique-modal-title"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className={`relative w-full max-w-3xl flex-col overflow-hidden rounded-2xl border shadow-2xl ${isDark ? 'border-white/[0.12]' : 'border-slate-200'}`}
+        className={`relative w-full max-w-3xl flex-col overflow-hidden rounded-xl border-[0.5px] shadow-[0_18px_55px_rgba(15,23,42,0.35)] ${isDark ? 'border-white/[0.12]' : 'border-slate-200'}`}
         style={{ background: theme.card }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: theme.border, background: theme.card }}>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg" style={{ background: theme.primaryBg }}>
-              <Wallet size={19} style={{ color: theme.primary }} />
+        <div className="absolute left-0 right-0 top-0 h-[2px] bg-brand-500" />
+
+        {/* HEADER */}
+        <header className="flex h-14 shrink-0 items-center justify-between border-b px-4" style={{ borderColor: theme.border, background: theme.card }}>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: theme.primaryBg }}>
+              <Wallet size={15} strokeWidth={2.2} style={{ color: theme.primary }} />
             </div>
-            <div>
-              <h2 className="text-[17px] font-bold" style={{ color: theme.text }}>Historique des salaires</h2>
-              <p className="text-[13px]" style={{ color: theme.muted }}>{fullName}</p>
+            <div className="min-w-0">
+              <h2 id="historique-modal-title" className="truncate text-[13.5px] font-semibold" style={{ color: theme.text }}>Historique des salaires</h2>
+              <p className="mt-0.5 text-[11.5px] leading-[1.3]" style={{ color: theme.muted }}>{fullName}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>
-            <X size={19} />
+          <button type="button" onClick={onClose} aria-label="Fermer" className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-slate-100 dark:hover:bg-white/[0.06]" style={{ color: theme.muted }}>
+            <X size={16} strokeWidth={2.2} />
           </button>
         </header>
 
-        <div className="max-h-[75vh] overflow-y-auto p-6">
+        {/* BODY */}
+        <div className="max-h-[75vh] overflow-y-auto px-4 py-4">
           {historiqueData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ background: theme.primaryBg }}>
-                <Wallet size={30} style={{ color: theme.primary }} />
+                <Wallet size={28} strokeWidth={2.2} style={{ color: theme.primary }} />
               </div>
-              <h3 className="text-[16px] font-semibold" style={{ color: theme.text }}>Aucun paiement</h3>
-              <p className="mt-1 max-w-sm text-[14px]" style={{ color: theme.muted }}>Aucun paiement trouvé pour cet employé.</p>
-              <button type="button" onClick={onAddPaiement} className="mt-6 flex h-10 items-center gap-2 rounded-lg px-5 text-[14px] font-semibold text-white shadow-sm hover:bg-brand-600" style={{ background: theme.primary }}>
-                <Plus size={15} /> Ajouter un paiement
+              <h3 className="text-[13.5px] font-semibold" style={{ color: theme.text }}>Aucun paiement</h3>
+              <p className="mt-1 max-w-sm text-[12.5px]" style={{ color: theme.muted }}>Aucun paiement trouvé pour cet employé.</p>
+              <button type="button" onClick={onAddPaiement} className="mt-6 inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-600">
+                <Plus size={14} strokeWidth={2.2} /> Ajouter un paiement
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left: Infos employé */}
               <div className="min-w-0">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 shrink-0 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center text-white font-bold text-lg">{initials}</div>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-600 text-[16px] font-bold text-white shadow-sm">
+                    {initials}
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-[19px] font-bold truncate" style={{ color: theme.text }}>{fullName}</h3>
-                    <p className="text-[13px] font-medium" style={{ color: theme.primary }}>{poste}</p>
-                    <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px] font-semibold mt-1" style={{ background: theme.greenBg, borderColor: theme.greenBorder, color: theme.green }}>
-                      <CheckCircle2 size={12} /> Actif
+                    <h3 className="truncate text-[13.5px] font-semibold" style={{ color: theme.text }}>{fullName}</h3>
+                    <p className="mt-0.5 text-[11.5px] leading-[1.3] font-medium" style={{ color: theme.primary }}>{poste}</p>
+                    <span className="mt-1 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11.5px] font-semibold leading-tight" style={{ background: theme.greenBg, borderColor: theme.greenBorder, color: theme.green }}>
+                      <CheckCircle2 size={11} strokeWidth={2.2} /> Actif
                     </span>
                   </div>
                 </div>
 
-                <div className="mt-5 border-t pt-4" style={{ borderColor: theme.border }}>
+                <div className="mt-4 border-t pt-4" style={{ borderColor: theme.border }}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}><InfoRow label="Email" value={email} /></div>
-                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}><InfoRow label="Téléphone" value={telephone} /></div>
-                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}><InfoRow label="Département" value={departement} /></div>
-                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}><InfoRow label="Poste" value={poste} /></div>
+                    <div className="pb-3 mb-2 border-b" style={{ borderColor: theme.border }}><InfoRow label="Email" value={email} /></div>
+                    <div className="pb-3 mb-2 border-b" style={{ borderColor: theme.border }}><InfoRow label="Téléphone" value={telephone} /></div>
+                    <div className="pb-3 mb-2 border-b" style={{ borderColor: theme.border }}><InfoRow label="Département" value={departement} /></div>
+                    <div className="pb-3 mb-2 border-b" style={{ borderColor: theme.border }}><InfoRow label="Poste" value={poste} /></div>
                   </div>
                 </div>
 
-                <div className="mt-5 border-t pt-4" style={{ borderColor: theme.border }}>
+                <div className="mt-4 border-t pt-4" style={{ borderColor: theme.border }}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}><InfoRow label="Total versé" value={formatMontant(totalPaye)} /></div>
-                    <div className="pb-3 mb-1.5 border-b" style={{ borderColor: theme.border }}><InfoRow label="Paiements" value={`${historiqueData.length} mois`} /></div>
+                    <div className="pb-3 mb-2 border-b" style={{ borderColor: theme.border }}><InfoRow label="Total versé" value={formatMontant(totalPaye)} /></div>
+                    <div className="pb-3 mb-2 border-b" style={{ borderColor: theme.border }}><InfoRow label="Paiements" value={`${historiqueData.length} mois`} /></div>
                   </div>
                 </div>
               </div>
 
+              {/* Right: Calendrier */}
               <div className="min-w-0">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: theme.muted }}>Calendrier paiements</span>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11.5px] font-semibold uppercase tracking-[0.06em]" style={{ color: theme.muted }}>Calendrier paiements</span>
                   <div className="flex items-center gap-1">
-                    <button type="button" onClick={prevMonth} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}><ChevronLeft size={14} /></button>
-                    <span className="text-[13px] font-semibold capitalize" style={{ color: theme.text }}>{monthTitle}</span>
-                    <button type="button" onClick={nextMonth} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}><ChevronRight size={14} /></button>
+                    <button type="button" onClick={prevMonth} className="flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-white/[0.06]" style={{ color: theme.muted }}>
+                      <ChevronLeft size={14} strokeWidth={2.2} />
+                    </button>
+                    <span className="text-[12.5px] font-semibold capitalize" style={{ color: theme.text }}>{monthTitle}</span>
+                    <button type="button" onClick={nextMonth} className="flex h-7 w-7 items-center justify-center rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-white/[0.06]" style={{ color: theme.muted }}>
+                      <ChevronRight size={14} strokeWidth={2.2} />
+                    </button>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-7 gap-1 text-center">
                   {daysOfWeek.map((d) => (
-                    <div key={d} className="text-[10px] font-bold text-slate-400 dark:text-slate-500 py-1">{d}</div>
+                    <div key={d} className="py-1 text-[11px] font-semibold text-slate-400 dark:text-slate-500">{d}</div>
                   ))}
                   {calendarDays.map((day, idx) => {
                     const inMonth = isSameMonth(day, new Date(anneeView, moisView, 1));
@@ -200,7 +222,7 @@ const PaiementsHistoriqueModal: React.FC<PaiementsHistoriqueModalProps> = ({
                     else if (paid) { bg = theme.greenBg; color = theme.green; }
                     
                     return (
-                      <button key={idx} onClick={() => setSelectedJour(day)} className="h-8 w-full flex items-center justify-center rounded-md text-[12px] transition hover:bg-brand-500/10"
+                      <button key={idx} onClick={() => setSelectedJour(day)} className="flex h-8 w-full items-center justify-center rounded-md text-[12px] transition-colors hover:bg-brand-500/10"
                         style={{ background: bg, color }}
                       >
                         {format(day, 'd')}
@@ -209,34 +231,36 @@ const PaiementsHistoriqueModal: React.FC<PaiementsHistoriqueModalProps> = ({
                   })}
                 </div>
 
-                <div className="flex justify-center gap-3 mt-2 text-[10px] uppercase font-semibold" style={{ color: theme.muted }}>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: theme.green }}></span>Payé</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: theme.subMuted }}></span>Aujourd'hui</span>
-                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: theme.primary }}></span>Sélectionné</span>
+                <div className="mt-3 flex justify-center gap-3 text-[11px] font-semibold uppercase" style={{ color: theme.muted }}>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: theme.green }}></span>Payé</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: theme.subMuted }}></span>Aujourd'hui</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: theme.primary }}></span>Sélectionné</span>
                 </div>
 
                 <button
                   type="button"
                   onClick={onAddPaiement}
-                  className="mt-4 w-full flex items-center justify-center gap-2 rounded-lg h-10 text-[14px] font-semibold text-white transition hover:opacity-90"
-                  style={{ background: theme.primary }}
+                  className="mt-4 flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-brand-500 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-600 active:scale-[0.98]"
                 >
-                  <Plus size={15} /> Payer ce mois
+                  <Plus size={14} strokeWidth={2.2} /> Payer ce mois
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: theme.border, background: theme.softBg }}>
-          <button type="button" onClick={onAddPaiement} className="flex h-10 items-center justify-center gap-2 rounded-lg px-5 text-[14px] font-semibold text-white shadow-sm hover:bg-brand-600" style={{ background: theme.primary }}>
-            <Plus size={15} /> PAYER
+        {/* FOOTER */}
+        <div className="flex h-14 shrink-0 items-center justify-end gap-2 border-t px-4" style={{ borderColor: theme.border, background: theme.softBg }}>
+          <button type="button" onClick={onClose} className="h-9 rounded-lg px-3.5 text-[13px] font-medium transition-colors hover:bg-slate-100 dark:hover:bg-white/[0.06]" style={{ color: theme.muted }}>Fermer</button>
+          <button type="button" onClick={onAddPaiement} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-600 active:scale-[0.98]">
+            <Plus size={14} strokeWidth={2.2} /> Payer
           </button>
-          <button type="button" onClick={onClose} className="h-10 rounded-lg px-5 text-[14px] font-medium hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>FERMER</button>
         </div>
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 };
 
 export default PaiementsHistoriqueModal;

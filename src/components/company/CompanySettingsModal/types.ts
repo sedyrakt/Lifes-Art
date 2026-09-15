@@ -1,16 +1,25 @@
-// types.ts
 export interface CompanyData {
+  // ═══ ENTREPRISE ═══
   name: string;
   address: string;
   phone: string;
   email: string;
-  siret?: string;
+  stat?: string;          // ⭐ RENAMED (taloha: siret)
   website?: string;
-  taxId?: string;
+  nif?: string;           // ⭐ RENAMED (taloha: taxId)
   rcs?: string;
   vatNumber?: string;
   paymentMethod?: string;
   paymentTerms?: string;
+
+  // ═══ CLIENT ═══
+  clientName?: string;
+  clientNif?: string;
+  clientStat?: string;
+  clientRcs?: string;
+  clientCif?: string;
+  clientAddress?: string;
+  clientContact?: string;
 }
 
 export interface CompanySettingsModalProps {
@@ -21,6 +30,8 @@ export interface CompanySettingsModalProps {
   initialData?: CompanyData;
   isDark?: boolean;
   mode?: 'save' | 'generate';
+  commandeForInvoice?: any;
+  onPDFGenerated?: (success: boolean, filePath?: string) => void;
 }
 
 export interface CompanySettingsHeaderProps {

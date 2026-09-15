@@ -1,12 +1,13 @@
 // electron/ipc/achats/handlers.cjs
+// ⭐ FIX: `achats:get-stats` manampy `totalPaye`, `totalReste`, `totalProduits`, `payes`, `partiels`, `nonPayes`
+// ⭐ FIX: Kajy dynamique ny statut (mifototra amin'ny montant_paye sy total_ttc) fa tsy ny colonne statut_paiement
 'use strict';
 
 const { getDb } = require('../../database/connection.cjs');
 const { log, error, emitAchatsChanged } = require('./utils.cjs');
-const { buildAchatsQuery, buildAchatsCountQuery } = require('./queries.cjs');
+const { buildAchatsQuery, buildAchatsCountQuery, buildAchatsStatsQuery } = require('./queries.cjs');
 const { prepareStatements, getStatements } = require('./statements.cjs');
 const { validateAchat } = require('./validation.cjs');
-
 
 function withDbCheck(fn) {
   return (event, ...args) => {
@@ -87,8 +88,75 @@ function registerAchatsHandlers(ipcMain) {
     return false;
   }
 
-  const channels = ['achats:get-all', 'achats:get-by-id', 'achats:get-details', 'achats:create', 'achats:update', 'achats:delete', 'achats:bulk-delete', 'achats:update-paiement'];
+  const channels = [
+    'achats:get-all',
+    'achats:get-by-id',
+    'achats:get-details',
+    'achats:create',
+    'achats:update',
+    'achats:delete',
+    'achats:bulk-delete',
+    'achats:update-paiement',
+    'achats:get-stats',
+  ];
   for (const channel of channels) { try { ipcMain.removeHandler(channel); } catch (_) {} }
+
+  // ═══════════════════════════════════════════════════════════
+  // ⭐⭐⭐ GET STATS — champs COMPLETS ho an'ny footer ⭐⭐⭐
+  // ═══════════════════════════════════════════════════════════
+  ipcMain.handle('achats:get-stats', withDbCheck((db, stmts, event, options = {}) => {
+    try {
+      // Stats de base (avy amin'ny buildAchatsStatsQuery)
+      const statsQuery = buildAchatsStatsQuery(options);
+      const row = db.prepare(statsQuery.query).get(...statsQuery.params) || {};
+
+      // ⭐ Calcul des statuts + totaux (avy amin'ny DB GLOBAL, fa tsy pejy)
+      // ⭐ FIX: Kajy dynamique mifototra amin'ny montant_paye sy total_ttc
+      const statusRow = db.prepare(`
+        SELECT
+          COALESCE(SUM(total_ttc), 0) AS total_montant,
+          COALESCE(SUM(montant_paye), 0) AS total_paye,
+          COALESCE(SUM(montant_restant), 0) AS total_restant,
+          COALESCE(SUM(nombre_produits), 0) AS total_produits,
+          COUNT(CASE WHEN COALESCE(montant_paye, 0) >= COALESCE(total_ttc, 0) AND COALESCE(total_ttc, 0) > 0 THEN 1 END) AS payes,
+          COUNT(CASE WHEN COALESCE(montant_paye, 0) > 0 AND COALESCE(montant_paye, 0) < COALESCE(total_ttc, 0) THEN 1 END) AS partiels,
+          COUNT(CASE WHEN COALESCE(montant_paye, 0) <= 0 THEN 1 END) AS non_payes,
+          COUNT(*) AS total_count
+        FROM achats
+      `).get() || {};
+
+      return {
+        success: true,
+        data: {
+          // ⭐ Basic (compatibilité misy)
+          total: Number(row?.total || statusRow?.total_count || 0),
+          totalMontant: Number(row?.total_montant || statusRow?.total_montant || 0),
+          totalFournisseurs: Number(row?.total_fournisseurs || 0),
+          nonPayes: Number(row?.non_payes || statusRow?.non_payes || 0),
+          payes: Number(row?.payes || statusRow?.payes || 0),
+          partiels: Number(row?.partiels || statusRow?.partiels || 0),
+
+          // ⭐⭐⭐ VAOVAO: champs ho an'ny footer ⭐⭐⭐
+          totalPaye: Number(statusRow?.total_paye || 0),
+          totalReste: Number(statusRow?.total_restant || 0),
+          totalProduits: Number(statusRow?.total_produits || 0),
+          payees: Number(statusRow?.payes || 0),
+          partiel: Number(statusRow?.partiels || 0),
+
+          // ⭐ Aliases snake_case (compatibilité)
+          total_paye: Number(statusRow?.total_paye || 0),
+          total_reste: Number(statusRow?.total_restant || 0),
+          total_produits: Number(statusRow?.total_produits || 0),
+          nb_payes: Number(statusRow?.payes || 0),
+          nb_partiels: Number(statusRow?.partiels || 0),
+          nb_non_payes: Number(statusRow?.non_payes || 0),
+        },
+      };
+    } catch (err) {
+      error('❌ [achats:get-stats]', err.message);
+      return fail(err.message);
+    }
+  }));
 
   // GET ALL
   ipcMain.handle('achats:get-all', withDbCheck((db, stmts, event, options = {}) => {
@@ -127,20 +195,21 @@ function registerAchatsHandlers(ipcMain) {
     if (!data || typeof data !== 'object') return fail('Données achat manquantes');
     const validation = validateAchat(data);
     if (!validation.valid) return fail(validation.errors.join(', '));
-    
+
     let finalReference = validation.data.reference;
     if (!finalReference) {
       const countResult = db.prepare(`SELECT COUNT(*) AS total FROM achats`).get();
       const nextNumber = Number(countResult?.total || 0) + 1;
       finalReference = `ACH-${String(nextNumber).padStart(4, '0')}`;
     }
-    const params = [validation.data.fournisseur_id, finalReference, validation.data.date_achat, validation.data.total_ht, validation.data.total_ttc, validation.data.designation, validation.data.nombre_produits, validation.data.statut_paiement, validation.data.montant_paye, validation.data.montant_restant, validation.data.observation];
-    
+
+    const params = [validation.data.fournisseur_id, finalReference, validation.data.date_achat, validation.data.total_ht, validation.data.total_ttc, validation.data.designation, validation.data.nombre_produits, validation.data.statut_paiement, validation.data.montant_paye, validation.data.montant_restant, validation.data.observation, validation.data.mode_paiement, validation.data.modalite_paiement, validation.data.frais_livraison];
+
     const transaction = db.transaction(() => {
       const result = stmts.stmtCreate.run(...params);
       const achatId = Number(result.lastInsertRowid);
       if (!Number.isInteger(achatId) || achatId <= 0) throw new Error('ID achat invalide');
-      
+
       for (const detail of validation.data.details) {
         const produit = stmts.stmtCheckProduit.get(detail.produit_id);
         if (!produit) throw new Error(`Produit ${detail.produit_id} introuvable`);
@@ -165,13 +234,14 @@ function registerAchatsHandlers(ipcMain) {
     if (!data || typeof data !== 'object') return fail('Données achat manquantes');
     const validation = validateAchat(data);
     if (!validation.valid) return fail(validation.errors.join(', '));
-    
+
     const existing = stmts.stmtGetById.get(achatId);
     if (!existing) return fail('Achat non trouvé');
     let finalReference = validation.data.reference;
     if (!finalReference) finalReference = existing.reference;
-    const params = [validation.data.fournisseur_id, finalReference, validation.data.date_achat, validation.data.total_ht, validation.data.total_ttc, validation.data.designation, validation.data.nombre_produits, validation.data.statut_paiement, validation.data.montant_paye, validation.data.montant_restant, validation.data.observation, achatId];
-    
+
+    const params = [validation.data.fournisseur_id, finalReference, validation.data.date_achat, validation.data.total_ht, validation.data.total_ttc, validation.data.designation, validation.data.nombre_produits, validation.data.statut_paiement, validation.data.montant_paye, validation.data.montant_restant, validation.data.observation, validation.data.mode_paiement, validation.data.modalite_paiement, validation.data.frais_livraison, achatId];
+
     const transaction = db.transaction(() => {
       const oldDetails = stmts.stmtGetDetails.all(achatId);
       for (const oldDetail of oldDetails) {
@@ -207,7 +277,7 @@ function registerAchatsHandlers(ipcMain) {
     if (!achatId) return fail('ID achat invalide');
     const existing = stmts.stmtGetById.get(achatId);
     if (!existing) return fail('Achat non trouvé');
-    
+
     const transaction = db.transaction(() => {
       const details = stmts.stmtGetDetails.all(achatId);
       for (const detail of details) {
@@ -231,7 +301,7 @@ function registerAchatsHandlers(ipcMain) {
   ipcMain.handle('achats:bulk-delete', withDbCheck((db, stmts, event, ids) => {
     const safeIds = normalizeIds(ids);
     if (!safeIds.length) return fail('Aucun ID achat valide');
-    
+
     const transaction = db.transaction(() => {
       let deletedCount = 0;
       const deletedIds = [];

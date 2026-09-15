@@ -1,4 +1,3 @@
-
 'use strict';
 
 const { getDb } = require('../database/connection.cjs');
@@ -35,7 +34,6 @@ function withLiveDb(fn) {
 function buildCategoriesQuery(db, options = {}) {
   const { limit, offset, page, search } = options;
 
-  // ⭐ FIX: Mila mifanaraka amin'ny frontend (sortBy/sortOrder) na sort (object)
   let sortField = 'nom';
   let sortDirection = 'ASC';
 
@@ -47,7 +45,6 @@ function buildCategoriesQuery(db, options = {}) {
     sortDirection = options.sortOrder === 'DESC' ? 'DESC' : 'ASC';
   }
 
-  // Validate sortField
   const allowedFields = ['nom', 'description', 'created_at', 'id'];
   if (!allowedFields.includes(sortField)) {
     sortField = 'nom';
@@ -304,14 +301,44 @@ function registerCategoriesHandlers(ipcMain) {
     };
   }));
 
+  // ═══════════════════════════════════════════════════════════
+  // ⭐⭐⭐ GET STATS — misy `sansDescription` + `categoriesVides` ⭐⭐⭐
+  // ═══════════════════════════════════════════════════════════
   ipcMain.handle('categories:get-stats', withLiveDb((db) => {
     const stmt = db.prepare(`
       SELECT
         (SELECT COUNT(*) FROM categories) AS total,
-        (SELECT COUNT(*) FROM categories WHERE description IS NOT NULL AND description != '') AS avecDescription,
-        (SELECT COUNT(*) FROM produits) AS totalProduits
+        (SELECT COUNT(*) FROM categories WHERE description IS NOT NULL AND TRIM(description) != '') AS avecDescription,
+        (SELECT COUNT(*) FROM categories WHERE description IS NULL OR TRIM(description) = '') AS sansDescription,
+        (SELECT COUNT(*) FROM produits) AS totalProduits,
+        (SELECT COUNT(*) FROM categories c WHERE NOT EXISTS (
+          SELECT 1 FROM produits p WHERE p.categorie_id = c.id
+        )) AS categoriesVides,
+        (SELECT COALESCE(SUM(quantite_stock), 0) FROM produits) AS totalStock,
+        (SELECT COALESCE(SUM(quantite_stock * prix_vente), 0) FROM produits) AS valeurStock
     `);
-    return { success: true, data: stmt.get() };
+
+    const data = stmt.get() || {};
+
+    return {
+      success: true,
+      data: {
+        total: Number(data.total) || 0,
+        avecDescription: Number(data.avecDescription) || 0,
+        sansDescription: Number(data.sansDescription) || 0,
+        totalProduits: Number(data.totalProduits) || 0,
+        categoriesVides: Number(data.categoriesVides) || 0,
+        totalStock: Number(data.totalStock) || 0,
+        valeurStock: Number(data.valeurStock) || 0,
+        // Aliases snake_case (compatibilité)
+        avec_description: Number(data.avecDescription) || 0,
+        sans_description: Number(data.sansDescription) || 0,
+        total_produits: Number(data.totalProduits) || 0,
+        categories_vides: Number(data.categoriesVides) || 0,
+        total_stock: Number(data.totalStock) || 0,
+        valeur_stock: Number(data.valeurStock) || 0,
+      },
+    };
   }));
 
   if (DEBUG) log('📋 [categories.cjs] Tous les handlers sont enregistrés avec succès');

@@ -1,19 +1,28 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export interface CompanyInfo {
   id?: number;
+  // ═══ Entreprise ═══
   name: string;
   address: string;
   phone: string;
   email: string;
-  siret?: string;
+  stat?: string;         
   website?: string;
-  taxId?: string;
+  nif?: string;          
   rcs?: string;
   vatNumber?: string;
   paymentMethod?: string;
   paymentTerms?: string;
+
+  // ═══ Client (isan-facture) ═══
+  clientName?: string;
+  clientNif?: string;
+  clientStat?: string;
+  clientRcs?: string;
+  clientCif?: string;
+  clientAddress?: string;
+  clientContact?: string;
 }
 
 interface CompanyContextType {
@@ -28,6 +37,43 @@ interface CompanyContextType {
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
 const STORAGE_KEY = 'tantana_company_info';
 
+// ⭐ Normalisation: migre siret→stat, taxId→nif (raha misy données taloha)
+const normalizeCompany = (raw: any): CompanyInfo | null => {
+  if (!raw || typeof raw !== 'object') return null;
+
+  return {
+    id: raw.id,
+
+    // ═══ Entreprise ═══
+    name: raw.name || '',
+    address: raw.address || '',
+    phone: raw.phone || '',
+    email: raw.email || '',
+
+    // ⭐ Backward compat: siret → stat
+    stat: raw.stat || raw.siret || '',
+
+    website: raw.website || '',
+
+    // ⭐ Backward compat: taxId → nif
+    nif: raw.nif || raw.taxId || '',
+
+    rcs: raw.rcs || '',
+    vatNumber: raw.vatNumber || '',
+    paymentMethod: raw.paymentMethod || 'Espèces',
+    paymentTerms: raw.paymentTerms || 'Sous 30 jours',
+
+    // ═══ Client ═══
+    clientName: raw.clientName || '',
+    clientNif: raw.clientNif || '',
+    clientStat: raw.clientStat || '',
+    clientRcs: raw.clientRcs || '',
+    clientCif: raw.clientCif || '',
+    clientAddress: raw.clientAddress || '',
+    clientContact: raw.clientContact || '',
+  };
+};
+
 export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [company, setCompany] = useState<CompanyInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,8 +85,16 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          console.log('✅ [CompanyContext] Company chargé:', parsed);
-          setCompany(parsed);
+          // ⭐ Migre automatique ho an'ny champ vaovao
+          const normalized = normalizeCompany(parsed);
+          console.log('✅ [CompanyContext] Company chargé:', normalized);
+          setCompany(normalized);
+
+          // Raha nisy migration (raw.siret na raw.taxId), dia averina soratana
+          if (parsed && (parsed.siret || parsed.taxId) && normalized) {
+            console.log('🔄 [CompanyContext] Migration siret→stat, taxId→nif');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+          }
         } else {
           console.log('⚠️ [CompanyContext] Aucune company trouvée');
           setCompany(null);
@@ -59,9 +113,24 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
     try {
       console.log('💾 [CompanyContext] Mise à jour:', data);
       const current = company || {
-        name: '', address: '', phone: '', email: '',
-        siret: '', website: '', taxId: '', rcs: '', vatNumber: '',
-        paymentMethod: 'Espèces', paymentTerms: 'Sous 30 jours'
+        name: '',
+        address: '',
+        phone: '',
+        email: '',
+        stat: '',           // ⭐ taloha: siret
+        website: '',
+        nif: '',            // ⭐ taloha: taxId
+        rcs: '',
+        vatNumber: '',
+        paymentMethod: 'Espèces',
+        paymentTerms: 'Sous 30 jours',
+        clientName: '',
+        clientNif: '',
+        clientStat: '',
+        clientRcs: '',
+        clientCif: '',
+        clientAddress: '',
+        clientContact: '',
       };
       const updated: CompanyInfo = { ...current, ...data };
       console.log('💾 [CompanyContext] Sauvegarde:', updated);
@@ -80,8 +149,9 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        console.log('✅ [CompanyContext] Company rafraîchi:', parsed);
-        setCompany(parsed);
+        const normalized = normalizeCompany(parsed);
+        console.log('✅ [CompanyContext] Company rafraîchi:', normalized);
+        setCompany(normalized);
       }
     } catch (error) {
       console.error('❌ [CompanyContext] Erreur rafraîchissement:', error);
@@ -89,6 +159,7 @@ export const CompanyProvider: React.FC<{ children: ReactNode }> = ({ children })
   };
 
   const getCompany = () => company;
+
   const clearCompany = () => {
     try {
       localStorage.removeItem(STORAGE_KEY);

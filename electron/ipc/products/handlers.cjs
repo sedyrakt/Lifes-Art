@@ -52,18 +52,14 @@ function emitProductsChanged(productData) {
   } catch (err) {}
 }
 
-// ⭐ FIX: Mamorona code unique raha efa misy
 function generateUniqueCode(db, requestedCode = null) {
   let code = requestedCode;
   if (!code) {
-    // Raha tsy misy code nomena, mamorona code automatique
     const base = 'PRD-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 8).toUpperCase();
     code = base;
   }
-  // Mamerina ny code raha efa misy (na actif na inactif)
   const existing = db.prepare('SELECT id FROM produits WHERE code = ?').get(code);
   if (existing) {
-    // Mamorona code vaovao raha efa misy
     const timestamp = Date.now().toString(36).toUpperCase();
     const random = Math.random().toString(36).slice(2, 10).toUpperCase();
     code = `PRD-${timestamp}-${random}`;
@@ -162,13 +158,13 @@ function registerProductsHandlers(ipcMain) {
     return { success: true, data: produit };
   }));
 
-  // CREATE (avec generateUniqueCode)
+  // CREATE
   ipcMain.handle('products:create', withDbCheck((db, event, data = {}) => {
     let code = String(data.code || '').trim();
     const nom = String(data.nom || '').trim();
     if (!nom) return { success: false, error: 'Nom requis' };
     if (!code) code = generateUniqueCode(db, null);
-    else code = generateUniqueCode(db, code); // Raha efa misy dia hamorona vaovao
+    else code = generateUniqueCode(db, code);
 
     const prixVente = numberOr(data.prix_vente, 0);
     if (prixVente <= 0) return { success: false, error: 'Prix de vente > 0 requis' };
@@ -201,7 +197,7 @@ function registerProductsHandlers(ipcMain) {
     return { success: true, data: result };
   }));
 
-  // UPDATE (avec generateUniqueCode si code changé)
+  // UPDATE
   ipcMain.handle('products:update', withDbCheck((db, event, id, data = {}) => {
     const productId = normalizeId(id);
     if (!productId) return { success: false, error: 'ID invalide' };
@@ -212,7 +208,7 @@ function registerProductsHandlers(ipcMain) {
     const nom = String(data.nom || '').trim();
     if (!nom) return { success: false, error: 'Nom requis' };
     if (!code) code = existing.code;
-    else code = generateUniqueCode(db, code, productId); // Raha code novaina fa efa misy, dia havaozina
+    else code = generateUniqueCode(db, code);
 
     const prixVente = numberOr(data.prix_vente, 0);
     if (prixVente <= 0) return { success: false, error: 'Prix de vente > 0 requis' };
@@ -246,7 +242,7 @@ function registerProductsHandlers(ipcMain) {
     return { success: true, data: result };
   }));
 
-  // DELETE (soft delete -> inactif)
+  // DELETE
   ipcMain.handle('products:delete', withDbCheck((db, event, id) => {
     const productId = normalizeId(id);
     if (!productId) return { success: false, error: 'ID invalide' };
@@ -258,14 +254,15 @@ function registerProductsHandlers(ipcMain) {
     return { success: true, data: { action: 'soft_delete', id: productId } };
   }));
 
-  // GET STATS
+  // ⭐ GET STATS — FIX: prix_achat au lieu de prix_vente
+  // Cohérent avec computeCurrentSnapshot (stockSnapshots.cjs) et le Dashboard
   ipcMain.handle('products:get-stats', withDbCheck((db, event) => {
     const row = db.prepare(`
       SELECT COUNT(*) AS total,
         COALESCE(SUM(quantite_stock), 0) AS totalStock,
         COALESCE(SUM(CASE WHEN quantite_stock <= 0 THEN 1 ELSE 0 END), 0) AS rupture,
         COALESCE(SUM(CASE WHEN quantite_stock > 0 AND quantite_stock <= quantite_minimale THEN 1 ELSE 0 END), 0) AS alerte,
-        COALESCE(SUM(prix_vente * quantite_stock), 0) AS valeur_totale
+        COALESCE(SUM(prix_achat * quantite_stock), 0) AS valeur_totale
       FROM produits
       WHERE status != 'archive'
     `).get();

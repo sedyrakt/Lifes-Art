@@ -1,13 +1,14 @@
 // src/components/produits/ProduitsModalForm.tsx
 // ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
+// ⭐ DESIGN COMPACT PREMIUM — mifanaraka amin'ny ProduitsTable
 // ⭐ FIX: CUSTOM DROPDOWN (MAX HEIGHT + SCROLL)
-// ⭐ BALANCED: Nampitombo kely ny width, height, fontSize mba ho mora vakiana
 // ⭐ FIX: FOND DARK = #0F172A ho an'ny modal, header, inputs
-// ⭐ FIX: ESORINA NY ICON TAG AMIN'NY HEADER
+// ⭐ NEW: Code auto-généré fohy avy amin'ny anaran'ny produit (CONF-FR5)
+// ⭐ FONT SIZE: h2 18px, labels 14px, inputs 15px, buttons 15px (nampitomboina)
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Check, Plus, ChevronDown } from 'lucide-react'; // Tag removed
+import { X, Check, Plus, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface Produit {
@@ -36,7 +37,7 @@ interface ProduitsModalFormProps {
   editingProduit?: Produit | null;
   categories?: Category[];
   fournisseurs?: Fournisseur[];
-  generateCode: () => string;
+  generateCode: (nom?: string) => string;
   isDark?: boolean;
 }
 
@@ -57,27 +58,26 @@ const TVA_RATES = [
   { value: 0.0, label: 'TVA 0% (Exonéré)' },
 ];
 
-const FormField: React.FC<{ label: string; children: React.ReactNode; required?: boolean; fullWidth?: boolean; }> = ({ label, children, required = false, fullWidth = false }) => {
-  const { isDark } = useTheme();
-  return (
-    <div className={`min-w-0 ${fullWidth ? 'w-full' : ''}`}>
-      <label className="mb-1.5 block text-[15px] font-medium text-slate-700 dark:text-slate-300">
-        {label}{required && <span className="ml-1 text-brand-500">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-};
+const FormField: React.FC<{ label: string; children: React.ReactNode; required?: boolean; fullWidth?: boolean }> = ({ label, children, required = false, fullWidth = false }) => (
+  <div className={`min-w-0 ${fullWidth ? 'w-full' : ''}`}>
+    {/* ⭐ Label : 13px → 14px */}
+    <label className="mb-1.5 block text-[14px] font-medium text-slate-700 dark:text-slate-300">
+      {label}{required && <span className="ml-1 text-brand-500">*</span>}
+    </label>
+    {children}
+  </div>
+);
 
 const ProduitsModalForm: React.FC<ProduitsModalFormProps> = ({
   isOpen, onClose, onSubmit, editingProduit, categories = [],
-  fournisseurs = [], generateCode, isDark: propIsDark
+  fournisseurs = [], generateCode, isDark: propIsDark,
 }) => {
   const { isDark: themeIsDark } = useTheme();
   const isDark = propIsDark !== undefined ? propIsDark : themeIsDark;
   const formRef = useRef<HTMLFormElement>(null);
 
-  const generatedCode = useMemo(() => editingProduit?.code || generateCode(), [editingProduit?.code, generateCode]);
+  const [codeValue, setCodeValue] = useState<string>(editingProduit?.code || '');
+  const [nomValue, setNomValue] = useState<string>(editingProduit?.nom || '');
 
   const [selectedCategorie, setSelectedCategorie] = useState<string | number>(editingProduit?.categorie_id ?? '');
   const [selectedFournisseur, setSelectedFournisseur] = useState<string | number>(editingProduit?.fournisseur_id ?? '');
@@ -89,6 +89,8 @@ const ProduitsModalForm: React.FC<ProduitsModalFormProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    setNomValue(editingProduit?.nom || '');
+    setCodeValue(editingProduit?.code || '');
     setSelectedCategorie(editingProduit?.categorie_id ?? '');
     setSelectedFournisseur(editingProduit?.fournisseur_id ?? '');
     setSelectedUnite(editingProduit?.unite || 'pièce');
@@ -96,6 +98,15 @@ const ProduitsModalForm: React.FC<ProduitsModalFormProps> = ({
     setCategorieOpen(false);
     setFournisseurOpen(false);
   }, [isOpen, editingProduit]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (editingProduit) return;
+    if (!nomValue || nomValue.trim().length < 2) return;
+    if (codeValue && codeValue !== '') return;
+    const newCode = generateCode(nomValue.trim());
+    setCodeValue(newCode);
+  }, [nomValue, isOpen, editingProduit, generateCode, codeValue]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -118,10 +129,15 @@ const ProduitsModalForm: React.FC<ProduitsModalFormProps> = ({
     return () => { document.body.style.overflow = previousOverflow; };
   }, [isOpen]);
 
+  const handleRegenerateCode = () => {
+    const newCode = generateCode(nomValue.trim() || 'Produit');
+    setCodeValue(newCode);
+  };
+
   if (!isOpen) return null;
 
-  // ⭐ FANITSIANA: inputs sy selects dia #0F172A amin'ny dark
-  const inputClass = `h-11 w-full rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] px-3 text-[15px] font-medium text-slate-900 dark:text-slate-100 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20`;
+  // ⭐ Inputs + selects — text-[15px] (nampitomboina), h-11 (nampitomboina)
+  const inputClass = `h-11 w-full rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] px-3.5 text-[15px] font-medium text-slate-900 dark:text-slate-100 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20`;
 
   const selectedCatName = categories.find(c => c.id === Number(selectedCategorie))?.nom || categories.find(c => c.id === Number(selectedCategorie))?.name || 'Sélectionner';
   const selectedFourName = fournisseurs.find(f => f.id === Number(selectedFournisseur))?.nom || fournisseurs.find(f => f.id === Number(selectedFournisseur))?.name || 'Sélectionner';
@@ -134,38 +150,74 @@ const ProduitsModalForm: React.FC<ProduitsModalFormProps> = ({
       aria-labelledby="produit-modal-title"
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
-      {/* ⭐ FANITSIANA: modal container = #0F172A amin'ny dark */}
       <div
         className="relative z-[100000] flex w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] shadow-[0_24px_70px_rgba(0,0,0,0.25)]"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="absolute left-0 right-0 top-0 h-[2px] bg-brand-500" />
 
-        {/* HEADER = #0F172A (Icon Tag esorina) */}
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#0F172A] px-6">
+        {/* HEADER — ⭐ h-14 → h-16 (nampitomboina) */}
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#0F172A] px-5">
           <div className="flex min-w-0 items-center gap-2.5">
-            {/* ⭐ ESORINA NY ICON TAG */}
-            <h2 id="produit-modal-title" className="truncate text-[16px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+            {/* ⭐ h2 : 16px → 18px */}
+            <h2 id="produit-modal-title" className="truncate text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
               {editingProduit ? 'Modifier le produit' : 'Nouveau produit'}
             </h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Fermer" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.06]">
-            <X size={17} strokeWidth={2} />
+          {/* ⭐ Close button : h-9 w-9 → h-10 w-10, icon 17 → 18 */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.06]"
+          >
+            <X size={18} strokeWidth={2} />
           </button>
         </header>
 
         <form id="produit-modal-form" onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              
-              <FormField label="Code produit" required>
-                <input type="text" name="code" defaultValue={generatedCode} placeholder="PRD-000001" required className={inputClass} />
-              </FormField>
 
+              {/* Désignation */}
               <FormField label="Désignation" required>
-                <input type="text" name="nom" defaultValue={editingProduit?.nom || ''} placeholder="Nom du produit" required autoFocus={!editingProduit} className={inputClass} />
+                <input
+                  type="text"
+                  name="nom"
+                  value={nomValue}
+                  onChange={(e) => setNomValue(e.target.value)}
+                  placeholder="Ex: Confiture fraise"
+                  required
+                  autoFocus={!editingProduit}
+                  className={inputClass}
+                />
               </FormField>
 
+              {/* Code produit */}
+              <FormField label="Code produit" required>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="code"
+                    value={codeValue}
+                    onChange={(e) => setCodeValue(e.target.value.toUpperCase())}
+                    placeholder="CONF-FR5"
+               
+                    className={`${inputClass} pr-28 font-mono uppercase`}
+                  />
+           
+                  <button
+                    type="button"
+                    onClick={handleRegenerateCode}
+                    title="Régénérer le code"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1 text-[14px] font-semibold text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-500/10"
+                  >
+                    Régénérer
+                  </button>
+                </div>
+              </FormField>
+
+              {/* Catégorie */}
               <FormField label="Catégorie">
                 <div className="relative">
                   <button
@@ -174,12 +226,13 @@ const ProduitsModalForm: React.FC<ProduitsModalFormProps> = ({
                     className={`${inputClass} flex items-center justify-between text-left cursor-pointer`}
                   >
                     <span className="truncate">{selectedCatName}</span>
-                    <ChevronDown size={16} className={`ml-2 shrink-0 transition-transform ${categorieOpen ? 'rotate-180' : ''}`} style={{ color: 'rgb(148 163 184)' }} />
+                    {/* ⭐ ChevronDown : 16 → 18 */}
+                    <ChevronDown size={18} className={`ml-2 shrink-0 transition-transform ${categorieOpen ? 'rotate-180' : ''}`} style={{ color: 'rgb(148 163 184)' }} />
                   </button>
                   {categorieOpen && (
                     <div
                       className="absolute left-0 right-0 z-50 mt-1.5 overflow-y-auto rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] shadow-lg"
-                      style={{ maxHeight: '180px' }}
+                      style={{ maxHeight: '220px' }}
                       onMouseDown={(e) => e.preventDefault()}
                     >
                       {categories.map((cat) => (
@@ -190,10 +243,12 @@ const ProduitsModalForm: React.FC<ProduitsModalFormProps> = ({
                             setSelectedCategorie(cat.id);
                             setCategorieOpen(false);
                           }}
-                          className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-white/[0.05]"
+                          /* ⭐ Dropdown item padding + fontSize */
+                          className="flex w-full items-center justify-between px-3.5 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-white/[0.05]"
                         >
-                          <span className="truncate text-[14px] text-slate-700 dark:text-slate-200">{cat.nom || cat.name || `Catégorie #${cat.id}`}</span>
-                          {Number(selectedCategorie) === cat.id && <Check size={15} className="text-brand-500" />}
+                          <span className="truncate text-[15px] text-slate-700 dark:text-slate-200">{cat.nom || cat.name || `Catégorie #${cat.id}`}</span>
+                          {/* ⭐ Check icon : 15 → 16 */}
+                          {Number(selectedCategorie) === cat.id && <Check size={16} className="text-brand-500" />}
                         </button>
                       ))}
                     </div>
@@ -202,6 +257,7 @@ const ProduitsModalForm: React.FC<ProduitsModalFormProps> = ({
                 </div>
               </FormField>
 
+              {/* Fournisseur */}
               <FormField label="Fournisseur">
                 <div className="relative">
                   <button
@@ -210,12 +266,12 @@ const ProduitsModalForm: React.FC<ProduitsModalFormProps> = ({
                     className={`${inputClass} flex items-center justify-between text-left cursor-pointer`}
                   >
                     <span className="truncate">{selectedFourName}</span>
-                    <ChevronDown size={16} className={`ml-2 shrink-0 transition-transform ${fournisseurOpen ? 'rotate-180' : ''}`} style={{ color: 'rgb(148 163 184)' }} />
+                    <ChevronDown size={18} className={`ml-2 shrink-0 transition-transform ${fournisseurOpen ? 'rotate-180' : ''}`} style={{ color: 'rgb(148 163 184)' }} />
                   </button>
                   {fournisseurOpen && (
                     <div
                       className="absolute left-0 right-0 z-50 mt-1.5 overflow-y-auto rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] shadow-lg"
-                      style={{ maxHeight: '180px' }}
+                      style={{ maxHeight: '220px' }}
                       onMouseDown={(e) => e.preventDefault()}
                     >
                       {fournisseurs.map((fournisseur) => (
@@ -226,10 +282,10 @@ const ProduitsModalForm: React.FC<ProduitsModalFormProps> = ({
                             setSelectedFournisseur(fournisseur.id);
                             setFournisseurOpen(false);
                           }}
-                          className="flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-white/[0.05]"
+                          className="flex w-full items-center justify-between px-3.5 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-white/[0.05]"
                         >
-                          <span className="truncate text-[14px] text-slate-700 dark:text-slate-200">{fournisseur.nom || fournisseur.name || `Fournisseur #${fournisseur.id}`}</span>
-                          {Number(selectedFournisseur) === fournisseur.id && <Check size={15} className="text-brand-500" />}
+                          <span className="truncate text-[15px] text-slate-700 dark:text-slate-200">{fournisseur.nom || fournisseur.name || `Fournisseur #${fournisseur.id}`}</span>
+                          {Number(selectedFournisseur) === fournisseur.id && <Check size={16} className="text-brand-500" />}
                         </button>
                       ))}
                     </div>
@@ -256,40 +312,42 @@ const ProduitsModalForm: React.FC<ProduitsModalFormProps> = ({
 
               <FormField label="Unité" required>
                 <div className="relative">
-                  <select value={selectedUnite} onChange={(e) => setSelectedUnite(e.target.value)} className={`${inputClass} appearance-none cursor-pointer pr-8`}>
+                  <select value={selectedUnite} onChange={(e) => setSelectedUnite(e.target.value)} className={`${inputClass} appearance-none cursor-pointer pr-10`}>
                     {UNITES.map((unite) => (
                       <option key={unite.value} value={unite.value}>{unite.label}</option>
                     ))}
                   </select>
-                  <ChevronDown size={16} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                  <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   <input type="hidden" name="unite" value={selectedUnite} readOnly />
                 </div>
               </FormField>
 
               <FormField label="Taux de TVA" required>
                 <div className="relative">
-                  <select value={selectedTvaRate} onChange={(e) => setSelectedTvaRate(Number(e.target.value))} className={`${inputClass} appearance-none cursor-pointer pr-8`}>
+                  <select value={selectedTvaRate} onChange={(e) => setSelectedTvaRate(Number(e.target.value))} className={`${inputClass} appearance-none cursor-pointer pr-10`}>
                     {TVA_RATES.map((rate) => (
                       <option key={rate.value} value={rate.value}>{rate.label}</option>
                     ))}
                   </select>
-                  <ChevronDown size={16} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                  <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                   <input type="hidden" name="tva_rate" value={selectedTvaRate} readOnly />
                 </div>
               </FormField>
 
               <div className="md:col-span-2">
                 <FormField label="Statut">
-                  <div className={`flex h-11 overflow-hidden rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A]`}>
+                  {/* ⭐ Statut container : h-10 → h-11 */}
+                  <div className="flex h-11 overflow-hidden rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A]">
                     <label className="flex flex-1 cursor-pointer items-center justify-center">
                       <input type="radio" name="status" value="actif" defaultChecked={editingProduit?.status !== 'inactif'} className="peer sr-only" />
-                      <span className="flex h-full w-[calc(100%-4px)] items-center justify-center gap-1.5 rounded-md text-[14px] font-semibold transition-all peer-checked:bg-white peer-checked:text-emerald-600 peer-checked:shadow-sm dark:peer-checked:bg-white/[0.08] dark:peer-checked:text-emerald-400 text-slate-500 dark:text-slate-400">
-                        <Check size={14} /> Actif
+                      {/* ⭐ Radio label : 14px → 15px, Check icon 15 → 16 */}
+                      <span className="flex h-full w-[calc(100%-4px)] items-center justify-center gap-1.5 rounded-md text-[15px] font-semibold text-slate-500 transition-all peer-checked:bg-white peer-checked:text-emerald-600 peer-checked:shadow-sm dark:text-slate-400 dark:peer-checked:bg-white/[0.08] dark:peer-checked:text-emerald-400">
+                        <Check size={16} /> Actif
                       </span>
                     </label>
                     <label className="flex flex-1 cursor-pointer items-center justify-center">
                       <input type="radio" name="status" value="inactif" defaultChecked={editingProduit?.status === 'inactif'} className="peer sr-only" />
-                      <span className="flex h-full w-[calc(100%-4px)] items-center justify-center rounded-md text-[14px] font-semibold transition-all peer-checked:bg-white peer-checked:text-red-600 peer-checked:shadow-sm dark:peer-checked:bg-white/[0.08] dark:peer-checked:text-red-400 text-slate-500 dark:text-slate-400">
+                      <span className="flex h-full w-[calc(100%-4px)] items-center justify-center rounded-md text-[15px] font-semibold text-slate-500 transition-all peer-checked:bg-white peer-checked:text-red-600 peer-checked:shadow-sm dark:text-slate-400 dark:peer-checked:bg-white/[0.08] dark:peer-checked:text-red-400">
                         Inactif
                       </span>
                     </label>
@@ -299,23 +357,25 @@ const ProduitsModalForm: React.FC<ProduitsModalFormProps> = ({
 
               <div className="md:col-span-3">
                 <FormField label="Description">
-                  <textarea name="description" defaultValue={editingProduit?.description || ''} placeholder="Description du produit..." rows={2} className={`${inputClass} resize-none py-2.5 leading-5`} />
+                  {/* ⭐ Textarea : rows 2 → 3, text-[15px] (via inputClass), py-2.5 → py-3 */}
+                  <textarea name="description" defaultValue={editingProduit?.description || ''} placeholder="Description du produit..." rows={3} className={`${inputClass} h-auto resize-none py-3 leading-6`} />
                 </FormField>
               </div>
 
             </div>
           </div>
 
-          {/* FOOTER = #1E293B amin'ny dark */}
-          <footer className="flex h-[64px] shrink-0 items-center justify-end gap-2 border-t border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-[#1E293B] px-6">
-            <button type="button" onClick={onClose} className="h-10 rounded-lg px-5 text-[14px] font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.05]">
+          <footer className="flex h-[72px] shrink-0 items-center justify-end gap-2 border-t border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-[#1E293B] px-5">
+        
+            <button type="button" onClick={onClose} className="h-10 rounded-lg px-4.5 text-[15px] font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.05]">
               Annuler
             </button>
+           
             <button
               type="submit"
-              className="flex h-10 items-center gap-1.5 rounded-lg bg-brand-500 px-5 text-[14px] font-semibold text-white shadow-sm transition-all hover:bg-brand-600 hover:shadow-md active:scale-[0.98]"
+              className="flex h-10 items-center gap-2 rounded-lg bg-brand-500 px-5 text-[15px] font-semibold text-white shadow-sm transition-all hover:bg-brand-600 hover:shadow-md active:scale-[0.98]"
             >
-              {editingProduit ? <Check size={15} /> : <Plus size={15} />}
+              {editingProduit ? <Check size={17} /> : <Plus size={17} />}
               {editingProduit ? 'Enregistrer' : 'Ajouter'}
             </button>
           </footer>

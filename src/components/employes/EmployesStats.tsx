@@ -1,99 +1,137 @@
+// src/components/employes/EmployesStats.tsx
+// ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
+// ⭐ DESIGN aligned with KpiCard (dashboard)
+// ⭐ LAYOUT: Icon ankavia | Label + Valeur inline
+// ⭐ Hover accent top bar + typography madio
+// ⭐ FONT SIZE: label 12px uppercase, valeur 20px, icon 20px
+
 import React from 'react';
 import { Users, Wallet, UserCheck, TrendingUp } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
-interface EmployesStatsProps { 
-  totalItems: number; 
-  totalSalaire: number; 
-  actifs: number; 
-  tauxActif: number; 
-  evolutionTotal?: number; 
-  evolutionSalaire?: number; 
-  evolutionActifs?: number; 
-  evolutionTaux?: number; 
+interface EmployesStatsProps {
+  totalItems: number;
+  totalSalaire: number;
+  actifs: number;
+  tauxActif: number;
+  evolutionTotal?: number;
+  evolutionSalaire?: number;
+  evolutionActifs?: number;
+  evolutionTaux?: number;
 }
 
-const safeNumber = (value: unknown): number => { 
-  const n = Number(value); 
-  return Number.isFinite(n) ? n : 0; 
+const safeNumber = (value: unknown): number => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 };
 
-const EmployesStats: React.FC<EmployesStatsProps> = ({ 
-  totalItems, 
-  totalSalaire, 
-  actifs, 
-  tauxActif, 
-  evolutionTotal = 0, 
-  evolutionSalaire = 0, 
-  evolutionActifs = 0, 
-  evolutionTaux = 0 
+// ⭐ Palette harmonisée (KpiCard-style)
+const STAT_ACCENTS = {
+  total: {
+    iconBg: 'bg-indigo-50 dark:bg-indigo-500/10',
+    iconColor: 'text-indigo-600 dark:text-indigo-400',
+    accent: '#6366F1',
+  },
+  salaire: {
+    iconBg: 'bg-emerald-50 dark:bg-emerald-500/10',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    accent: '#10B981',
+  },
+  actifs: {
+    iconBg: 'bg-blue-50 dark:bg-blue-500/10',
+    iconColor: 'text-blue-600 dark:text-blue-400',
+    accent: '#3B82F6',
+  },
+  taux: {
+    iconBg: 'bg-amber-50 dark:bg-amber-500/10',
+    iconColor: 'text-amber-600 dark:text-amber-400',
+    accent: '#F59E0B',
+  },
+};
+
+const EmployesStats: React.FC<EmployesStatsProps> = ({
+  totalItems,
+  totalSalaire,
+  actifs,
+  tauxActif,
+  evolutionTotal = 0,
+  evolutionSalaire = 0,
+  evolutionActifs = 0,
+  evolutionTaux = 0
 }) => {
   const { isDark } = useTheme();
-  const safeTotalItems = safeNumber(totalItems); 
-  const safeTotalSalaire = safeNumber(totalSalaire); 
-  const safeActifs = safeNumber(actifs); 
+  const safeTotalItems = safeNumber(totalItems);
+  const safeTotalSalaire = safeNumber(totalSalaire);
+  const safeActifs = safeNumber(actifs);
   const safeTauxActif = safeNumber(tauxActif);
 
   const formattedSalaire = `${safeTotalSalaire.toLocaleString('fr-FR')} Ar`;
 
   const stats = [
-    { 
-      label: 'Total employés', 
-      value: safeTotalItems.toLocaleString('fr-FR'), 
-      icon: <Users size={16} />,
-      iconBg: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400',
-      accentClass: 'bg-indigo-500'
+    {
+      key: 'total',
+      label: 'Total employés',
+      value: safeTotalItems.toLocaleString('fr-FR'),
+      icon: Users,
     },
-    { 
-      label: 'Masse salariale', 
-      value: formattedSalaire, 
-      icon: <Wallet size={16} />,
-      iconBg: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
-      accentClass: 'bg-emerald-500'
+    {
+      key: 'salaire',
+      label: 'Masse salariale',
+      value: formattedSalaire,
+      icon: Wallet,
     },
-    { 
-      label: 'Employés actifs', 
-      value: safeActifs.toLocaleString('fr-FR'), 
-      icon: <UserCheck size={16} />,
-      iconBg: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
-      accentClass: 'bg-blue-500'
+    {
+      key: 'actifs',
+      label: 'Employés actifs',
+      value: safeActifs.toLocaleString('fr-FR'),
+      icon: UserCheck,
     },
-    { 
-      label: "Taux d'activité", 
-      value: `${safeTauxActif.toFixed(2)}%`, 
-      icon: <TrendingUp size={16} />,
-      iconBg: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400',
-      accentClass: 'bg-amber-500'
+    {
+      key: 'taux',
+      label: "Taux d'activité",
+      value: `${safeTauxActif.toFixed(2)}%`,
+      icon: TrendingUp,
     },
   ];
 
   return (
     <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {stats.map((stat) => {
+        const Icon = stat.icon;
+        const accent = STAT_ACCENTS[stat.key as keyof typeof STAT_ACCENTS];
+
         return (
-          <div 
-            key={stat.label} 
-            className={`group relative min-h-[80px] rounded-lg border px-4 py-3.5 transition-all duration-200 ring-1 ring-transparent ${
-              isDark 
-                ? 'border-white/[0.12] bg-[#0F172A] hover:border-white/[0.18] hover:bg-slate-800 hover:ring-brand-500/20' 
-                : 'border-slate-200 bg-white hover:border-brand-500/40 hover:bg-brand-50/20 hover:ring-brand-500/20'
-            }`}
+          <div
+            key={stat.key}
+            className="group relative flex min-h-[100px] flex-col overflow-hidden rounded-xl border-[0.5px] border-slate-200 bg-white px-4 py-3.5 shadow-sm transition-colors duration-200 hover:border-brand-500/30 dark:border-white/[0.12] dark:bg-[#0F172A] dark:hover:border-brand-500/30"
           >
-            <div className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-full ${stat.accentClass} opacity-0 transition-opacity duration-200 group-hover:opacity-100`} />
+            {/* ⭐ Top accent color amin'ny hover */}
+            <div
+              className="absolute inset-x-0 top-0 h-[2px] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+              style={{ backgroundColor: accent.accent }}
+            />
 
-            <div className="flex min-w-0 items-center gap-3">
-
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${stat.iconBg}`}>
-                {stat.icon}
+            {/* Header: icon ankavia | label + valeur */}
+            <div className="flex min-w-0 items-start gap-3.5">
+              {/* Icon : h-10 w-10 (mifanaraka amin'ny KpiCard) */}
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${accent.iconBg} ${accent.iconColor} transition-transform duration-200 group-hover:scale-105`}
+              >
+                <Icon size={20} strokeWidth={2.2} />
               </div>
 
-              {/* ⭐ Label eo ambonin'ny valeur */}
-              {/* ⭐ FIX: Nampiasa <p> fa tsy <span> ary nampiasa text-base (16px) mba azo antoka */}
-              <div className="flex min-w-0 flex-1 flex-col">
-                <p className="min-w-0 truncate text-base font-medium text-slate-500 dark:text-slate-400">
+              {/* Label + Valeur */}
+              <div className="min-w-0 flex-1">
+                {/* Label : 12px uppercase (mifanaraka amin'ny KpiCard) */}
+                <p className="truncate text-[12px] font-semibold uppercase leading-[1.5] tracking-[0.07em] text-slate-500 dark:text-slate-400">
                   {stat.label}
                 </p>
-                <p className="mt-0.5 min-w-0 truncate text-[18px] font-semibold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
+
+                {/* Valeur : 20px bold (mifanaraka amin'ny KpiCard) */}
+                <p
+                  className="mt-1 truncate text-[20px] font-bold leading-[1.5] tracking-tight text-slate-900 dark:text-slate-100"
+                  title={String(stat.value)}
+                >
                   {stat.value}
                 </p>
               </div>

@@ -1,6 +1,6 @@
 // ============================================================
 // electron/ipc/fournisseurs/statements.cjs - CORRIGÉ
-// ⭐ FIX: stmtGetStats mamerina total, avec_contact, avec_email
+// ⭐ FIX: stmtGetStats mamerina total, avec_contact, avec_telephone, avec_email, avec_adresse
 // ⭐ FIX: NESORINA NY image
 // ============================================================
 'use strict';
@@ -24,28 +24,27 @@ function prepareStatements() {
     db.exec('CREATE INDEX IF NOT EXISTS idx_fournisseurs_created ON fournisseurs(created_at)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_fournisseurs_telephone ON fournisseurs(telephone)');
 
-    // ⭐ NESORINA NY image
     stmtGetById = db.prepare('SELECT id, nom, contact, telephone, email, adresse, created_at, updated_at FROM fournisseurs WHERE id = ?');
     stmtGetByName = db.prepare('SELECT id FROM fournisseurs WHERE LOWER(nom) = LOWER(?)');
     stmtGetByNameExcept = db.prepare('SELECT id FROM fournisseurs WHERE LOWER(nom) = LOWER(?) AND id != ?');
-    // ⭐ NESORINA NY image
     stmtGetByEmail = db.prepare('SELECT id, nom, contact, telephone, email, adresse FROM fournisseurs WHERE LOWER(email) = LOWER(?)');
     stmtGetByEmailExcept = db.prepare('SELECT id FROM fournisseurs WHERE LOWER(email) = LOWER(?) AND id != ?');
-    // ⭐ NESORINA NY image
+
     stmtCreate = db.prepare("INSERT INTO fournisseurs (nom, contact, telephone, email, adresse, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))");
-    // ⭐ NESORINA NY image
     stmtUpdate = db.prepare('UPDATE fournisseurs SET nom = ?, contact = ?, telephone = ?, email = ?, adresse = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
     stmtDelete = db.prepare('DELETE FROM fournisseurs WHERE id = ?');
     stmtProductCount = db.prepare('SELECT COUNT(*) as total FROM produits WHERE fournisseur_id = ?');
     stmtExpenseCount = db.prepare('SELECT COUNT(*) as total FROM depenses WHERE fournisseur_id = ?');
     stmtGetProductsByFournisseur = db.prepare('SELECT id, code, nom, prix_vente, quantite_stock, quantite_minimale, status FROM produits WHERE fournisseur_id = ? ORDER BY nom');
 
-    // ⭐ REQUÊTE STATS CORRIGÉE
+    // ⭐⭐⭐ STATS COMPLETE ⭐⭐⭐
     stmtGetStats = db.prepare(`
       SELECT 
         COUNT(*) as total,
-        COUNT(CASE WHEN contact IS NOT NULL AND contact != '' THEN 1 END) as avec_contact,
-        COUNT(CASE WHEN email IS NOT NULL AND email != '' THEN 1 END) as avec_email
+        COUNT(CASE WHEN contact IS NOT NULL AND TRIM(contact) != '' THEN 1 END) as avec_contact,
+        COUNT(CASE WHEN telephone IS NOT NULL AND TRIM(telephone) != '' THEN 1 END) as avec_telephone,
+        COUNT(CASE WHEN email IS NOT NULL AND TRIM(email) != '' THEN 1 END) as avec_email,
+        COUNT(CASE WHEN adresse IS NOT NULL AND TRIM(adresse) != '' THEN 1 END) as avec_adresse
       FROM fournisseurs
     `);
 

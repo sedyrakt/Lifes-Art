@@ -1,4 +1,7 @@
-
+// src/components/produits/ProduitsSearchBar.tsx
+// ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
+// ⭐ TYPOGRAPHIE alignée sur DashboardHeader / Stats components
+// ⭐ FONT SIZE: inputs/buttons 14px, dropdown items 14px, search 14px
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, ArrowUpDown, ChevronDown } from 'lucide-react';
@@ -56,6 +59,7 @@ const CustomSelect: React.FC<{
 
   return (
     <div ref={dropdownRef} className="relative">
+      {/* ⭐ Button : text-[14px] (aligned) */}
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
@@ -65,23 +69,26 @@ const CustomSelect: React.FC<{
           {icon && <span className="text-brand-500 dark:text-brand-500">{icon}</span>}
           <span className="truncate">{selectedOption?.label || placeholder}</span>
         </div>
-        <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        {/* ⭐ Chevron : 14 → 15 */}
+        <ChevronDown size={15} className={`shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
         <div className="absolute left-0 right-0 top-full z-[999] mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl dark:border-white/[0.12] dark:bg-slate-900">
           <div className="border-b border-slate-200 p-2 dark:border-white/[0.08]">
+            {/* ⭐ Search input : text-[13px] → text-[14px] */}
             <input
               ref={inputRef}
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Rechercher..."
-              className="h-8 w-full rounded-md border border-slate-200 bg-slate-50 px-2 text-[13px] outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 dark:border-white/[0.10] dark:bg-slate-800 dark:text-slate-200"
+              className="h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-2.5 text-[14px] outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 dark:border-white/[0.10] dark:bg-slate-800 dark:text-slate-200"
             />
           </div>
 
           <div className="custom-dropdown-scroll max-h-[200px] overflow-y-auto">
+            {/* ⭐ Reset button : text-[14px] (aligned) */}
             <button
               type="button"
               onClick={() => { onChange(''); setIsOpen(false); setSearchTerm(''); }}
@@ -90,6 +97,7 @@ const CustomSelect: React.FC<{
             >
               {placeholder}
             </button>
+            {/* ⭐ Dropdown items : text-[14px] (aligned) */}
             {filteredOptions.map((opt) => (
               <button
                 key={opt.value}
@@ -145,7 +153,9 @@ const ProduitsSearchBar: React.FC<ProduitsSearchBarProps> = ({
     <div className="mb-4 flex w-full flex-col gap-2">
       <div className="flex w-full flex-col gap-3 xl:flex-row xl:items-center">
         <div className="relative min-w-[280px] flex-1">
-          <Search size={18} strokeWidth={2} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors ${isFocused ? 'text-brand-500 dark:text-brand-500' : 'text-slate-400 dark:text-slate-500'}`} />
+          {/* ⭐ Search icon : 18 → 19 */}
+          <Search size={19} strokeWidth={2} className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors ${isFocused ? 'text-brand-500 dark:text-brand-500' : 'text-slate-400 dark:text-slate-500'}`} />
+          {/* ⭐ Input : text-[14px] (aligned) */}
           <input
             ref={searchRef}
             type="text"
@@ -157,7 +167,8 @@ const ProduitsSearchBar: React.FC<ProduitsSearchBarProps> = ({
             className={`h-10 w-full rounded-lg ${fieldBorder} ${fieldBackground} pl-11 pr-10 text-[14px] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none shadow-[0_1px_2px_rgba(79,70,229,0.03)] transition-all duration-150 hover:border-brand-500/40 dark:hover:border-white/[0.18] ${fieldFocus}`}
           />
           {!searchTerm && (
-            <div className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[13px] font-medium text-slate-500 shadow-sm sm:flex dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-slate-400">
+            /* ⭐ Ctrl K badge : text-[13px] → text-[13.5px] */
+            <div className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[13.5px] font-medium text-slate-500 shadow-sm sm:flex dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-slate-400">
               <span>Ctrl</span><span>K</span>
             </div>
           )}
@@ -168,7 +179,8 @@ const ProduitsSearchBar: React.FC<ProduitsSearchBarProps> = ({
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition-colors hover:bg-slate-50 hover:text-brand-500 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
               aria-label="Effacer la recherche"
             >
-              <X size={16} />
+              {/* ⭐ X icon : 16 → 17 */}
+              <X size={17} />
             </button>
           )}
         </div>
@@ -193,7 +205,9 @@ const ProduitsSearchBar: React.FC<ProduitsSearchBarProps> = ({
           />
 
           <div className="relative min-w-[150px]">
-            <ArrowUpDown size={15} strokeWidth={2} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500 dark:text-brand-500" />
+            {/* ⭐ ArrowUpDown icon : 15 → 16 */}
+            <ArrowUpDown size={16} strokeWidth={2} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-500 dark:text-brand-500" />
+            {/* ⭐ Sort select : text-[14px] (aligned) */}
             <select
               value={sortOption}
               onChange={(e) => onSortChange(e.target.value)}

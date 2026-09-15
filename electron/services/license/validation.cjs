@@ -1,4 +1,5 @@
 // electron/services/license/validation.cjs
+// ⭐ FIX: testpro 48h (2880 min) fa tsy 24h (1440 min)
 // ⭐ FIX: Mampiseho activatedAt ao amin'ny status
 'use strict';
 
@@ -7,6 +8,10 @@ const { GRACE_PERIOD_DAYS } = require('./constants.cjs');
 const { getLicensePath } = require('./utils.cjs');
 const { decryptData, verifyRSASignature } = require('./crypto.cjs');
 const { verifyMachineBinding } = require('./machine.cjs');
+
+// ⭐ FIX: Test pro 48h fa tsy 24h
+const TEST_PRO_MAX_MINUTES = 48 * 60;   // 2880 min
+const TEST_BASIC_MAX_MINUTES = 30;      // 30 min (raha misy test 30 min amin'ny ho avy)
 
 function checkExpiration(expirationDate, packageType = null, activatedAt = null) {
   if (!expirationDate) return { valid: false, status: 'invalid', daysRemaining: 0 };
@@ -27,11 +32,13 @@ function checkExpiration(expirationDate, packageType = null, activatedAt = null)
     }
 
     const activationTime = new Date(effectiveActivation);
-    let elapsedMinutes = (now.getTime() - activationTime.getTime()) / (1000 * 60);
-    let maxMinutes = 30; // default test
-    if (packageType === 'testpro') maxMinutes = 24 * 60;
+    const elapsedMinutes = (now.getTime() - activationTime.getTime()) / (1000 * 60);
 
-    let minutesRemaining = Math.ceil(maxMinutes - elapsedMinutes);
+    // ⭐ FIX: testpro = 48h (2880 min)
+    let maxMinutes = TEST_BASIC_MAX_MINUTES;
+    if (packageType === 'testpro') maxMinutes = TEST_PRO_MAX_MINUTES;
+
+    const minutesRemaining = Math.ceil(maxMinutes - elapsedMinutes);
 
     if (minutesRemaining > 0) {
       return { valid: true, status: 'active', daysRemaining: 0, minutesRemaining, isTest: true };
@@ -71,7 +78,7 @@ function checkSignature(licenseData) {
     licenseId: licenseData.licenseId || '',
     activationId: licenseData.activationId || '',
     licenseKey: licenseData.licenseKey || '',
-    packageType: licenseData.packageType || 'basic',
+    packageType: licenseData.packageType || 'national',
     expirationDate: licenseData.expirationDate || new Date().toISOString(),
     issuedAt: licenseData.issuedAt || new Date().toISOString(),
     maxUsers: licenseData.maxUsers ?? 1,
@@ -110,8 +117,14 @@ function checkLicenseStatus() {
 
     if (!isValid) message = 'Licence expirée';
     else if (expiration.isTest) {
-      if (decrypted.packageType === 'testpro') message = `🧪 TEST-PRO: ${minutesRemaining} min restantes (24h)`;
-      else message = `🧪 TEST: ${minutesRemaining} min restantes`;
+      // ⭐ FIX: testpro 48h
+      if (decrypted.packageType === 'testpro') {
+        const hours = Math.floor((minutesRemaining || 0) / 60);
+        const mins = (minutesRemaining || 0) % 60;
+        message = `🧪 TEST-PRO: ${hours}h ${mins}min restantes (48h)`;
+      } else {
+        message = `🧪 TEST: ${minutesRemaining} min restantes`;
+      }
     } else if (expiration.status === 'grace') message = `⚠️ Grace period: ${daysRemaining} jours restants`;
     else if (expiration.status === 'lifetime') message = '✅ Licence illimitée (Lifetime)';
     else if (daysRemaining <= 7) message = `⚠️ Licence expire dans ${daysRemaining} jours`;
@@ -142,4 +155,11 @@ function checkLicenseStatus() {
   }
 }
 
-module.exports = { checkExpiration, getGracePeriodEnd, checkSignature, checkLicenseStatus };
+module.exports = {
+  checkExpiration,
+  getGracePeriodEnd,
+  checkSignature,
+  checkLicenseStatus,
+  TEST_PRO_MAX_MINUTES,
+  TEST_BASIC_MAX_MINUTES,
+};

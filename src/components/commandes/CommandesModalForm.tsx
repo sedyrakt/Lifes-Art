@@ -1,38 +1,35 @@
 // src/components/commandes/CommandesModalForm.tsx
+// ⭐ REFACTOR: Nizara ho components ny CommandesModalForm
+// ⭐ TSY MISY niova ny logique — fizarana fotsiny
+// ⭐ FONT SIZE: inputs 15.5px, h-11, Total TTC 20.5px (+0.5px)
+// ⭐ FIX: setInternalMontagePaye → setInternalMontantPaye
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, CheckCircle, ChevronDown, Search, User, Check } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import CommandesProductSelector from './CommandesProductSelector';
-
-const COLORS = {
-  light: {
-    card: '#FFFFFF', border: '#E2E8F0', headerBg: '#FFFFFF', inputBg: '#FFFFFF',
-    softBg: '#F8FAFC', text: '#0F172A', muted: '#64748B', subMuted: '#94A3B8',
-    primary: '#4F46E5', primaryHover: '#4338CA', primaryBg: 'rgba(79,70,229,0.08)',
-    green: '#059669', red: '#DC2626', amber: '#D97706',
-  },
-  dark: {
-    card: '#0F172A', border: 'rgba(255,255,255,0.12)', headerBg: '#0F172A', inputBg: '#0F172A',
-    softBg: '#0F172A', text: '#F8FAFC', muted: '#94A3B8', subMuted: '#94A3B8',
-    primary: '#4F46E5', primaryHover: '#4338CA', primaryBg: 'rgba(79,70,229,0.12)',
-    green: '#34D399', red: '#F87171', amber: '#FBBF24',
-  },
-};
-
-interface Client { id: number; nom: string; email: string; telephone: string; adresse: string; }
-interface Produit { id: number; nom: string; code: string; prix_vente: number; quantite_stock: number; unite?: string; tva_rate?: number; }
-interface SelectedProduct { id: number; quantite: number; tva_rate?: number; }
+import {
+  COLORS,
+  formatMoney,
+  type Client,
+  type Produit,
+  type SelectedProduct,
+} from './CommandesModalForm/CommandesModalConstants';
+import { FormField } from './CommandesModalForm/FormField';
+import { ClientSelector } from './CommandesModalForm/ClientSelector';
+import { CommandesModalHeader } from './CommandesModalForm/CommandesModalHeader';
+import { CommandesModalFooter } from './CommandesModalForm/CommandesModalFooter';
+import { CommandesTotalsCard } from './CommandesModalForm/CommandesTotalsCard';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
-  clients?: Client[];  // ⭐ Optional
-  produits?: Produit[]; // ⭐ Optional
+  clients?: Client[];
+  produits?: Produit[];
   selectedClientId: number | null;
   onClientChange: (id: number | null) => void;
-  selectedProduits?: SelectedProduct[]; // ⭐ Optional
+  selectedProduits?: SelectedProduct[];
   onAddProduit: (id: number, quantite: number, tva_rate?: number) => void;
   onUpdateQuantite: (id: number, quantite: number) => void;
   onRemoveProduit: (id: number) => void;
@@ -41,19 +38,6 @@ interface Props {
   montantPaye?: number;
   onMontantPayeChange?: (value: number) => void;
 }
-
-const FormField: React.FC<{ label: string; children: React.ReactNode; required?: boolean; }> = ({ label, children, required = false }) => {
-  const { isDark } = useTheme();
-  const theme = isDark ? COLORS.dark : COLORS.light;
-  return (
-    <div className="min-w-0">
-      <label className="mb-1.5 block text-[14px] font-semibold" style={{ color: theme.text }}>
-        {label}{required && <span className="ml-0.5 text-red-500">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-};
 
 const CommandesModalForm: React.FC<Props> = ({
   isOpen, onClose, onSubmit, clients, produits, selectedClientId, onClientChange,
@@ -64,28 +48,26 @@ const CommandesModalForm: React.FC<Props> = ({
   const isDark = propIsDark ?? themeIsDark;
   const theme = isDark ? COLORS.dark : COLORS.light;
   const formRef = useRef<HTMLFormElement>(null);
-  const [internalMontantPaye, setInternalMontantPaye] = useState(montantPaye);
-  const [clientSearch, setClientSearch] = useState('');
-  const [clientOpen, setClientOpen] = useState(false);
 
-  // ⭐ FANITSIANA: Misy default value raha undefined
+  const [internalMontantPaye, setInternalMontantPaye] = useState(montantPaye);
+  const [modePaiement, setModePaiement] = useState('Espèces');
+  const [modaliteValue, setModaliteValue] = useState<number>(0);
+  const [modaliteUnit, setModaliteUnit] = useState('jours');
+  const [fraisLivraison, setFraisLivraison] = useState<number>(0);
+
+  const modalitePaiement = modaliteValue > 0 ? `${modaliteValue} ${modaliteUnit}` : 'Immediat';
+  const modaliteMessage = modaliteValue > 0
+    ? `Paiement dans ${modaliteValue} ${modaliteUnit}.`
+    : 'Paiement Immédiat';
+
   const safeClients = Array.isArray(clients) ? clients : [];
   const safeProduits = Array.isArray(produits) ? produits : [];
   const safeSelectedProduits = Array.isArray(selectedProduits) ? selectedProduits : [];
 
-  // ⭐ HEADER: Fotsy amin'ny light mode
-  const headerBg = isDark ? theme.headerBg : '#FFFFFF'; // White
-  const headerTextColor = isDark ? theme.text : theme.text; // Slate-900
-  const headerSubTextColor = isDark ? theme.muted : theme.muted; // Slate-500
-  const headerIconBg = isDark ? theme.primaryBg : 'rgba(79,70,229,0.08)'; // Indigo very light
-  const headerIconColor = isDark ? theme.primary : theme.primary; // Indigo-600
-  const headerCloseColor = isDark ? theme.muted : theme.muted; // Slate-500
-  const headerCloseHover = isDark ? 'dark:hover:bg-white/5' : 'hover:bg-slate-100';
-
-  // Top border: solid indigo en light, gradient en dark
   const topBorderBg = isDark ? `linear-gradient(90deg, ${theme.primary}, #3b82f6)` : '#4F46E5';
 
-  const totalHT = useMemo(() => safeSelectedProduits.reduce((sum, item) => {
+  // ═══════════ Calculs ═══════════
+  const totalHTProduits = useMemo(() => safeSelectedProduits.reduce((sum, item) => {
     const product = safeProduits.find((p) => p.id === item.id);
     return product ? sum + (Number(product.prix_vente) || 0) * (Number(item.quantite) || 0) : sum;
   }, 0), [safeProduits, safeSelectedProduits]);
@@ -94,14 +76,15 @@ const CommandesModalForm: React.FC<Props> = ({
     return safeSelectedProduits.reduce((sum, item) => {
       const product = safeProduits.find((p) => p.id === item.id);
       const rate = (product?.tva_rate !== undefined && product?.tva_rate !== null && product?.tva_rate !== '')
-        ? Number(product.tva_rate)
-        : 0.2;
+        ? Number(product.tva_rate) : 0;
       const lineTotal = (Number(product?.prix_vente) || 0) * (Number(item.quantite) || 0);
       return sum + (lineTotal * rate);
     }, 0);
   }, [safeProduits, safeSelectedProduits]);
 
+  const totalHT = totalHTProduits + Number(fraisLivraison || 0);
   const totalTTC = totalHT + totalTVA;
+
   const montantPayeSafe = Math.max(0, Math.min(Number(internalMontantPaye) || 0, totalTTC));
   const resteAPayer = Math.max(0, totalTTC - montantPayeSafe);
   const statutPaiement = montantPayeSafe <= 0 ? 'Non payé' : montantPayeSafe >= totalTTC ? 'Payé' : 'Partiel';
@@ -116,33 +99,48 @@ const CommandesModalForm: React.FC<Props> = ({
     const tauxSet = new Set(safeSelectedProduits.map(item => {
       const produit = safeProduits.find(p => p.id === item.id);
       const rate = (produit?.tva_rate !== undefined && produit?.tva_rate !== null && produit?.tva_rate !== '')
-        ? Number(produit.tva_rate)
-        : 0.2;
+        ? Number(produit.tva_rate) : 0;
       return rate;
     }));
     return Array.from(tauxSet).map(t => `${(t * 100).toFixed(0)}%`).join(' / ');
   }, [safeProduits, safeSelectedProduits]);
 
-  // ⭐ FANITSIANA: Mampiasa safeClients
-  const filteredClients = useMemo(() => {
-    if (!clientSearch) return safeClients.slice(0, 50);
-    const q = clientSearch.toLowerCase();
-    return safeClients.filter(c =>
-      c.nom?.toLowerCase().includes(q) ||
-      c.email?.toLowerCase().includes(q) ||
-      c.telephone?.toLowerCase().includes(q)
-    ).slice(0, 50);
-  }, [safeClients, clientSearch]);
+  const hasClient = selectedClientId !== null;
+  const hasProduct = safeSelectedProduits.length > 0;
+  const isDeliveryEnabled = hasClient && hasProduct;
 
-  const selectedClient = safeClients.find(c => c.id === selectedClientId);
+  // ═══════════ Refs ho fanaraha-maso ny state TALOHA ═══════════
+  const wasOpenRef = useRef(false);
+  const prevTotalTTCRef = useRef(totalTTC);
 
+  // ⭐ Reset form rehefa MISOKATRA
   useEffect(() => {
-    if (!isOpen) return;
-    setInternalMontantPaye(montantPaye);
-    setClientSearch('');
-    setClientOpen(false);
+    if (isOpen && !wasOpenRef.current) {
+      wasOpenRef.current = true;
+      setInternalMontantPaye(montantPaye);
+      setFraisLivraison(0);
+      setModaliteValue(0);
+      setModaliteUnit('jours');
+      prevTotalTTCRef.current = 0;
+    } else if (!isOpen && wasOpenRef.current) {
+      wasOpenRef.current = false;
+    }
   }, [isOpen, montantPaye]);
 
+  // ⭐ Clamp montantPaye rehefa miova totalTTC
+  useEffect(() => {
+    if (!isOpen) return;
+    if (prevTotalTTCRef.current !== totalTTC) {
+      prevTotalTTCRef.current = totalTTC;
+      if (internalMontantPaye > totalTTC) {
+        const clamped = Math.max(0, totalTTC);
+        setInternalMontantPaye(clamped);
+        onMontantPayeChange?.(clamped);
+      }
+    }
+  }, [totalTTC, isOpen, internalMontantPaye, onMontantPayeChange]);
+
+  // ⭐ Escape + Ctrl+Enter
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -155,7 +153,9 @@ const CommandesModalForm: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
-  const inputClass = `h-11 w-full rounded-lg border px-3 text-[15px] font-medium outline-none transition-all focus:ring-2 dark:placeholder-gray-500`;
+  // ═══════════ Styles ═══════════
+  // ⭐ Inputs : h-11, text-[15.5px] (+0.5px), px-3.5
+  const inputClass = `h-11 w-full rounded-lg border px-3.5 text-[15.5px] font-medium outline-none transition-all focus:ring-2 dark:placeholder-gray-500`;
   const inputStyle = { background: theme.inputBg, borderColor: theme.border, color: theme.text };
   const focusStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     e.currentTarget.style.borderColor = theme.primary;
@@ -166,93 +166,62 @@ const CommandesModalForm: React.FC<Props> = ({
     e.currentTarget.style.boxShadow = 'none';
   };
 
-  const formatMoney = (value: number) => `${Number(value || 0).toLocaleString('fr-FR')} Ar`;
+  const deliveryInputStyle = !isDeliveryEnabled
+    ? { ...inputStyle, opacity: 0.55, cursor: 'not-allowed' }
+    : { ...inputStyle, borderColor: theme.primary, boxShadow: `0 0 0 3px ${theme.primaryBg}`, transition: 'all 0.3s ease' };
 
+  const deliveryHelper = (() => {
+    if (isDeliveryEnabled && fraisLivraison > 0) {
+      return { text: `Livraison activée — ${formatMoney(fraisLivraison)} ajouté au total`, color: theme.green, icon: 'check' as const };
+    }
+    if (isDeliveryEnabled) {
+      return { text: 'Livraison non activée — saisissez des frais si applicable', color: theme.muted, icon: 'alert' as const };
+    }
+    if (!hasClient && !hasProduct) return { text: 'Sélectionnez un client et ajoutez un produit pour activer', color: theme.muted, icon: 'alert' as const };
+    if (!hasClient) return { text: 'Sélectionnez d\'abord un client', color: theme.amber, icon: 'alert' as const };
+    return { text: 'Ajoutez au moins un produit au panier', color: theme.amber, icon: 'alert' as const };
+  })();
+
+  // ═══════════ Modal ═══════════
   const modal = (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4" style={{ background: isDark ? 'rgba(0,0,0,0.80)' : 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }} role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="relative w-full max-w-4xl flex-col overflow-hidden rounded-2xl border shadow-2xl" style={{ background: theme.card, borderColor: theme.border }} onMouseDown={(e) => e.stopPropagation()}>
-        {/* ⭐ TOP BORDER: solid indigo en light mode */}
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
+      style={{ background: isDark ? 'rgba(0,0,0,0.80)' : 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="relative w-full max-w-4xl flex max-h-[85vh] flex-col overflow-hidden rounded-2xl border shadow-2xl"
+        style={{ background: theme.card, borderColor: theme.border }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="absolute left-0 right-0 top-0 h-[3px]" style={{ background: topBorderBg }} />
-        {/* ⭐ HEADER BLANC EN LIGHT */}
-        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ background: headerBg, borderColor: theme.border }}>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg" style={{ background: headerIconBg }}>
-              <User size={19} style={{ color: headerIconColor }} />
-            </div>
-            <div>
-              <h2 className="text-[17px] font-bold" style={{ color: headerTextColor }}>Nouvelle commande</h2>
-              <p className="text-[13px]" style={{ color: headerSubTextColor }}>Créer une commande</p>
-            </div>
-          </div>
-          <button onClick={onClose} className={`p-1 rounded-md ${headerCloseHover}`} style={{ color: headerCloseColor }}>
-            <X size={19} />
-          </button>
-        </div>
 
-        <form ref={formRef} onSubmit={onSubmit} className="flex flex-col">
-          <div className="p-6 max-h-[80vh] overflow-y-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* HEADER */}
+        <CommandesModalHeader onClose={onClose} />
+
+        {/* BODY */}
+        <form ref={formRef} onSubmit={onSubmit} className="flex min-h-0 flex-col">
+          {/* ⭐ Body padding : p-5 */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-5">
+            {/* ⭐ Grid gap : gap-5 */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+
+              {/* ═══ Colonne gauche : Client + Produits ═══ */}
               <div className="space-y-4">
                 <FormField label="Client" required>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setClientOpen(!clientOpen)}
-                      className={`${inputClass} flex items-center justify-between text-left cursor-pointer`}
-                      style={inputStyle}
-                    >
-                      <span className="truncate flex items-center gap-2">
-                        <User size={15} style={{ color: theme.muted }} />
-                        {selectedClient ? selectedClient.nom : 'Sélectionner un client'}
-                      </span>
-                      <ChevronDown size={16} className={`ml-2 shrink-0 transition-transform ${clientOpen ? 'rotate-180' : ''}`} style={{ color: theme.muted }} />
-                    </button>
-                    {clientOpen && (
-                      <div className="absolute left-0 right-0 z-[999] mt-1.5 max-h-52 overflow-y-auto rounded-lg border shadow-xl" style={{ borderColor: theme.border, background: theme.card }} onMouseDown={(e) => e.preventDefault()}>
-                        <div className="p-2 border-b sticky top-0" style={{ borderColor: theme.border, background: theme.card }}>
-                          <div className="relative">
-                            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: theme.muted }} />
-                            <input
-                              autoFocus
-                              value={clientSearch}
-                              onChange={(e) => setClientSearch(e.target.value)}
-                              placeholder="Rechercher..."
-                              className={`w-full h-10 rounded-md pl-9 pr-3 text-[14px] outline-none border`}
-                              style={inputStyle}
-                            />
-                          </div>
-                        </div>
-                        <div className="py-1">
-                          {filteredClients.length === 0 ? (
-                            <div className="px-4 py-3 text-[14px]" style={{ color: theme.muted }}>Aucun client trouvé</div>
-                          ) : (
-                            filteredClients.map(c => (
-                              <button
-                                key={c.id}
-                                type="button"
-                                onClick={() => {
-                                  onClientChange(c.id);
-                                  setClientOpen(false);
-                                  setClientSearch('');
-                                }}
-                                className="flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-slate-50 dark:hover:bg-white/5"
-                                style={{ color: theme.text }}
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-[14px] font-semibold truncate">{c.nom}</p>
-                                  <p className="text-[12px] truncate" style={{ color: theme.muted }}>{c.telephone} · {c.email}</p>
-                                </div>
-                                {c.id === selectedClientId && <Check size={16} style={{ color: theme.primary }} />}
-                              </button>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <ClientSelector
+                    clients={safeClients}
+                    selectedClientId={selectedClientId}
+                    onClientChange={onClientChange}
+                    inputClass={inputClass}
+                    inputStyle={inputStyle}
+                  />
                 </FormField>
 
-                <div className="overflow-hidden rounded-xl border h-full" style={{ borderColor: theme.border, background: theme.card }}>
+                {/* ⭐ Height : h-[320px] */}
+                <div className="overflow-hidden rounded-xl border h-[320px]" style={{ borderColor: theme.border, background: theme.card }}>
                   <CommandesProductSelector
                     produits={safeProduits}
                     selectedProduits={safeSelectedProduits}
@@ -265,73 +234,60 @@ const CommandesModalForm: React.FC<Props> = ({
                 </div>
               </div>
 
+              {/* ═══ Colonne droite : Totaux + Paiement ═══ */}
               <div className="space-y-4">
-                <div className="rounded-xl border p-5" style={{ borderColor: theme.border, background: theme.softBg }}>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col">
-                      <span className="text-[12px] uppercase tracking-wide font-medium" style={{ color: theme.muted }}>Total HT</span>
-                      <span className="text-[17px] font-bold mt-1" style={{ color: theme.text }}>{formatMoney(totalHT)}</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[12px] uppercase tracking-wide font-medium" style={{ color: theme.muted }}>TVA ({tauxTVA || '20%'})</span>
-                      <span className="text-[17px] font-bold mt-1" style={{ color: theme.text }}>{formatMoney(totalTVA)}</span>
-                    </div>
-                  </div>
+                <CommandesTotalsCard
+                  totalHT={totalHT}
+                  totalTVA={totalTVA}
+                  totalTTC={totalTTC}
+                  tauxTVA={tauxTVA}
+                  modePaiement={modePaiement}
+                  setModePaiement={setModePaiement}
+                  modaliteValue={modaliteValue}
+                  setModaliteValue={setModaliteValue}
+                  modaliteUnit={modaliteUnit}
+                  setModaliteUnit={setModaliteUnit}
+                  modaliteMessage={modaliteMessage}
+                  fraisLivraison={fraisLivraison}
+                  setFraisLivraison={setFraisLivraison}
+                  isDeliveryEnabled={isDeliveryEnabled}
+                  hasClient={hasClient}
+                  hasProduct={hasProduct}
+                  deliveryInputStyle={deliveryInputStyle}
+                  deliveryHelper={deliveryHelper}
+                  internalMontantPaye={internalMontantPaye}
+                  setInternalMontantPaye={setInternalMontantPaye}
+                  onMontantPayeChange={onMontantPayeChange}
+                  resteAPayer={resteAPayer}
+                  statutPaiement={statutPaiement}
+                  statutConfig={statutConfig}
+                  inputClass={inputClass}
+                  inputStyle={inputStyle}
+                  focusStyle={focusStyle}
+                  blurStyle={blurStyle}
+                />
 
-                  <div className="my-4 h-px" style={{ background: theme.border }} />
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-[14px] font-medium" style={{ color: theme.muted }}>Montant payé</span>
-                    <input
-                      type="number"
-                      min="0"
-                      max={totalTTC}
-                      step="1"
-                      value={internalMontantPaye}
-                      onChange={(e) => {
-                        const val = Number(e.target.value) || 0;
-                        setInternalMontantPaye(val);
-                        onMontantPayeChange?.(val);
-                      }}
-                      className="w-32 h-10 rounded-md border px-2 text-right text-[15px] font-semibold outline-none focus:ring-2"
-                      style={{ background: theme.inputBg, borderColor: theme.border, color: theme.text }}
-                      onFocus={focusStyle}
-                      onBlur={blurStyle}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between mt-3">
-                    <span className="text-[14px] font-medium" style={{ color: theme.muted }}>Reste à payer</span>
-                    <span className="text-[15px] font-bold" style={{ color: theme.red }}>{formatMoney(resteAPayer)}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-4">
-                    <span className="text-[14px] font-medium" style={{ color: theme.muted }}>Statut</span>
-                    <span className="inline-flex items-center rounded-full border px-3 py-1 text-[13px] font-semibold" style={{ color: statutConfig.color, background: statutConfig.bg, borderColor: statutConfig.border }}>
-                      {statutPaiement}
-                    </span>
-                  </div>
+                {/* Total TTC — ⭐ fontSize +0.5px (15px → 15.5px, 20px → 20.5px) */}
+                <div className="flex items-center justify-between rounded-xl border px-4 py-3 shadow-sm" style={{ background: theme.primaryBg, borderColor: theme.primary }}>
+                  <span className="text-[15.5px] font-bold" style={{ color: theme.primary }}>Total TTC</span>
+                  <span className="text-[20.5px] font-black tracking-tight" style={{ color: theme.primary }}>{formatMoney(totalTTC)}</span>
                 </div>
 
-                <div className="flex items-center justify-between rounded-xl border px-5 py-4 shadow-sm" style={{ background: theme.primaryBg, borderColor: theme.primary }}>
-                  <span className="text-[16px] font-bold" style={{ color: theme.primary }}>Total TTC</span>
-                  <span className="text-[22px] font-black tracking-tight" style={{ color: theme.primary }}>{formatMoney(totalTTC)}</span>
-                </div>
-
+                {/* Hidden inputs */}
+                <input type="hidden" name="mode_paiement" value={modePaiement} />
+                <input type="hidden" name="modalite_paiement" value={modalitePaiement} />
+                <input type="hidden" name="frais_livraison" value={isDeliveryEnabled ? fraisLivraison : 0} />
+                <input type="hidden" name="livraison" value={isDeliveryEnabled && fraisLivraison > 0 ? 'Oui' : 'Non'} />
                 <input type="hidden" name="details_tva_rates" value={JSON.stringify(safeSelectedProduits.map(item => ({
-                  id: item.id, quantite: item.quantite, tva_rate: safeProduits.find(p => p.id === item.id)?.tva_rate ?? 0.2
+                  id: item.id, quantite: item.quantite, tva_rate: safeProduits.find(p => p.id === item.id)?.tva_rate ?? 0
                 })))} />
                 <input type="hidden" name="montant_paye" value={internalMontantPaye} />
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: theme.border, background: theme.softBg }}>
-            <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-[14px] font-medium hover:bg-slate-100 dark:hover:bg-white/5 transition-colors" style={{ color: theme.muted }}>Annuler</button>
-            <button type="submit" className="px-5 py-2.5 rounded-lg text-[14px] font-semibold text-white shadow-md transition-transform active:scale-[0.98] hover:shadow-lg" style={{ background: theme.primary }}>
-              <CheckCircle size={15} className="inline mr-1" />Valider
-            </button>
-          </div>
+          {/* FOOTER */}
+          <CommandesModalFooter onClose={onClose} />
         </form>
       </div>
     </div>

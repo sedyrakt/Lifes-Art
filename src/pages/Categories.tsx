@@ -1,4 +1,6 @@
 // src/pages/Categories.tsx
+// ⭐ FIX: Hooks filaharana — useState rehetra alohan'ny useEffect/useCallback/useMemo
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Search, X, Plus } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
@@ -46,17 +48,23 @@ const CategorySkeleton = ({ isDark }: { isDark: boolean }) => {
 };
 
 const Categories: React.FC = () => {
+  // ═══════════════════════════════════════════════════════════
+  // 1️⃣ HOOKS EXTERNES (useTheme + useCategoriesData)
+  // ═══════════════════════════════════════════════════════════
   const { isDark } = useTheme();
   const {
     categories, loading, refreshing, totalItems, totalPages, currentPage,
     setCurrentPage, searchTerm, setSearchTerm, sortOption, setSortOption,
     loadData, createCategorie, updateCategorie, deleteCategorie, bulkDelete,
+    getStats,
     getCategoryColor, ITEMS_PER_PAGE,
     exportPeriod, setExportPeriod, exportCustomDate, setExportCustomDate,
     exportToExcel, exportToPDF, exportToCSV,
   } = useCategoriesData();
 
-  // ===== HOOKS – rehetra ato ambony =====
+  // ═══════════════════════════════════════════════════════════
+  // 2️⃣ useState REHETRA (filaharana tsy miova)
+  // ═══════════════════════════════════════════════════════════
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successTitle, setSuccessTitle] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -66,7 +74,15 @@ const Categories: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [bulkDeleteTargetIds, setBulkDeleteTargetIds] = useState<number[]>([]);
-  const [reelStats, setReelStats] = useState({ total: 0, avecDescription: 0, totalProduits: 0 });
+  const [reelStats, setReelStats] = useState({
+    total: 0,
+    avecDescription: 0,
+    sansDescription: 0,
+    totalProduits: 0,
+    categoriesVides: 0,
+    totalStock: 0,
+    valeurStock: 0,
+  });
   const [statsLoading, setStatsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -75,19 +91,21 @@ const Categories: React.FC = () => {
   const [editingCategorie, setEditingCategorie] = useState<any>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
-  // ===== CALLBACKS =====
+  // ═══════════════════════════════════════════════════════════
+  // 3️⃣ useCallback (filaharana tsy miova)
+  // ═══════════════════════════════════════════════════════════
   const showSuccess = useCallback((title: string, message: string) => {
     setSuccessTitle(title);
     setSuccessMessage(message);
     setShowSuccessModal(true);
   }, []);
+
   const showError = useCallback((title: string, message: string) => {
     setErrorTitle(title);
     setErrorMessage(message);
     setShowErrorModal(true);
   }, []);
 
-  // ⭐ Handle Export
   const handleExport = useCallback(async (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => {
     try {
       let result;
@@ -100,7 +118,6 @@ const Categories: React.FC = () => {
         showError('Erreur export', result.error || 'Impossible d\'exporter les données.');
         return;
       }
-
       showSuccess('Export réussi', `Les catégories ont été exportées en ${format.toUpperCase()} (${period}${period === 'custom' ? ' - ' + customDate : ''}).`);
     } catch (error: any) {
       showError('Erreur export', error?.message || 'Impossible d\'exporter les données.');
@@ -108,10 +125,7 @@ const Categories: React.FC = () => {
   }, [exportToExcel, exportToPDF, exportToCSV, showSuccess, showError]);
 
   const handleSelectAll = useCallback((checked: boolean) => {
-    if (!checked) {
-      setSelectedIds(new Set());
-      return;
-    }
+    if (!checked) { setSelectedIds(new Set()); return; }
     setSelectedIds(prev => {
       const next = new Set(prev);
       categories.forEach(category => {
@@ -171,11 +185,16 @@ const Categories: React.FC = () => {
     setStatsLoading(true);
     try {
       const result = await window.api.categories.getStats();
-      if (result?.success) {
+      if (result?.success && result.data) {
+        const data = result.data;
         setReelStats({
-          total: Number(result.data?.total || 0),
-          avecDescription: Number(result.data?.avecDescription || 0),
-          totalProduits: Number(result.data?.totalProduits || 0)
+          total: Number(data.total) || 0,
+          avecDescription: Number(data.avecDescription || data.avec_description) || 0,
+          sansDescription: Number(data.sansDescription || data.sans_description) || 0,
+          totalProduits: Number(data.totalProduits || data.total_produits) || 0,
+          categoriesVides: Number(data.categoriesVides || data.categories_vides) || 0,
+          totalStock: Number(data.totalStock || data.total_stock) || 0,
+          valeurStock: Number(data.valeurStock || data.valeur_stock) || 0,
         });
       }
     } catch (error) {
@@ -185,24 +204,9 @@ const Categories: React.FC = () => {
     }
   }, []);
 
-  const categoriesWithCounts = useMemo(
-    () => categories.map(category => ({ ...category, produits_count: Number((category as any).produits_count || 0) })),
-    [categories]
-  );
-
-  const tauxCompletion = useMemo(() => {
-    if (reelStats.total <= 0) return 0;
-    return Math.round((reelStats.avecDescription / reelStats.total) * 100);
-  }, [reelStats]);
-
   const refreshAll = useCallback(async () => {
     await Promise.allSettled([loadData(), fetchStats()]);
   }, [loadData, fetchStats]);
-
-  // ===== EFFECTS =====
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
 
   const handleOpenAddModal = useCallback(() => {
     setEditingCategorie(null);
@@ -237,7 +241,7 @@ const Categories: React.FC = () => {
       setSelectedIds(new Set());
       await refreshAll();
     } catch (error: any) {
-      showError('Erreur', error?.message || 'Une erreur est survenue lors de l’opération.');
+      showError('Erreur', error?.message || 'Une erreur est survenue lors de l\'opération.');
     }
   }, [editingCategorie, createCategorie, updateCategorie, refreshAll, showError, showSuccess]);
 
@@ -275,15 +279,48 @@ const Categories: React.FC = () => {
     setShowModal(true);
   }, []);
 
+  // ═══════════════════════════════════════════════════════════
+  // 4️⃣ useEffect (aorian'ny useCallback)
+  // ═══════════════════════════════════════════════════════════
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // ═══════════════════════════════════════════════════════════
+  // 5️⃣ useMemo (aorian'ny useEffect)
+  // ═══════════════════════════════════════════════════════════
+  const categoriesWithCounts = useMemo(
+    () => categories.map(category => ({ ...category, produits_count: Number((category as any).produits_count || 0) })),
+    [categories]
+  );
+
+  const tauxCompletion = useMemo(() => {
+    if (reelStats.total <= 0) return 0;
+    return Math.round((reelStats.avecDescription / reelStats.total) * 100);
+  }, [reelStats]);
+
+  const globalStats = useMemo(() => ({
+    total: reelStats.total,
+    avecDescription: reelStats.avecDescription,
+    sansDescription: reelStats.sansDescription,
+    totalProduits: reelStats.totalProduits,
+    categoriesVides: reelStats.categoriesVides,
+    totalStock: reelStats.totalStock,
+    valeurStock: reelStats.valeurStock,
+  }), [reelStats]);
+
+  const hasActiveFilter = useMemo(() => Boolean(
+    searchTerm.trim() ||
+    (sortOption && sortOption !== 'Nom (A-Z)')
+  ), [searchTerm, sortOption]);
+
   const hasSearch = searchTerm.trim().length > 0;
 
+  // ═══════════════════════════════════════════════════════════
+  // 6️⃣ RENDER
+  // ═══════════════════════════════════════════════════════════
   return (
-    <main
-      className="min-h-full w-full transition-colors duration-300"
-      style={{
-        background: isDark ? '#0F172A' : '#EEF2FF',
-      }}
-    >
+    <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
         <CategoriesHeader
           onAddCategorie={handleOpenAddModal}
@@ -364,6 +401,8 @@ const Categories: React.FC = () => {
               onSelectAll={handleSelectAll}
               onSelectOne={handleSelectOne}
               onBulkDelete={handleBulkDelete}
+              globalStats={globalStats}
+              hasActiveFilter={hasActiveFilter}
             />
           )}
         </section>
@@ -444,6 +483,7 @@ const Categories: React.FC = () => {
         message={successMessage}
         buttonText="OK"
         autoCloseDelay={3000}
+        zIndex={100000}
       />
 
       <ErrorModal
@@ -453,6 +493,7 @@ const Categories: React.FC = () => {
         message={errorMessage}
         buttonText="OK"
         autoCloseDelay={4000}
+        zIndex={100000}
       />
     </main>
   );

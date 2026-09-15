@@ -1,3 +1,8 @@
+// ============================================================
+// src/components/paiements/PaiementsContent.tsx
+// ⭐ FIX: Nampiana prop onPayEmployee ho an'ny vue calendrier
+// ============================================================
+
 import React from 'react';
 import { LoadingState } from './LoadingState';
 import PaiementsCalendrier from './PaiementsCalendrier';
@@ -44,6 +49,8 @@ interface PaiementsContentProps {
   onSelectAll?: (checked: boolean) => void;
   onSelectOne?: (id: number, checked: boolean) => void;
   onBulkDelete?: (ids: number[]) => void;
+  /** ⭐ NOUVEAU: Callback rehefa tsindriana "Payer" avy amin'ny calendrier */
+  onPayEmployee?: (employeId: number, date?: string) => void;
 }
 
 export function PaiementsContent({
@@ -82,12 +89,21 @@ export function PaiementsContent({
   onSelectAll,
   onSelectOne,
   onBulkDelete,
+  onPayEmployee,  // ⭐ NOUVEAU
 }: PaiementsContentProps) {
   if (loading) return <LoadingState />;
 
   if (viewMode === 'calendrier') {
-    return <PaiementsCalendrier paiements={filteredPaiements} allPaiements={allPaiements} employes={employes} />;
+    return (
+      <PaiementsCalendrier
+        paiements={filteredPaiements}
+        allPaiements={allPaiements}
+        employes={employes}
+        onPayEmployee={onPayEmployee}  // ⭐ NOUVEAU
+      />
+    );
   }
+
   if (viewMode === 'echeances') {
     return (
       <PaiementsEcheances
@@ -98,6 +114,7 @@ export function PaiementsContent({
       />
     );
   }
+
   if (viewMode === 'bulletin') {
     return (
       <PaiementsBulkMode
@@ -117,6 +134,7 @@ export function PaiementsContent({
       />
     );
   }
+
   // default liste
   return (
     <PaiementsListMode
@@ -130,7 +148,6 @@ export function PaiementsContent({
       totalPages={totalPages}
       totalItems={totalItems}
       onPageChange={onPageChange}
-      // ⭐ VAOVAO
       onAdd={onAdd}
       selectedIds={selectedIds}
       onSelectAll={onSelectAll}

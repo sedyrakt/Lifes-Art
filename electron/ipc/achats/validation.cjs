@@ -1,20 +1,30 @@
-// electron/ipc/achats/validation.cjs — ACHATS VALIDATION (FIXED TVA PAR PRODUIT)
+// electron/ipc/achats/validation.cjs — ACHATS VALIDATION (FIXED)
+// ⭐ FIX: Local date (tsy UTC) — mifanaraka amin'ny frontend
+// ⭐ FIX: TVA default = 0 (raha tsy misy) fa tsy 0.2 fixe
 'use strict';
 
+// ⭐ FIX: Local date (tsy UTC) — mifanaraka amin'ny toLocalDateString() frontend
 function normalizeDate(date) {
-  if (!date) return new Date().toISOString().split('T')[0];
+  if (!date) return getLocalDateISO();
   const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return new Date().toISOString().split('T')[0];
-  return parsed.toISOString().split('T')[0];
+  if (Number.isNaN(parsed.getTime())) return getLocalDateISO();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}`;
+}
+
+// ⭐ Helper: local YYYY-MM-DD
+function getLocalDateISO(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function validateAchat(data = {}) {
   const errors = [];
 
   const reference = typeof data.reference === 'string' ? data.reference.trim() : '';
-
   const fournisseurId = data.fournisseur_id !== undefined && data.fournisseur_id !== null && data.fournisseur_id !== ''
-    ? Number(data.fournisseur_id) : null;
+    ? Number(data.fournisseur_id)
+    : null;
 
   if (fournisseurId === null || !Number.isInteger(fournisseurId) || fournisseurId <= 0) {
     errors.push('Fournisseur invalide ou manquant');
@@ -34,7 +44,6 @@ function validateAchat(data = {}) {
   const nombreProduits = data.nombre_produits !== undefined && data.nombre_produits !== null
     ? Number(data.nombre_produits)
     : (Array.isArray(data.details) ? data.details.length : 0);
-
   if (!Number.isInteger(nombreProduits) || nombreProduits < 0) errors.push('Nombre de produits invalide');
 
   let montantPaye = Number(data.montant_paye ?? 0);
@@ -47,22 +56,27 @@ function validateAchat(data = {}) {
   else if (montantPaye >= totalTTC) statutPaiement = 'Payé';
   else statutPaiement = 'Partiel';
 
-  // ⭐ FIX: TSY MISY OVERRIDE INTRONTSON. Ampiasaina avy hatrany ny tva_rate isaky ny produit (na 0%, 10%, 20%)
-  const details = Array.isArray(data.details)
-    ? data.details.map(item => {
-        // Raha 0 dia 0, raha null/undefined/'' dia default 0.2
-        const tvaRate = (item?.tva_rate !== undefined && item?.tva_rate !== null && item?.tva_rate !== '')
-          ? Number(item.tva_rate)
-          : 0.2;
-        return {
-          produit_id: Number(item?.produit_id),
-          quantite: Number(item?.quantite),
-          prix_unitaire: Number(item?.prix_unitaire),
-          total: Number(item?.total),
-          tva_rate: tvaRate
-        };
-      })
-    : [];
+  const fraisLivraison = Math.max(0, Number(data.frais_livraison ?? 0));
+  const modePaiement = typeof data.mode_paiement === 'string' && data.mode_paiement.trim()
+    ? data.mode_paiement.trim()
+    : 'Espèces';
+  const modalitePaiement = typeof data.modalite_paiement === 'string' && data.modalite_paiement.trim()
+    ? data.modalite_paiement.trim()
+    : 'Immediat';
+
+  const details = Array.isArray(data.details) ? data.details.map(item => {
+    // ⭐ FIX: TVA default = 0 (fa tsy 0.2 fixe)
+    const tvaRate = (item?.tva_rate !== undefined && item?.tva_rate !== null && item?.tva_rate !== '')
+      ? Number(item.tva_rate)
+      : 0;
+    return {
+      produit_id: Number(item?.produit_id),
+      quantite: Number(item?.quantite),
+      prix_unitaire: Number(item?.prix_unitaire),
+      total: Number(item?.total),
+      tva_rate: tvaRate,
+    };
+  }) : [];
 
   for (const detail of details) {
     if (!Number.isInteger(detail.produit_id) || detail.produit_id <= 0) errors.push('Produit invalide dans les détails');
@@ -77,13 +91,23 @@ function validateAchat(data = {}) {
     valid: errors.length === 0,
     errors,
     data: {
-      reference, fournisseur_id: fournisseurId, date_achat: dateAchat,
-      total_ht: totalHT, total_ttc: totalTTC, statut_paiement: statutPaiement,
-      montant_paye: montantPaye, montant_restant: montantRestant,
-      observation, designation, nombre_produits: nombreProduits, details
-      // ⭐ ESORINA NY tva_rate GLOBAL SATRIA TSY ILAINA
-    }
+      reference,
+      fournisseur_id: fournisseurId,
+      date_achat: dateAchat,
+      total_ht: totalHT,
+      total_ttc: totalTTC,
+      statut_paiement: statutPaiement,
+      montant_paye: montantPaye,
+      montant_restant: montantRestant,
+      observation,
+      designation,
+      nombre_produits: nombreProduits,
+      details,
+      frais_livraison: fraisLivraison,
+      mode_paiement: modePaiement,
+      modalite_paiement: modalitePaiement,
+    },
   };
 }
 
-module.exports = { validateAchat };
+module.exports = { validateAchat, normalizeDate, getLocalDateISO };

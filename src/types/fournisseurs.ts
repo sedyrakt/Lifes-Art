@@ -10,10 +10,13 @@ export interface Fournisseur {
   created_at: string;
 }
 
+// ⭐ VAOVAO: avecTelephone + avecAdresse
 export interface FournisseursStats {
   total: number;
   avecContact: number;
+  avecTelephone: number;
   avecEmail: number;
+  avecAdresse: number;
   tauxContact: number;
 }
 

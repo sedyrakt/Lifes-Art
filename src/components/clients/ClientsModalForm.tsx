@@ -1,20 +1,11 @@
 // src/components/clients/ClientsModalForm.tsx
-import React from 'react';
-import { X, Plus, Pencil } from 'lucide-react';
-import { useTheme } from '../../contexts/ThemeContext';
+// ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
+// ⭐ TYPOGRAPHIE alignée sur ProduitsModalForm / CategoriesModalForm / FournisseursModalForm
+// ⭐ FONT SIZE: h2 18px, labels 14px, inputs 15px, buttons 15px
 
-const COLORS = {
-  light: {
-    card: '#FFFFFF', border: '#E2E8F0', softBg: '#F8FAFC', text: '#0F172A',
-    muted: '#64748B', primary: '#4F46E5', primaryHover: '#4338CA',
-    primaryBg: 'rgba(79,70,229,0.08)', inputBg: '#FFFFFF'
-  },
-  dark: {
-    card: '#0F172A', border: 'rgba(255,255,255,0.12)', softBg: '#0F172A', text: '#F8FAFC',
-    muted: '#94A3B8', primary: '#4F46E5', primaryHover: '#4338CA',
-    primaryBg: 'rgba(79,70,229,0.12)', inputBg: '#0F172A'
-  }
-};
+import React from 'react';
+import { X, Plus, Check } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface Client {
   id: number;
@@ -36,11 +27,10 @@ interface Props {
 }
 
 const FormField: React.FC<{ label: string; children: React.ReactNode; required?: boolean; fullWidth?: boolean; }> = ({ label, children, required = false, fullWidth = false }) => {
-  const { isDark } = useTheme();
-  const theme = isDark ? COLORS.dark : COLORS.light;
   return (
-    <div className={`min-w-0 ${fullWidth ? 'w-full' : ''}`}>
-      <label className="mb-1.5 block text-[14px] font-semibold" style={{ color: theme.text }}>
+    <div className={`min-w-0 ${fullWidth ? 'w-full md:col-span-2' : ''}`}>
+      {/* ⭐ Label : 12.5px → 14px */}
+      <label className="mb-1.5 block text-[14px] font-semibold text-slate-700 dark:text-slate-300">
         {label}{required && <span className="ml-1 text-brand-500">*</span>}
       </label>
       {children}
@@ -50,78 +40,78 @@ const FormField: React.FC<{ label: string; children: React.ReactNode; required?:
 
 const ClientsModalForm: React.FC<Props> = ({ isOpen, onClose, onSubmit, editingClient }) => {
   const { isDark } = useTheme();
-  const theme = isDark ? COLORS.dark : COLORS.light;
 
   if (!isOpen) return null;
 
-  const inputClass = `h-11 w-full rounded-lg border px-3 text-[15px] font-medium outline-none transition-all placeholder:text-gray-400 focus:ring-2 dark:placeholder:text-gray-500`;
-  const inputStyle = { background: theme.inputBg, borderColor: theme.border, color: theme.text };
-  const focusStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    e.currentTarget.style.borderColor = theme.primary;
-    e.currentTarget.style.boxShadow = `0 0 0 3px ${theme.primaryBg}`;
-  };
-  const blurStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    e.currentTarget.style.borderColor = theme.border;
-    e.currentTarget.style.boxShadow = 'none';
-  };
+  // ⭐ Inputs — text-[15px], h-11, px-3.5
+  const inputClass = `h-11 w-full rounded-lg border border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] px-3.5 text-[15px] font-medium text-slate-900 dark:text-slate-100 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10`;
 
   return (
     <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
-      style={{ background: isDark ? 'rgba(0,0,0,0.80)' : 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="client-modal-title"
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
       <div
-        className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-2xl border shadow-2xl"
-        style={{ background: theme.card, borderColor: theme.border }}
+        className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border-[0.5px] border-slate-200 dark:border-white/[0.12] bg-white dark:bg-[#0F172A] shadow-[0_18px_55px_rgba(15,23,42,0.35)]"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        {/* ⭐ STANDARD HEADER */}
-        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: theme.border, background: theme.card }}>
+        {/* HEADER — ⭐ h-14 → h-16, px-4 → px-5 */}
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 dark:border-white/[0.08] bg-white dark:bg-[#0F172A] px-5">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg" style={{ background: theme.primaryBg }}>
-              <Plus size={19} style={{ color: theme.primary }} />
+            {/* ⭐ Icon container : p-1.5 → p-2.5, icon 16 → 20 */}
+            <div className="p-2.5 rounded-lg bg-brand-50 dark:bg-brand-500/10">
+              {editingClient ? (
+                <Check size={20} strokeWidth={2.2} className="text-brand-500 dark:text-brand-400" />
+              ) : (
+                <Plus size={20} strokeWidth={2.2} className="text-brand-500 dark:text-brand-400" />
+              )}
             </div>
-            <h2 id="client-modal-title" className="text-[17px] font-bold" style={{ color: theme.text }}>
+            {/* ⭐ h2 : 13.5px → 18px */}
+            <h2 id="client-modal-title" className="truncate text-[18px] font-semibold tracking-tight text-slate-900 dark:text-slate-100">
               {editingClient ? 'Modifier le client' : 'Nouveau client'}
             </h2>
           </div>
-          <button type="button" onClick={onClose} className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>
-            <X size={19} />
+          {/* ⭐ Close button : h-8 w-8 → h-10 w-10, icon 16 → 18 */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.06]"
+          >
+            <X size={18} strokeWidth={2.2} />
           </button>
-        </div>
+        </header>
 
-        {/* ⭐ FIX LEHIBE: NAMPIANA <form onSubmit={onSubmit}> IZAO! */}
-        <form onSubmit={onSubmit}>
-          {/* STANDARD BODY */}
-          <div className="flex-1 overflow-y-auto p-6">
+        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+          {/* BODY — ⭐ px-4 py-4 → px-5 py-5 */}
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <FormField label="Nom complet" required fullWidth>
-                <input type="text" name="nom" defaultValue={editingClient?.nom || ''} required autoFocus={!editingClient} autoComplete="off" placeholder="Nom complet du client" className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
+                <input type="text" name="nom" defaultValue={editingClient?.nom || ''} required autoFocus={!editingClient} autoComplete="off" placeholder="Nom complet du client" className={inputClass} />
               </FormField>
               <FormField label="Email">
-                <input type="email" name="email" defaultValue={editingClient?.email || ''} placeholder="adresse@email.com" className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
+                <input type="email" name="email" defaultValue={editingClient?.email || ''} placeholder="adresse@email.com" className={inputClass} />
               </FormField>
               <FormField label="Téléphone">
-                <input type="tel" name="telephone" defaultValue={editingClient?.telephone || ''} placeholder="+261 32 12 345 67" className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
+                <input type="tel" name="telephone" defaultValue={editingClient?.telephone || ''} placeholder="+261 32 12 345 67" className={inputClass} />
               </FormField>
               <FormField label="Adresse">
-                <input type="text" name="adresse" defaultValue={editingClient?.adresse || ''} placeholder="Adresse complète" className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
+                <input type="text" name="adresse" defaultValue={editingClient?.adresse || ''} placeholder="Adresse complète" className={inputClass} />
               </FormField>
               <FormField label="Ville">
-                <input type="text" name="ville" defaultValue={editingClient?.ville || ''} placeholder="Antananarivo" className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
+                <input type="text" name="ville" defaultValue={editingClient?.ville || ''} placeholder="Antananarivo" className={inputClass} />
               </FormField>
               <FormField label="Code postal">
-                <input type="text" name="code_postal" defaultValue={editingClient?.code_postal || ''} placeholder="101" className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
+                <input type="text" name="code_postal" defaultValue={editingClient?.code_postal || ''} placeholder="101" className={inputClass} />
               </FormField>
               <FormField label="Pays">
-                <input type="text" name="pays" defaultValue={editingClient?.pays || 'Madagascar'} placeholder="Madagascar" className={inputClass} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} />
+                <input type="text" name="pays" defaultValue={editingClient?.pays || 'Madagascar'} placeholder="Madagascar" className={inputClass} />
               </FormField>
               <FormField label="Type de client" fullWidth>
-                <select name="type" defaultValue={editingClient?.type || 'Particulier'} className={`${inputClass} appearance-none cursor-pointer pr-8`} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle}>
+                <select name="type" defaultValue={editingClient?.type || 'Particulier'} className={`${inputClass} cursor-pointer`}>
                   <option value="Particulier">Particulier</option>
                   <option value="Entreprise">Entreprise</option>
                 </select>
@@ -129,22 +119,25 @@ const ClientsModalForm: React.FC<Props> = ({ isOpen, onClose, onSubmit, editingC
             </div>
           </div>
 
-          {/* ⭐ STANDARD FOOTER (submis ao anaty form) */}
-          <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: theme.border, background: theme.softBg }}>
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-[14px] font-medium hover:bg-slate-100 dark:hover:bg-white/5" style={{ color: theme.muted }}>
+          {/* FOOTER — ⭐ h-14 → h-[72px], px-4 → px-5 */}
+          <footer className="flex h-[72px] shrink-0 items-center justify-end gap-2 border-t border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-[#0F172A] px-5">
+            {/* ⭐ Annuler button : 13px → 15px, h-9 → h-10, px-3.5 → px-4.5 */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-10 rounded-lg px-4.5 text-[15px] font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/[0.06]"
+            >
               Annuler
             </button>
+            {/* ⭐ Submit button : 13px → 15px, h-9 → h-10, px-3.5 → px-5, icons 14 → 17 */}
             <button
               type="submit"
-              className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-[14px] font-semibold text-white shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
-              style={{ background: theme.primary }}
-              onMouseEnter={(event) => { event.currentTarget.style.background = theme.primaryHover; }}
-              onMouseLeave={(event) => { event.currentTarget.style.background = theme.primary; }}
+              className="flex h-10 items-center gap-2 rounded-lg bg-brand-500 px-5 text-[15px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-600 active:scale-[0.98]"
             >
-              {editingClient ? <Pencil size={15} /> : <Plus size={15} />}
+              {editingClient ? <Check size={17} strokeWidth={2.2} /> : <Plus size={17} strokeWidth={2.2} />}
               {editingClient ? 'Enregistrer' : 'Ajouter'}
             </button>
-          </div>
+          </footer>
         </form>
       </div>
     </div>
