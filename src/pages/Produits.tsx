@@ -1,6 +1,8 @@
 // src/pages/Produits.tsx
-// ⭐ FIX: ErrorModal + SuccessModal manana zIndex AMBONY noho ny ProduitsModalForm
-//        → Tsy ho voasaron'ny product modal intsony ny erreur
+// ⭐ FIX: Manampy `globalStats` sy `hasActiveFilter` amin'ny ProduitsTable
+//    → Total global (avy amin'ny reelStats) fa tsy per-page
+//    → Badges colorés ao amin'ny footer (emerald/rose/amber)
+// ⭐ FIX: SuccessModal sy ErrorModal manana zIndex={100000}
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
@@ -28,9 +30,6 @@ import {
   useProduitsCommandeModal,
 } from './produits';
 
-// ⭐ zIndex AMBONY ho an'ny notifications (ambony noho ny modal rehetra)
-const NOTIFICATION_Z_INDEX = 9999999;
-
 const Produits: React.FC = () => {
   const { isDark } = useTheme();
   const {
@@ -50,6 +49,7 @@ const Produits: React.FC = () => {
     totalStock: 0,
     alertes: 0,
     totalValeur: 0,
+    // ⭐ VAOVAO — ho an'ny badges
     actifs: 0,
     rupture: 0,
   });
@@ -84,6 +84,7 @@ const Produits: React.FC = () => {
         totalStock: Number(data.totalStock) || 0,
         alertes: Number(data.alerte) || 0,
         totalValeur: Number(data.valeur_totale) || 0,
+        // ⭐ VAOVAO
         actifs: Number(data.actifs) || 0,
         rupture: Number(data.rupture) || 0,
       });
@@ -218,7 +219,6 @@ const Produits: React.FC = () => {
     const categorieId = categorieRaw ? Number(categorieRaw) : null;
     const fournisseurId = fournisseurRaw ? Number(fournisseurRaw) : null;
 
-    // ⭐ Ny validation dia mampiseho ErrorModal AMBONY noho ny ProduitsModalForm
     if (!nom) { showError('Champ requis', 'Le nom est obligatoire.'); return; }
     if (!code) { showError('Champ requis', 'Le code est obligatoire.'); return; }
     if (!Number.isFinite(prixVente) || prixVente <= 0) { showError('Valeur invalide', 'Prix de vente > 0.'); return; }
@@ -248,7 +248,6 @@ const Produits: React.FC = () => {
       await loadData();
       await fetchReelStats();
     } catch (err: any) {
-      // ⭐ Rehefa misy erreur, dia aseho ny ErrorModal AMBONY
       showError('Erreur sauvegarde', err?.message || 'Impossible de sauvegarder le produit.');
     }
   }, [editingProduit, createProduit, updateProduit, showError, showSuccess, loadData, fetchReelStats, setShowModal, setEditingProduit]);
@@ -281,6 +280,7 @@ const Produits: React.FC = () => {
     setSelectedIds(new Set());
   }, [setFilters, setCurrentPage, setSelectedIds]);
 
+  // ⭐⭐⭐ VAOVAO: globalStats ho an'ny footer ⭐⭐⭐
   const globalStats = useMemo(() => ({
     total: reelStats.totalItems,
     actifs: reelStats.actifs,
@@ -290,6 +290,7 @@ const Produits: React.FC = () => {
     totalStock: reelStats.totalStock,
   }), [reelStats]);
 
+  // ⭐⭐⭐ VAOVAO: hasActiveFilter ho an'ny footer ⭐⭐⭐
   const hasActiveFilter = useMemo(() => Boolean(
     filters.searchTerm ||
     filters.filterCategorie ||
@@ -379,6 +380,7 @@ const Produits: React.FC = () => {
               onSelectOne={handleSelectOne}
               onBulkDelete={handleBulkDelete}
               onBulkUpdateStatus={handleBulkUpdateStatus}
+              // ⭐⭐⭐ VAOVAO: Global stats + filter flag
               globalStats={globalStats}
               hasActiveFilter={hasActiveFilter}
             />
@@ -470,7 +472,6 @@ const Produits: React.FC = () => {
           onMontantPayeChange={setMontantPayeCommande}
         />
 
-        {/* ⭐⭐⭐ SUCCESS MODAL — zIndex AMBONY ⭐⭐⭐ */}
         <SuccessModal
           isOpen={showSuccessModalLocal}
           onClose={() => setShowSuccessModalLocal(false)}
@@ -478,10 +479,9 @@ const Produits: React.FC = () => {
           message={successMessageLocal}
           buttonText="OK"
           autoCloseDelay={3000}
-          zIndex={NOTIFICATION_Z_INDEX}
+          zIndex={100000}   // ⭐ VAOVAO
         />
 
-        {/* ⭐⭐⭐ ERROR MODAL — zIndex AMBONY (ambony noho ny ProduitsModalForm) ⭐⭐⭐ */}
         <ErrorModal
           isOpen={showErrorModalLocal}
           onClose={() => setShowErrorModalLocal(false)}
@@ -489,7 +489,7 @@ const Produits: React.FC = () => {
           message={errorMessageLocal}
           buttonText="OK"
           autoCloseDelay={4000}
-          zIndex={NOTIFICATION_Z_INDEX}
+          zIndex={100000}   // ⭐ VAOVAO
         />
       </div>
     </div>
