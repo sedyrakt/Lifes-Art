@@ -27,7 +27,7 @@ import {
   CommandesSkeleton,
   OverdueBanner,
   useCommandesPageModals,
-} from './commandes';
+} from './commandes/index';
 
 const Commandes: React.FC = () => {
   const { isDark } = useTheme();
