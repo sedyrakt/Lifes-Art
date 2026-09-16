@@ -1,6 +1,8 @@
 // src/hooks/useCategoriesData.ts
 // ⭐ VAOVAO: `getStats()` fonction mba hampiasain'ny Categories.tsx
 //    → Mamerina { total, avecDescription, sansDescription, totalProduits, categoriesVides, totalStock, valeurStock }
+// ⭐ FIX: Nesorina ny filtre période — affichage ny catégories REHETRA
+// ⭐ FIX: PDF — Total produits ihany (tsy misy Période intsony)
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
@@ -18,7 +20,7 @@ const SORT_MAP = {
   'Plus ancien': { field: 'created_at', direction: 'ASC' },
 } as const;
 
-// ⭐ Type export period
+// ⭐ Type export period (mbola voatahiry ho backward-compat fa tsy ampiasaina intsony)
 export type ExportPeriod = 'aujourdhui' | 'hier' | 'semaine' | 'mois' | 'annee' | 'custom';
 
 // ⭐ VAOVAO: Type ho an'ny stats global
@@ -43,23 +45,6 @@ const toLocalDateString = (d: Date = new Date()): string => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
-// ⭐ Label période amin'ny teny français (ho an'ny PDF)
-const getPeriodLabel = (period: ExportPeriod, customDate: string): string => {
-  switch (period) {
-    case 'aujourdhui': return "Aujourd'hui";
-    case 'hier': return 'Hier';
-    case 'semaine': return 'Cette semaine';
-    case 'mois': return 'Ce mois';
-    case 'annee': return 'Cette année';
-    case 'custom': {
-      if (!customDate) return 'Personnalisé';
-      const [y, m, d] = customDate.split('-');
-      return `Personnalisé : ${d}/${m}/${y}`;
-    }
-    default: return String(period);
-  }
-};
-
 export const useCategoriesData = () => {
   // ===== HOOKS =====
   const isMounted = useRef(true);
@@ -78,6 +63,7 @@ export const useCategoriesData = () => {
 
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
+  // ⭐ Mbola voatahiry ho backward-compat fa tsy ampiasaina intsony amin'ny export
   const [exportPeriod, setExportPeriod] = useState<ExportPeriod>('mois');
   const [exportCustomDate, setExportCustomDate] = useState<string>(() => toLocalDateString());
 
@@ -196,7 +182,7 @@ export const useCategoriesData = () => {
     return result;
   }, []);
 
-  // ⭐⭐⭐ VAOVAO: getStats — fonction ho an'ny Categories.tsx ⭐⭐⭐
+  // ⭐⭐⭐ getStats ⭐⭐⭐
   const getStats = useCallback(async (): Promise<CategoryStats> => {
     if (!window.api?.categories?.getStats) {
       throw new Error('API categories.getStats indisponible');
@@ -246,54 +232,12 @@ export const useCategoriesData = () => {
   }, []);
 
   // ============================================================
-  // ⭐ EXPORT FUNCTIONS
+  // ⭐ EXPORT FUNCTIONS — nesorina ny filtre période
   // ============================================================
 
-  const getExportPeriodRange = useCallback((period: ExportPeriod, customDate: string) => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const toLocalDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
-    let startDate: string | undefined, endDate: string | undefined;
-
-    if (period === 'aujourdhui') {
-      const today = toLocalDate(now);
-      startDate = today + ' 00:00:00';
-      endDate = today + ' 23:59:59';
-    } else if (period === 'hier') {
-      const yest = new Date(now);
-      yest.setDate(now.getDate() - 1);
-      const y = toLocalDate(yest);
-      startDate = y + ' 00:00:00';
-      endDate = y + ' 23:59:59';
-    } else if (period === 'semaine') {
-      const day = now.getDay();
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(now);
-      monday.setDate(diff);
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-      startDate = toLocalDate(monday) + ' 00:00:00';
-      endDate = toLocalDate(sunday) + ' 23:59:59';
-    } else if (period === 'mois') {
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      startDate = toLocalDate(firstDay) + ' 00:00:00';
-      endDate = toLocalDate(lastDay) + ' 23:59:59';
-    } else if (period === 'annee') {
-      startDate = `${now.getFullYear()}-01-01 00:00:00`;
-      endDate = `${now.getFullYear()}-12-31 23:59:59`;
-    } else if (period === 'custom') {
-      const dateStr = customDate || toLocalDate(now);
-      startDate = dateStr + ' 00:00:00';
-      endDate = dateStr + ' 23:59:59';
-    }
-    return { startDate, endDate };
-  }, []);
-
-  const fetchAllForExport = useCallback(async (period: ExportPeriod, customDate: string) => {
+  // ⭐ Nalaina ny catégories REHETRA (tsy misy filtre période)
+  const fetchAllForExport = useCallback(async () => {
     if (!window.api?.categories?.getAll) return [];
-    const range = getExportPeriodRange(period, customDate);
     const sort = SORT_MAP[sortOption] || SORT_MAP['Nom (A-Z)'];
     const params = {
       page: 1,
@@ -301,17 +245,16 @@ export const useCategoriesData = () => {
       search: debouncedSearch || undefined,
       sortBy: sort.field,
       sortOrder: sort.direction,
-      dateFrom: range.startDate || undefined,
-      dateTo: range.endDate || undefined,
+      // ⭐ Nesorina: dateFrom / dateTo
     };
     const result = await window.api.categories.getAll(params);
     if (result?.success) return result.data || [];
     return [];
-  }, [debouncedSearch, sortOption, getExportPeriodRange]);
+  }, [debouncedSearch, sortOption]);
 
   // ⭐ Export Excel
-  const exportToExcel = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = await fetchAllForExport(period, customDate);
+  const exportToExcel = useCallback(async () => {
+    const data = await fetchAllForExport();
     const rows = data.length
       ? data.map((cat: any) => ({
           'Nom': cat.nom || '',
@@ -332,7 +275,7 @@ export const useCategoriesData = () => {
     }], { origin: -1, skipHeader: true });
 
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const fileName = `categories_${period}_${customDate || toLocalDateString()}.xlsx`;
+    const fileName = `categories_${toLocalDateString()}.xlsx`;
     const result = await saveFileWithDialog(wbout, fileName, [{ name: 'Excel', extensions: ['xlsx'] }]);
     if (!result.success) {
       if (result.canceled) return result;
@@ -342,8 +285,8 @@ export const useCategoriesData = () => {
   }, [fetchAllForExport]);
 
   // ⭐ PDF
-  const exportToPDF = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = await fetchAllForExport(period, customDate);
+  const exportToPDF = useCallback(async () => {
+    const data = await fetchAllForExport();
 
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -351,7 +294,6 @@ export const useCategoriesData = () => {
     const margin = 14;
 
     const nowStr = new Date().toLocaleString('fr-FR');
-    const periodLabel = getPeriodLabel(period, customDate);
 
     const TABLE_STYLE = {
       styles: {
@@ -384,7 +326,11 @@ export const useCategoriesData = () => {
       : [['Aucune catégorie', '', '0', '']];
 
     const totalProduits = data.reduce((sum: number, c: any) => sum + (Number(c.produits_count) || 0), 0);
+    const totalCategories = data.length;
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ HEADER
+    // ═══════════════════════════════════════════════════════════
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, pageWidth, 16, 'F');
     doc.setDrawColor(0, 0, 0);
@@ -400,15 +346,29 @@ export const useCategoriesData = () => {
     doc.setFont('helvetica', 'normal');
     doc.text(`Généré le ${nowStr}`, pageWidth - margin, 10, { align: 'right' });
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ TITRE
+    // ═══════════════════════════════════════════════════════════
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(15);
     doc.setFont('helvetica', 'bold');
     doc.text('Rapport des catégories', margin, 26);
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ TOTAL — tsy misy Période intsony
+    // ═══════════════════════════════════════════════════════════
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Période : ${periodLabel}`, margin, 32);
+    doc.setTextColor(60, 60, 60);
+    doc.text(
+      `Total : ${totalCategories} catégorie${totalCategories > 1 ? 's' : ''}  ·  ${formatNumberNoSlash(totalProduits)} produit${totalProduits > 1 ? 's' : ''}`,
+      margin,
+      32
+    );
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ TABLE
+    // ═══════════════════════════════════════════════════════════
     autoTable(doc, {
       ...TABLE_STYLE,
       startY: 38,
@@ -444,6 +404,9 @@ export const useCategoriesData = () => {
       showFoot: 'lastPage',
     });
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ FOOTER (page numbers)
+    // ═══════════════════════════════════════════════════════════
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -458,7 +421,7 @@ export const useCategoriesData = () => {
     }
 
     const pdfArrayBuffer = doc.output('arraybuffer');
-    const fileName = `categories_${period}_${customDate || toLocalDateString()}.pdf`;
+    const fileName = `categories_${toLocalDateString()}.pdf`;
     const result = await saveFileWithDialog(pdfArrayBuffer, fileName, [{ name: 'PDF', extensions: ['pdf'] }]);
     if (!result.success) {
       if (result.canceled) return result;
@@ -468,8 +431,8 @@ export const useCategoriesData = () => {
   }, [fetchAllForExport]);
 
   // ⭐ CSV
-  const exportToCSV = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = await fetchAllForExport(period, customDate);
+  const exportToCSV = useCallback(async () => {
+    const data = await fetchAllForExport();
     const headers = ['Nom', 'Description', 'Nb Produits', 'Créé le'];
     const escapeCSV = (value: any) => {
       if (value === undefined || value === null) return '""';
@@ -492,7 +455,7 @@ export const useCategoriesData = () => {
       ...rows.map(r => r.map(escapeCSV).join(',')).concat([totalRow.map(escapeCSV).join(',')])
     ].join('\n');
 
-    const fileName = `categories_${period}_${customDate || toLocalDateString()}.csv`;
+    const fileName = `categories_${toLocalDateString()}.csv`;
     const result = await saveFileWithDialog(csv, fileName, [{ name: 'CSV', extensions: ['csv'] }]);
     if (!result.success) {
       if (result.canceled) return result;
@@ -519,7 +482,7 @@ export const useCategoriesData = () => {
     updateCategorie,
     deleteCategorie,
     bulkDelete,
-    getStats,             // ⭐ VAOVAO
+    getStats,
     getCategoryColor,
     getCategoryBg,
     ITEMS_PER_PAGE,

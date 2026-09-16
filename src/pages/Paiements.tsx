@@ -4,6 +4,7 @@
 // LIFE'S ART ERP - PAIEMENTS EMPLOYÉS
 // ⭐ NOUVEAU: handlePayFromCalendar (bouton "Payer" avy amin'ny calendrier)
 // ⭐ FIX: Alefa ny mois/annee avy amin'ny calendar (initialMois, initialAnnee)
+// ⭐ NOUVEAU: Skeleton loader full-page (tsoloana ny spinner loading)
 // ============================================================
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -101,6 +102,126 @@ const normalizePayrollMode = (value: unknown): PayrollMode => {
   const v = String(value || '').toLowerCase().trim();
   if (v === 'simplifie' || v === 'simplifié' || v === 'simple') return 'simplifie';
   return 'complet';
+};
+
+// ============================================================
+// ⭐ SKELETON LOADER FULL-PAGE
+// ============================================================
+
+const SkeletonBlock: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className = '', style }) => (
+  <div className={`animate-pulse rounded-md ${className}`} style={style} />
+);
+
+const PaiementsPageSkeleton: React.FC<{ isDark: boolean }> = ({ isDark }) => {
+  const bg = isDark ? 'bg-[#0F172A]' : 'bg-white';
+  const cardBg = isDark ? 'bg-white/[0.04]' : 'bg-slate-100';
+  const borderColor = isDark ? 'border-white/[0.08]' : 'border-slate-200';
+  const surfaceBg = isDark ? 'bg-[#0F172A]' : 'bg-white';
+  const rowBorderColor = isDark ? 'border-white/[0.06]' : 'border-slate-100';
+  const pageBg = isDark ? '#0F172A' : '#EEF2FF';
+
+  return (
+    <main className="min-h-full w-full transition-colors duration-300" style={{ background: pageBg }}>
+      <div className="mx-auto w-full max-w-[1600px] space-y-3 px-2 py-4 sm:px-3 lg:px-5">
+
+        {/* ⭐ HEADER SKELETON */}
+        <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border-[0.5px] p-4 ${surfaceBg} ${borderColor}`}>
+          <div className="flex items-center gap-3">
+            <SkeletonBlock className={`h-10 w-10 rounded-lg ${cardBg}`} />
+            <div className="space-y-2">
+              <SkeletonBlock className={`h-4 w-40 ${cardBg}`} />
+              <SkeletonBlock className={`h-3 w-56 ${cardBg}`} />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <SkeletonBlock className={`h-9 w-9 rounded-lg ${cardBg}`} />
+            <SkeletonBlock className={`h-9 w-32 rounded-lg ${cardBg}`} />
+            <SkeletonBlock className={`h-9 w-40 rounded-lg ${cardBg}`} />
+          </div>
+        </div>
+
+        {/* ⭐ STATS CARDS SKELETON (4 cards) */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className={`rounded-xl border-[0.5px] p-4 ${surfaceBg} ${borderColor}`}>
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+                  <SkeletonBlock className={`h-6 w-28 ${cardBg}`} />
+                </div>
+                <SkeletonBlock className={`h-10 w-10 rounded-lg ${cardBg}`} />
+              </div>
+              <div className="mt-3">
+                <SkeletonBlock className={`h-2 w-full rounded-full ${cardBg}`} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ⭐ SEARCH/FILTER SKELETON */}
+        <div className={`flex flex-wrap items-center gap-3 rounded-xl border-[0.5px] p-3 ${surfaceBg} ${borderColor}`}>
+          <SkeletonBlock className={`h-9 flex-1 min-w-[200px] rounded-lg ${cardBg}`} />
+          <div className="flex items-center gap-1.5 rounded-lg border p-1" style={{ borderColor: isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0' }}>
+            <SkeletonBlock className={`h-7 w-20 rounded-md ${cardBg}`} />
+            <SkeletonBlock className={`h-7 w-24 rounded-md ${cardBg}`} />
+            <SkeletonBlock className={`h-7 w-24 rounded-md ${cardBg}`} />
+            <SkeletonBlock className={`h-7 w-24 rounded-md ${cardBg}`} />
+          </div>
+          <SkeletonBlock className={`h-9 w-28 rounded-lg ${cardBg}`} />
+        </div>
+
+        {/* ⭐ TABLE SKELETON */}
+        <section className={`relative overflow-hidden rounded-xl border-[0.5px] ${surfaceBg} ${borderColor}`}>
+          {/* Table header */}
+          <div className={`flex items-center gap-3 border-b px-3 py-2.5 ${rowBorderColor}`}>
+            <SkeletonBlock className={`h-4 w-4 rounded ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-24 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+            <div className="ml-auto">
+              <SkeletonBlock className={`h-3 w-16 ${cardBg}`} />
+            </div>
+          </div>
+
+          {/* Table rows */}
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className={`flex items-center gap-3 border-b px-3 py-3 ${rowBorderColor}`}>
+              <SkeletonBlock className={`h-4 w-4 rounded ${cardBg}`} />
+              <div className="flex items-center gap-2" style={{ width: '180px' }}>
+                <SkeletonBlock className={`h-8 w-8 rounded-full ${cardBg}`} />
+                <div className="flex-1 space-y-1.5">
+                  <SkeletonBlock className={`h-3.5 w-32 ${cardBg}`} />
+                  <SkeletonBlock className={`h-2.5 w-20 ${cardBg}`} />
+                </div>
+              </div>
+              <SkeletonBlock className={`h-3.5 w-20 ${cardBg}`} />
+              <SkeletonBlock className={`h-5 w-24 rounded ${cardBg}`} />
+              <SkeletonBlock className={`h-3.5 w-20 ${cardBg}`} />
+              <SkeletonBlock className={`h-3.5 w-20 ${cardBg}`} />
+              <SkeletonBlock className={`h-5 w-20 rounded ${cardBg}`} />
+              <div className="ml-auto">
+                <SkeletonBlock className={`h-7 w-7 rounded ${cardBg}`} />
+              </div>
+            </div>
+          ))}
+
+          {/* Table footer */}
+          <div className={`flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2.5 ${rowBorderColor}`}>
+            <div className="flex items-center gap-3">
+              <SkeletonBlock className={`h-3.5 w-24 ${cardBg}`} />
+              <SkeletonBlock className={`h-3.5 w-20 ${cardBg}`} />
+              <SkeletonBlock className={`h-3.5 w-20 ${cardBg}`} />
+            </div>
+            <SkeletonBlock className={`h-3.5 w-28 ${cardBg}`} />
+          </div>
+        </section>
+
+      </div>
+    </main>
+  );
 };
 
 // ============================================================
@@ -393,29 +514,27 @@ export default function Paiements() {
   const handleCreate = () => {
     setEditingPaiement(null);
     setModalEmployeId(employeeFilter !== '' ? Number(employeeFilter) : null);
-    setModalDefaultDate(null);  // ⭐ Reset
-    setModalMois(null);          // ⭐ Reset
-    setModalAnnee(null);         // ⭐ Reset
+    setModalDefaultDate(null);
+    setModalMois(null);
+    setModalAnnee(null);
     setIsModalOpen(true);
   };
 
   const handleEdit = (p: PaiementEmploye) => {
     setEditingPaiement(p);
     setModalEmployeId(Number(p.employe_id));
-    setModalDefaultDate(null);  // ⭐ Reset
-    setModalMois(null);          // ⭐ Reset
-    setModalAnnee(null);         // ⭐ Reset
+    setModalDefaultDate(null);
+    setModalMois(null);
+    setModalAnnee(null);
     setIsModalOpen(true);
   };
 
-  // ⭐ NOUVEAU: Fonction rehefa tsindriana "Payer" avy amin'ny calendrier
-  //    Mandray ny (employeId, mois, annee, date)
   const handlePayFromCalendar = useCallback((employeId: number, mois?: number, annee?: number, date?: string) => {
     setEditingPaiement(null);
     setModalEmployeId(employeId);
-    setModalDefaultDate(date || null);  // ⭐ Date avy amin'ny calendrier
-    setModalMois(mois ?? null);          // ⭐ Mois avy amin'ny calendrier
-    setModalAnnee(annee ?? null);        // ⭐ Année avy amin'ny calendrier
+    setModalDefaultDate(date || null);
+    setModalMois(mois ?? null);
+    setModalAnnee(annee ?? null);
     setIsModalOpen(true);
   }, []);
 
@@ -834,6 +953,13 @@ export default function Paiements() {
   const buttonLabel = bulletinTargetPaiement ? 'Générer le bulletin' : 'Générer la facture';
 
   // ==========================================================
+  // ⭐ SKELETON FULL-PAGE — alohan'ny render ny page
+  // ==========================================================
+  if (loading) {
+    return <PaiementsPageSkeleton isDark={isDark} />;
+  }
+
+  // ==========================================================
   // RENDER
   // ==========================================================
   return (
@@ -903,7 +1029,7 @@ export default function Paiements() {
             selectedIds={selectedIds}
             onSelectAll={handleSelectAll} onSelectOne={handleSelectOne}
             onBulkDelete={handleBulkDelete}
-            onPayEmployee={handlePayFromCalendar}  // ⭐ NOUVEAU
+            onPayEmployee={handlePayFromCalendar}
           />
         </section>
       </div>

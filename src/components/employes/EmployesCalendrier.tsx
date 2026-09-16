@@ -1,6 +1,7 @@
 // src/components/employes/EmployesCalendrier.tsx
-// ⭐ NEW: Bouton Modifier + Supprimer amin'ny card tsirairay
-// ⭐ FIX: Message français amin'ny delete modal
+// ⭐ Bouton Modifier + Supprimer amin'ny card tsirairay
+// ⭐ FIX: Retard formaté en "1h40min"
+// ⭐ FIX: Retard calculé même sans heure de départ
 
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -118,6 +119,7 @@ function getSmartArrivalTime(plannedStart: string, pointageDate: string): string
   return plannedStart;
 }
 
+// ⭐ FIX: Retard calculé INDÉPENDAMMENT du départ
 function calculateBulkMetrics(status: string, arrival: string, departure: string, plannedStart: string, plannedEnd: string): { retard: number; heuresTravaillees: number; heuresSup: number } {
   const isPresent = status === 'present';
   if (!isPresent) return { retard: 0, heuresTravaillees: 0, heuresSup: 0 };
@@ -127,25 +129,44 @@ function calculateBulkMetrics(status: string, arrival: string, departure: string
   const pStart = timeToMinutes(plannedStart);
   const pEnd = timeToMinutes(plannedEnd);
 
-  if (arr === null || dep === null || pStart === null || pEnd === null) return { retard: 0, heuresTravaillees: 0, heuresSup: 0 };
-  if (dep < arr) return { retard: Math.max(0, arr - pStart), heuresTravaillees: 0, heuresSup: 0 };
+  let retard = 0;
+  if (arr !== null && pStart !== null) {
+    retard = Math.max(0, arr - pStart);
+  }
 
-  const retard = Math.max(0, arr - pStart);
+  if (arr === null || pStart === null) {
+    return { retard: 0, heuresTravaillees: 0, heuresSup: 0 };
+  }
+
+  if (dep === null || pEnd === null) {
+    return { retard, heuresTravaillees: 0, heuresSup: 0 };
+  }
+
+  if (dep < arr) {
+    return { retard, heuresTravaillees: 0, heuresSup: 0 };
+  }
+
   const workedMin = Math.max(0, dep - arr);
   const overtimeMin = Math.max(0, dep - pEnd);
 
-  return { retard, heuresTravaillees: Number((workedMin / 60).toFixed(2)), heuresSup: Number((overtimeMin / 60).toFixed(2)) };
+  return {
+    retard,
+    heuresTravaillees: Number((workedMin / 60).toFixed(2)),
+    heuresSup: Number((overtimeMin / 60).toFixed(2)),
+  };
 }
 
+// ⭐ FIX: Mamadika minitra ho "1h40min", "45 min", ...
 function formatMinutes(minutes: number | null | undefined): string {
   const m = Math.max(0, Math.round(Number(minutes) || 0));
   if (m <= 0) return '0 min';
   if (m < 60) return `${m} min`;
   const h = Math.floor(m / 60);
   const rest = m % 60;
-  return rest > 0 ? `${h}h${String(rest).padStart(2, '0')}` : `${h}h`;
+  return rest > 0 ? `${h}h${String(rest).padStart(2, '0')}min` : `${h}h`;
 }
 
+// ⭐ Mamadika ora ho "1h30", "0h00", ...
 function formatHours(hours: number | null | undefined): string {
   const h = Math.max(0, Number(hours) || 0);
   if (h <= 0) return '0h00';
@@ -214,10 +235,10 @@ export default function EmployesCalendrier({
   const [showPresenceModal, setShowPresenceModal] = useState(false);
   const [selectedEmployeForPresence, setSelectedEmployeForPresence] = useState<any | null>(null);
   const [presenceDate, setPresenceDate] = useState<string | null>(null);
+  const [presenceModalReadOnly, setPresenceModalReadOnly] = useState(false);
 
   const [allEmployes, setAllEmployes] = useState<any[]>([]);
 
-  // ⭐ Delete modal state
   const [deletePresenceModal, setDeletePresenceModal] = useState<{
     isOpen: boolean;
     employe: any | null;
@@ -419,7 +440,6 @@ export default function EmployesCalendrier({
 
   const closeModal = () => setModalState((prev) => ({ ...prev, isOpen: false }));
 
-  // ⭐⭐⭐ Delete presence handler ⭐⭐⭐
   const openDeletePresenceModal = (employe: any, date: string) => {
     setDeletePresenceModal({ isOpen: true, employe, date, loading: false });
   };
@@ -456,7 +476,6 @@ export default function EmployesCalendrier({
     setDeletePresenceModal({ isOpen: false, employe: null, date: '', loading: false });
   };
 
-  // ⭐⭐⭐ Auto-absent raha ny heure d'arrivée dia >= Fin prévue
   const openBulkModal = (status: 'present' | 'absent' | 'conge') => {
     if (!selectedDate) return;
     if (selectedIds.size === 0) return;
@@ -543,9 +562,10 @@ export default function EmployesCalendrier({
   const goNextMonth = () => { const newMonth = currentMonth === 11 ? 0 : currentMonth + 1; const newYear = currentMonth === 11 ? currentYear + 1 : currentYear; setCurrentMonth(newMonth); setCurrentYear(newYear); setSelectedDate(null); setSelectedIds(new Set()); setSearchDrawer(''); setCurrentPageDrawer(1); setStatusFilterDrawer('Tous'); onMoisChange?.(newMonth + 1); onAnneeChange?.(newYear); };
   const goToday = () => { const today = new Date(); setCurrentYear(today.getFullYear()); setCurrentMonth(today.getMonth()); setSelectedDate(getLocalDateISO(today)); setSelectedIds(new Set()); setSearchDrawer(''); setCurrentPageDrawer(1); setStatusFilterDrawer('Tous'); };
 
-  const handleOpenPresenceModal = (employe: any, date: string) => {
+  const handleOpenPresenceModal = (employe: any, date: string, readOnly = false) => {
     setSelectedEmployeForPresence(employe);
     setPresenceDate(date);
+    setPresenceModalReadOnly(readOnly);
     setShowPresenceModal(true);
   };
 
@@ -756,34 +776,33 @@ export default function EmployesCalendrier({
                             {showHours ? (
                               <>
                                 <div className={isDrawerExpanded ? 'font-mono text-[14.5px] font-medium' : ''}>{heureArrivee || '--:--'} → {heureDepart || '--:--'}</div>
-                                {retard > 0 && (<div className={`text-amber-600 font-semibold ${isDrawerExpanded ? 'mt-1 text-[14px]' : ''}`}>Retard: {retard} min</div>)}
-                                {heuresSup > 0 && (<div className={`text-sky-600 font-semibold ${isDrawerExpanded ? 'mt-1 text-[14px]' : ''}`}>HS: {heuresSup}h</div>)}
+                                {retard > 0 && (<div className={`text-amber-600 font-semibold ${isDrawerExpanded ? 'mt-1 text-[14px]' : ''}`}>Retard: {formatMinutes(retard)}</div>)}
+                                {heuresSup > 0 && (<div className={`text-sky-600 font-semibold ${isDrawerExpanded ? 'mt-1 text-[14px]' : ''}`}>HS: {formatHours(heuresSup)}</div>)}
                               </>
                             ) : (
                               <div className="text-[12.5px] italic text-slate-400 dark:text-slate-500">{status === 'absent' ? 'Aucun pointage' : status === 'conge' ? 'En congé' : status === 'non_pointe' ? 'Non pointé' : status === 'en_attente' ? 'En attente' : '—'}</div>
                             )}
                           </div>
 
-                          {/* ⭐⭐⭐ Boutons Modifier + Supprimer ⭐⭐⭐ */}
+                          {/* ⭐⭐ Boutons Modifier + Supprimer (nesorina ny "Voir") ⭐⭐ */}
                           <div className="flex shrink-0 items-center gap-1">
                             <button
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); handleOpenPresenceModal(employe, selectedDate!); }}
+                              onClick={(e) => { e.stopPropagation(); handleOpenPresenceModal(employe, selectedDate!, false); }}
                               title={hasRecord ? 'Modifier le pointage' : 'Ajouter un pointage'}
                               className={`flex items-center justify-center rounded-md text-brand-600 transition-colors hover:bg-brand-50 hover:text-brand-700 dark:text-brand-400 dark:hover:bg-brand-500/10 ${isDrawerExpanded ? 'h-7 w-7' : 'h-6 w-6'}`}
                             >
                               <Pencil size={isDrawerExpanded ? 15 : 13} strokeWidth={2.2} />
                             </button>
-                            {hasRecord && (
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); openDeletePresenceModal(employe, selectedDate!); }}
-                                title="Supprimer le pointage"
-                                className={`flex items-center justify-center rounded-md text-red-500 transition-colors hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/10 ${isDrawerExpanded ? 'h-7 w-7' : 'h-6 w-6'}`}
-                              >
-                                <Trash2 size={isDrawerExpanded ? 15 : 13} strokeWidth={2.2} />
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); if (hasRecord) openDeletePresenceModal(employe, selectedDate!); }}
+                              disabled={!hasRecord}
+                              title={hasRecord ? 'Supprimer le pointage' : 'Aucun pointage à supprimer'}
+                              className={`flex items-center justify-center rounded-md transition-colors ${hasRecord ? 'text-red-500 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-500/10' : 'cursor-not-allowed text-slate-300 dark:text-slate-600'} ${isDrawerExpanded ? 'h-7 w-7' : 'h-6 w-6'}`}
+                            >
+                              <Trash2 size={isDrawerExpanded ? 15 : 13} strokeWidth={2.2} />
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -833,7 +852,6 @@ export default function EmployesCalendrier({
         document.body
       )}
 
-      {/* ⭐⭐⭐ DELETE PRESENCE MODAL — MESSAGE FRANÇAIS ⭐⭐⭐ */}
       {deletePresenceModal.isOpen && deletePresenceModal.employe && createPortal(
         <div className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget && !deletePresenceModal.loading) cancelDeletePresence(); }}>
           <div className="relative flex w-full max-w-[440px] flex-col overflow-hidden rounded-xl border-[0.5px] border-slate-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.35)] dark:border-white/[0.12] dark:bg-[#0F172A]">
@@ -894,12 +912,13 @@ export default function EmployesCalendrier({
 
       <EmployesPresenceModal
         isOpen={showPresenceModal}
-        onClose={() => { setShowPresenceModal(false); setSelectedEmployeForPresence(null); setPresenceDate(null); }}
+        onClose={() => { setShowPresenceModal(false); setSelectedEmployeForPresence(null); setPresenceDate(null); setPresenceModalReadOnly(false); }}
         employe={selectedEmployeForPresence}
         mode="daily"
         date={presenceDate || undefined}
         onSaveDaily={handleSaveDailyPresence}
         loadPresenceJournaliere={handleLoadDailyPresence}
+        readOnly={presenceModalReadOnly}
       />
 
       <ConfirmModal isOpen={modalState.isOpen} onClose={closeModal} onConfirm={modalState.onConfirm} title={modalState.title} message={modalState.message} confirmText={modalState.confirmText} cancelText={modalState.cancelText} confirmColor={modalState.type === 'error' ? 'red' : 'green'} isDark={isDark} />
@@ -1023,15 +1042,21 @@ const BulkPresenceModal: React.FC<BulkPresenceModalProps> = ({
               {!forceAbsent && (
                 <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 dark:border-white/[0.08] dark:bg-white/[0.08]">
                   <div className="bg-white px-3 py-3 dark:bg-[#0F172A]">
-                    <div className={`flex items-center gap-1.5 text-[12.5px] font-semibold ${metrics.retard > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}><AlertTriangle size={13} strokeWidth={2.2} /><span>Retard</span></div>
+                    <p className={`text-[12.5px] font-semibold ${metrics.retard > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      Retard
+                    </p>
                     <p className="mt-1 text-[15px] font-bold text-slate-900 dark:text-slate-100">{formatMinutes(metrics.retard)}</p>
                   </div>
                   <div className="bg-white px-3 py-3 dark:bg-[#0F172A]">
-                    <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-brand-600 dark:text-brand-400"><Clock3 size={13} strokeWidth={2.2} /><span>Travaillé</span></div>
+                    <p className="text-[12.5px] font-semibold text-brand-600 dark:text-brand-400">
+                      Travaillé
+                    </p>
                     <p className="mt-1 text-[15px] font-bold text-slate-900 dark:text-slate-100">{formatHours(metrics.heuresTravaillees)}</p>
                   </div>
                   <div className="bg-white px-3 py-3 dark:bg-[#0F172A]">
-                    <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-violet-600 dark:text-violet-400"><Timer size={13} strokeWidth={2.2} /><span>Heures sup.</span></div>
+                    <p className="text-[12.5px] font-semibold text-violet-600 dark:text-violet-400">
+                      Heures sup.
+                    </p>
                     <p className="mt-1 text-[15px] font-bold text-slate-900 dark:text-slate-100">{formatHours(metrics.heuresSup)}</p>
                   </div>
                 </div>

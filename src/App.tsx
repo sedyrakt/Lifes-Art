@@ -1,7 +1,6 @@
 // src/App.tsx
 // ⭐ LIFE'S ART ERP
-// ⭐ FIX: NESORINA NY ERRORBOUNDARY (DEBUG MODE)
-// ⭐ Routes rehetra tsy misy ErrorBoundary mba hahitana ny fototry ny olana
+// ⭐ FIX: Nampiana route `/fournisseurs/:id` ho an'ny redirection avy amin'ny ProduitsTable
 // ============================================================
 
 import React from 'react';
@@ -42,7 +41,7 @@ import Fournisseurs from './pages/Fournisseurs';
 // PAGES OPERATIONNELLES
 // ============================================================
 import MouvementsStock from './pages/MouvementsStock';
-import EntreesStock from './pages/EntreesStock'; // ⭐ FIX: Nampiana ny Entrées de stock
+import EntreesStock from './pages/EntreesStock';
 import Commandes from './pages/Commandes';
 import Clients from './pages/Clients';
 import Depenses from './pages/Depenses';
@@ -99,15 +98,18 @@ const AppContent: React.FC = () => {
         <Route path="/register" element={<Register />} />
         <Route path="/license" element={<LicenseGateScreen />} />
 
-        {/* PROTECTED ROUTES — ⭐ NESORINA NY ERRORBOUNDARY */}
+        {/* PROTECTED ROUTES */}
         <Route path="/dashboard" element={<ProtectedRoute><Layout><DashboardStock /></Layout></ProtectedRoute>} />
         <Route path="/produits" element={<ProtectedRoute><Layout><Produits /></Layout></ProtectedRoute>} />
         <Route path="/categories" element={<ProtectedRoute><Layout><Categories /></Layout></ProtectedRoute>} />
+
+        {/* ⭐ FIX: Route /fournisseurs sy /fournisseurs/:id (avy amin'ny ProduitsTable) */}
         <Route path="/fournisseurs" element={<ProtectedRoute><Layout><Fournisseurs /></Layout></ProtectedRoute>} />
+        <Route path="/fournisseurs/:id" element={<ProtectedRoute><Layout><Fournisseurs /></Layout></ProtectedRoute>} />
+
         <Route path="/achats" element={<ProtectedRoute><Layout><Achats /></Layout></ProtectedRoute>} />
         <Route path="/ventes" element={<ProtectedRoute><Layout><Ventes /></Layout></ProtectedRoute>} />
         <Route path="/mouvements" element={<ProtectedRoute><Layout><MouvementsStock /></Layout></ProtectedRoute>} />
-        {/* ⭐ FIX: ROUTE VAOVAO HO AN'NY ENTREES DE STOCK */}
         <Route path="/entrees" element={<ProtectedRoute><Layout><EntreesStock /></Layout></ProtectedRoute>} />
         <Route path="/commandes" element={<ProtectedRoute><Layout><Commandes /></Layout></ProtectedRoute>} />
         <Route path="/clients" element={<ProtectedRoute><Layout><Clients /></Layout></ProtectedRoute>} />

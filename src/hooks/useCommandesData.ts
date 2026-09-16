@@ -1,6 +1,6 @@
 // src/hooks/useCommandesData.ts
 // ⭐ REFACTOR: Nizara ho modules ny useCommandesData
-// ⭐ TSY MISY niova ny logique — fizarana fotsiny
+// ⭐ FIX: Ny pagination dia 8 rows foana na dia misy statut filter (Non payé, Payé, sns.)
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { ExportPeriod, SelectedProduit } from './commandes';
@@ -110,13 +110,19 @@ export const useCommandesData = () => {
       }
 
       const normalizedStatut = normalizeFilterStatut(filterStatut);
+      const hasStatutFilter = Boolean(normalizedStatut && normalizedStatut !== 'Tous');
 
       const effectiveStartDate = filterDate || filterDateFrom || undefined;
       const effectiveEndDate = filterDate || filterDateTo || undefined;
 
+      // ⭐ FIX: Rehefa misy statut filter → maka ny data REHETRA (limit 10000)
+      // ary atao client-side pagination mba hahazoana 8 rows isaky ny page
+      const apiPage = hasStatutFilter ? 1 : currentPage;
+      const apiLimit = hasStatutFilter ? 10000 : ITEMS_PER_PAGE;
+
       const result = await window.api.orders.getAll({
-        page: currentPage,
-        limit: ITEMS_PER_PAGE,
+        page: apiPage,
+        limit: apiLimit,
         search: debouncedSearch,
         statut: normalizedStatut,
         sort: { field: sortField, direction: sortDirection },
@@ -138,16 +144,29 @@ export const useCommandesData = () => {
         statut_paiement: commande.statut_paiement || 'Non payé',
       }));
 
-      if (normalizedStatut) {
+      // ⭐ Filter client-side (safety net raha tsy mandeha tsara ny API filter)
+      if (hasStatutFilter) {
         data = data.filter((cmd: any) => normalizePaiementStatus(cmd.statut_paiement) === normalizedStatut);
       }
 
-      const uniqueData = data.filter((item: any, index: number, self: any[]) =>
+      // ⭐ Client-side pagination rehefa misy statut filter
+      let finalData = data;
+      let finalTotal = Number(result.pagination?.total || data.length);
+      let finalTotalPages = Number(result.pagination?.totalPages || 1);
+
+      if (hasStatutFilter) {
+        finalTotal = data.length;
+        finalTotalPages = Math.max(1, Math.ceil(data.length / ITEMS_PER_PAGE));
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        finalData = data.slice(start, start + ITEMS_PER_PAGE);
+      }
+
+      const uniqueData = finalData.filter((item: any, index: number, self: any[]) =>
         self.findIndex((x) => x.id === item.id) === index);
 
       setCommandes(uniqueData);
-      setTotalItems(Number(result.pagination?.total || uniqueData.length));
-      setTotalPages(Number(result.pagination?.totalPages || 1));
+      setTotalItems(finalTotal);
+      setTotalPages(finalTotalPages);
 
       await getDetteStats();
       await loadOverdue();

@@ -2,6 +2,7 @@
 // ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
 // ⭐ TYPOGRAPHIE alignée sur les autres tables et SearchBars
 // ⭐ FONT SIZE: header 12.5px, cells 14px, badges 12.5px, footer 13px
+// ⭐ FIX: Couleur de fond amin'ny ellipsis button rehefa dark mode
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -300,7 +301,7 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
                   </td>
 
                   <td className={`border-b px-1 py-2 align-middle text-right ${cellBorder}`} onClick={e => e.stopPropagation()}>
-                    {/* ⭐ Actions button : h-7 w-7, nampiana bg-slate-100 / border-slate-200 ho an'ny light mode */}
+                    {/* ⭐ Actions button : h-7 w-7, dark bg white/[0.06] */}
                     <button
                       type="button"
                       title="Actions"
@@ -310,7 +311,7 @@ const MouvementsTable: React.FC<MouvementsTableProps> = ({
                       className={`flex h-7 w-7 items-center justify-center rounded border transition-all duration-150 ${
                         openMenuId === m.id
                           ? 'bg-brand-50 border-brand-200 text-brand-600 dark:bg-brand-500/10 dark:border-brand-500/20 dark:text-brand-400'
-                          : 'border-slate-200 bg-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-200 hover:text-brand-600 dark:border-transparent dark:bg-transparent dark:text-slate-400 dark:hover:border-white/[0.12] dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                          : 'border-slate-200 bg-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-200 hover:text-brand-600 dark:border-white/[0.10] dark:bg-white/[0.06] dark:text-slate-300 dark:hover:border-white/[0.18] dark:hover:bg-white/[0.10] dark:hover:text-slate-100'
                       }`}
                     >
                       {/* ⭐ Actions ... : 14px → 14.5px */}

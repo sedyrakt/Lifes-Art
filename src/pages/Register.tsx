@@ -173,16 +173,15 @@ export const Register: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
   const colors = isDark ? THEME.dark : THEME.light;
   const navigate = useNavigate();
+  const [logoError, setLogoError] = useState(false);
 
   const logoSrc = isDark ? LOGO_DARK : LOGO_LIGHT;
   const backgroundImage = "url('./images/abstract3.jpeg')";
-  
-  // ⭐ FIX: Nampidina ny overlay light mba hifanaraka amin'ny Login (0.95 -> 0.85, 0.45 -> 0.35)
+
   const bgOverlay = isDark
     ? 'linear-gradient(to right, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.55) 100%)'
     : 'linear-gradient(to right, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.35) 100%)';
 
-  // ⭐ FIX: Fotsy tanteraka ny panneau droite rehefa mode light
   const rightBoxBg = isDark ? colors.surface : '#FFFFFF';
 
   const [formData, setFormData] = useState<RegisterFormData>({
@@ -304,9 +303,7 @@ export const Register: React.FC = () => {
                 />
               </div>
 
-              {/* ⭐ RESUMÉ FOHY: Nohafohezina ny lisitra */}
               <div className="space-y-1.5">
-               
                 {[
                   "Gestion complète : Produits, Ventes, Achats & Stock.",
                   "Tableaux de bord en temps réel.",
@@ -337,11 +334,22 @@ export const Register: React.FC = () => {
         <div className="flex w-full flex-col justify-between p-6 lg:w-1/2" style={{ background: rightBoxBg }}>
           <div className="mb-3 flex items-center gap-2 lg:hidden"><div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: colors.primary }}><Cloud className="h-3.5 w-3.5 text-white" /></div><span className="text-[15px] font-bold" style={{ color: colors.text }}>Life's Art</span></div>
 
-          <img src={logoSrc} alt="Life's Art" className="mx-auto mb-3 h-16 w-16 object-contain" />
+          {/* ⭐ LOGO + TITRE — groupés (mitovy amin'ny Kajio reference) */}
+          <div className="flex flex-col items-center gap-1.5 mt-5">
+            {!logoError && (
+              <img
+                src={logoSrc}
+                alt="Life's Art"
+                className="h-[52px] w-auto object-contain"
+                onError={() => setLogoError(true)}
+                draggable={false}
+              />
+            )}
 
-          <div className="mb-3">
-            <h1 className="text-[24px] font-bold text-center" style={{ color: colors.text }}>Créer un compte</h1>
-            <p className="mt-1 text-[14px] text-center" style={{ color: colors.textMuted }}>Commencez votre essai gratuit</p>
+            <div className="text-center">
+              <h1 className="text-[24px] font-bold" style={{ color: colors.text }}>Créer un compte</h1>
+              <p className="mt-1 text-[14px]" style={{ color: colors.textMuted }}>Commencez votre essai gratuit</p>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-2.5">

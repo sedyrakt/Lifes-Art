@@ -4,6 +4,7 @@
 // ⭐ VAOVAO: Mode paiement + Modalité + Frais livraison (FACTURE ihany)
 // ⭐ FIX: key={activeTab} amin'ny VentesModalForm mba force re-mount rehefa miova tab
 // ⭐ FIX CRITIQUE: Kajy totalTVA marina avy amin'ny produit.tva_rate (fa tsy coefficient 1.2 fixe)
+// ⭐ NOUVEAU: Skeleton loader full-page (tsoloana ny skeleton table kely)
 
 import React, { useCallback, useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
@@ -21,24 +22,142 @@ import { downloadVentePDF } from '../lib/ventesPDFService';
 
 interface SelectedProduct { id: number; quantite: number; prix_unitaire: number; total: number; }
 
-const VentesSkeleton = ({ isDark }: { isDark: boolean }) => {
-  const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
-  const border = isDark ? 'border-white/[0.08]' : 'border-slate-200';
+// ============================================================
+// ⭐ SKELETON LOADER FULL-PAGE
+// ============================================================
+
+const SkeletonBlock: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <div className={`animate-pulse rounded-md ${className}`} />
+);
+
+const VentesPageSkeleton: React.FC<{ isDark: boolean }> = ({ isDark }) => {
+  const cardBg = isDark ? 'bg-white/[0.04]' : 'bg-slate-100';
+  const surfaceBg = isDark ? 'bg-[#0F172A]' : 'bg-white';
+  const borderColor = isDark ? 'border-white/[0.10]' : 'border-slate-200';
+  const rowBorderColor = isDark ? 'border-white/[0.06]' : 'border-slate-100';
+  const pageBg = isDark ? '#0F172A' : '#EEF2FF';
+
   return (
-    <div className="min-h-[500px] w-full p-5">
-      <div className="space-y-4">
-        <div className={`flex items-center gap-4 border-b pb-4 ${border}`}>
-          {[...Array(7)].map((_, i) => <div key={i} className={`h-4 w-${i === 0 ? 8 : i === 1 ? 24 : i === 2 ? 10 : i === 3 ? 32 : i === 4 ? 20 : i === 5 ? 28 : 20} rounded ${base} animate-pulse`} />)}
-        </div>
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className={`flex items-center gap-4 py-3 ${border}`}>
-            {[...Array(7)].map((_, j) => <div key={j} className={`h-4 w-${j === 0 ? 8 : j === 1 ? 24 : j === 2 ? 10 : j === 3 ? 32 : j === 4 ? 20 : j === 5 ? 28 : 20} rounded ${base} animate-pulse`} />)}
+    <main className="min-h-full w-full transition-colors duration-300" style={{ background: pageBg }}>
+      <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
+
+        {/* ⭐ HEADER SKELETON */}
+        <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border-[0.5px] p-4 ${surfaceBg} ${borderColor}`}>
+          <div className="flex items-center gap-3">
+            <SkeletonBlock className={`h-10 w-10 rounded-lg ${cardBg}`} />
+            <div className="space-y-2">
+              <SkeletonBlock className={`h-4 w-40 ${cardBg}`} />
+              <SkeletonBlock className={`h-3 w-56 ${cardBg}`} />
+            </div>
           </div>
-        ))}
+          <div className="flex items-center gap-2">
+            <SkeletonBlock className={`h-9 w-9 rounded-lg ${cardBg}`} />
+            <SkeletonBlock className={`h-9 w-32 rounded-lg ${cardBg}`} />
+            <SkeletonBlock className={`h-9 w-40 rounded-lg ${cardBg}`} />
+          </div>
+        </div>
+
+        {/* ⭐ STATS CARDS SKELETON (5 cards) */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className={`rounded-xl border-[0.5px] p-4 ${surfaceBg} ${borderColor}`}>
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+                  <SkeletonBlock className={`h-6 w-24 ${cardBg}`} />
+                </div>
+                <SkeletonBlock className={`h-9 w-9 rounded-lg ${cardBg}`} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ⭐ SEARCH BAR SKELETON */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <div className={`h-10 w-full rounded-xl border-[0.5px] ${surfaceBg} ${borderColor}`}>
+              <div className="flex items-center gap-2 px-3 py-2.5">
+                <SkeletonBlock className={`h-4 w-4 rounded ${cardBg}`} />
+                <SkeletonBlock className={`h-3 w-32 ${cardBg}`} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ⭐ TABS SKELETON (Devis / Factures) */}
+        <div className={`flex gap-1 rounded-xl border-[0.5px] p-1 ${surfaceBg} ${borderColor}`}>
+          <SkeletonBlock className={`h-9 flex-1 rounded-lg ${cardBg}`} />
+          <SkeletonBlock className={`h-9 flex-1 rounded-lg ${cardBg}`} />
+        </div>
+
+        {/* ⭐ TABLE SKELETON */}
+        <section className={`relative overflow-hidden rounded-2xl border-[0.5px] ${surfaceBg} ${borderColor}`}>
+          {/* Table header */}
+          <div className={`flex items-center gap-3 border-b px-3 py-2.5 ${rowBorderColor}`}>
+            <SkeletonBlock className={`h-4 w-4 rounded ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-24 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-16 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-16 ${cardBg}`} />
+            <div className="ml-auto">
+              <SkeletonBlock className={`h-3 w-16 ${cardBg}`} />
+            </div>
+          </div>
+
+          {/* Table rows */}
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className={`flex items-center gap-3 border-b px-3 py-3 ${rowBorderColor}`}>
+              <SkeletonBlock className={`h-4 w-4 rounded ${cardBg}`} />
+              <SkeletonBlock className={`h-5 w-20 rounded ${cardBg}`} />
+              <div className="flex-1 space-y-1.5">
+                <SkeletonBlock className={`h-3.5 w-32 ${cardBg}`} />
+                <SkeletonBlock className={`h-2.5 w-20 ${cardBg}`} />
+              </div>
+              <SkeletonBlock className={`h-3.5 w-20 ${cardBg}`} />
+              <SkeletonBlock className={`h-3.5 w-24 ${cardBg}`} />
+              <SkeletonBlock className={`h-3.5 w-24 ${cardBg}`} />
+              <SkeletonBlock className={`h-5 w-16 rounded ${cardBg}`} />
+              <SkeletonBlock className={`h-3.5 w-20 ${cardBg}`} />
+              <div className="ml-auto">
+                <SkeletonBlock className={`h-7 w-7 rounded ${cardBg}`} />
+              </div>
+            </div>
+          ))}
+
+          {/* Table footer */}
+          <div className={`flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2.5 ${rowBorderColor}`}>
+            <div className="flex items-center gap-3">
+              <SkeletonBlock className={`h-3.5 w-24 ${cardBg}`} />
+              <SkeletonBlock className={`h-3.5 w-20 ${cardBg}`} />
+              <SkeletonBlock className={`h-3.5 w-20 ${cardBg}`} />
+              <SkeletonBlock className={`h-3.5 w-20 ${cardBg}`} />
+            </div>
+            <SkeletonBlock className={`h-3.5 w-28 ${cardBg}`} />
+          </div>
+        </section>
+
+        {/* ⭐ PAGINATION SKELETON */}
+        <div className={`flex items-center justify-between rounded-2xl border-[0.5px] px-3 py-2.5 ${surfaceBg} ${borderColor}`}>
+          <SkeletonBlock className={`h-3.5 w-32 ${cardBg}`} />
+          <div className="flex items-center gap-1.5">
+            <SkeletonBlock className={`h-7 w-7 rounded ${cardBg}`} />
+            <SkeletonBlock className={`h-7 w-7 rounded ${cardBg}`} />
+            <SkeletonBlock className={`h-7 w-7 rounded ${cardBg}`} />
+            <SkeletonBlock className={`h-7 w-7 rounded ${cardBg}`} />
+          </div>
+        </div>
+
       </div>
-    </div>
+    </main>
   );
 };
+
+// ============================================================
+// COMPOSANT
+// ============================================================
 
 const Ventes: React.FC = () => {
   const { isDark } = useTheme();
@@ -445,6 +564,13 @@ const Ventes: React.FC = () => {
     [searchTerm]
   );
 
+  // ============================================================
+  // ⭐ SKELETON FULL-PAGE — alohan'ny render ny page
+  // ============================================================
+  if (loading && (activeTab === 'devis' ? devisList : factures).length === 0) {
+    return <VentesPageSkeleton isDark={isDark} />;
+  }
+
   return (
     <main className="min-h-full w-full transition-colors duration-300" style={{ background: isDark ? '#0F172A' : '#EEF2FF' }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-2 px-2 py-4 sm:px-3 lg:px-5">
@@ -482,29 +608,25 @@ const Ventes: React.FC = () => {
 
         <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_4px_20px_-4px_rgba(79,70,229,0.08)] transition-all duration-300 dark:border-white/[0.1] dark:bg-[#0F172A] dark:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.35)]">
           {refreshing && (<div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent"><div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" /></div>)}
-          {loading && (activeTab === 'devis' ? devisList : factures).length === 0 ? (
-            <VentesSkeleton isDark={isDark} />
-          ) : (
-            <VentesTable
-              data={activeTab === 'devis' ? devisList : factures}
-              type={activeTab}
-              loading={loading}
-              onView={handleView}
-              onDelete={item => { setDeleteTarget(item); setShowDeleteModal(true); }}
-              onAdd={() => { resetForm(); setShowFormModal(true); }}
-              onConvertDevisToFacture={handleConvertDevisToFacture}
-              onDownloadFacture={handleDownloadFacture}
-              onDownloadDevisPDF={handleDownloadDevisPDF}
-              selectedIds={selectedIds}
-              onSelectAll={handleSelectAll}
-              onSelectOne={handleSelectOne}
-              onBulkDelete={handleBulkDelete}
-              onUpdatePaiement={handleUpdatePaiement}
-              // ⭐⭐⭐ VAOVAO: globalStats + hasActiveFilter
-              globalStats={globalStats}
-              hasActiveFilter={hasActiveFilter}
-            />
-          )}
+          <VentesTable
+            data={activeTab === 'devis' ? devisList : factures}
+            type={activeTab}
+            loading={loading}
+            onView={handleView}
+            onDelete={item => { setDeleteTarget(item); setShowDeleteModal(true); }}
+            onAdd={() => { resetForm(); setShowFormModal(true); }}
+            onConvertDevisToFacture={handleConvertDevisToFacture}
+            onDownloadFacture={handleDownloadFacture}
+            onDownloadDevisPDF={handleDownloadDevisPDF}
+            selectedIds={selectedIds}
+            onSelectAll={handleSelectAll}
+            onSelectOne={handleSelectOne}
+            onBulkDelete={handleBulkDelete}
+            onUpdatePaiement={handleUpdatePaiement}
+            // ⭐⭐⭐ VAOVAO: globalStats + hasActiveFilter
+            globalStats={globalStats}
+            hasActiveFilter={hasActiveFilter}
+          />
         </section>
 
         {!loading && totalPages > 0 && (

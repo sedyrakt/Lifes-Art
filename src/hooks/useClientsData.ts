@@ -1,5 +1,8 @@
 // src/hooks/useClientsData.ts
 // ⭐ FIX: ClientStats manampy `total_commandes`
+// ⭐ FIX: Nesorina ny filtre période — affichage ny clients REHETRA
+// ⭐ FIX: PDF — Total achats ihany (tsy misy Période intsony)
+
 import { useCallback, useEffect, useRef, useState, createElement } from 'react';
 import { Building, User } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -51,6 +54,7 @@ export interface ClientStats {
   total_commandes: number;   // ⭐ NOUVEAU
 }
 
+// ⭐ Type mbola voatahiry ho backward-compat fa tsy ampiasaina intsony amin'ny export
 export type ExportPeriod = 'aujourdhui' | 'hier' | 'semaine' | 'mois' | 'annee' | 'custom';
 
 const formatNumberNoSlash = (value: number) => {
@@ -60,22 +64,6 @@ const formatNumberNoSlash = (value: number) => {
 const toLocalDateString = (d: Date = new Date()): string => {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-
-const getPeriodLabel = (period: ExportPeriod, customDate: string): string => {
-  switch (period) {
-    case 'aujourdhui': return "Aujourd'hui";
-    case 'hier': return 'Hier';
-    case 'semaine': return 'Cette semaine';
-    case 'mois': return 'Ce mois';
-    case 'annee': return 'Cette année';
-    case 'custom': {
-      if (!customDate) return 'Personnalisé';
-      const [y, m, d] = customDate.split('-');
-      return `Personnalisé : ${d}/${m}/${y}`;
-    }
-    default: return String(period);
-  }
 };
 
 export const useClientsData = () => {
@@ -101,6 +89,7 @@ export const useClientsData = () => {
   });
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
+  // ⭐ Mbola voatahiry ho backward-compat fa tsy ampiasaina intsony amin'ny export
   const [exportPeriod, setExportPeriod] = useState<ExportPeriod>('mois');
   const [exportCustomDate, setExportCustomDate] = useState<string>(() => toLocalDateString());
 
@@ -266,7 +255,7 @@ export const useClientsData = () => {
       entreprises: Number(r.data?.entreprises || 0),
       avec_telephone: Number(r.data?.avec_telephone || 0),
       total_achats: Number(r.data?.total_achats || 0),
-      total_commandes: Number(r.data?.total_commandes || 0),   // ⭐ NOUVEAU
+      total_commandes: Number(r.data?.total_commandes || 0),
     };
   }, []);
 
@@ -281,53 +270,12 @@ export const useClientsData = () => {
       : createElement(User, { size: 14, className: 'shrink-0' }), []);
 
   // ============================================================
-  // ⭐ EXPORT FUNCTIONS
+  // ⭐ EXPORT FUNCTIONS — nesorina ny filtre période
   // ============================================================
-  const getExportPeriodRange = useCallback((period: ExportPeriod, customDate: string) => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const toLocalDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-    let startDate: string | undefined, endDate: string | undefined;
-
-    if (period === 'aujourdhui') {
-      const today = toLocalDate(now);
-      startDate = today + ' 00:00:00';
-      endDate = today + ' 23:59:59';
-    } else if (period === 'hier') {
-      const yest = new Date(now);
-      yest.setDate(now.getDate() - 1);
-      const y = toLocalDate(yest);
-      startDate = y + ' 00:00:00';
-      endDate = y + ' 23:59:59';
-    } else if (period === 'semaine') {
-      const day = now.getDay();
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(now);
-      monday.setDate(diff);
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-      startDate = toLocalDate(monday) + ' 00:00:00';
-      endDate = toLocalDate(sunday) + ' 23:59:59';
-    } else if (period === 'mois') {
-      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      startDate = toLocalDate(firstDay) + ' 00:00:00';
-      endDate = toLocalDate(lastDay) + ' 23:59:59';
-    } else if (period === 'annee') {
-      startDate = `${now.getFullYear()}-01-01 00:00:00`;
-      endDate = `${now.getFullYear()}-12-31 23:59:59`;
-    } else if (period === 'custom') {
-      const dateStr = customDate || toLocalDate(now);
-      startDate = dateStr + ' 00:00:00';
-      endDate = dateStr + ' 23:59:59';
-    }
-    return { startDate, endDate };
-  }, []);
-
-  const fetchAllForExport = useCallback(async (period: ExportPeriod, customDate: string) => {
+  // ⭐ Nalaina ny clients REHETRA (tsy misy filtre période)
+  const fetchAllForExport = useCallback(async () => {
     if (!window.api?.clients?.getAll) return [];
-    const range = getExportPeriodRange(period, customDate);
     const sort = SORT_MAP[sortOption];
     const params = {
       page: 1,
@@ -338,8 +286,7 @@ export const useClientsData = () => {
       type: filters.filterType !== 'Tous' ? filters.filterType : undefined,
       ville: filters.filterVille || undefined,
       pays: filters.filterPays || undefined,
-      dateFrom: range.startDate,
-      dateTo: range.endDate,
+      // ⭐ Nesorina: dateFrom / dateTo
     };
     const result = await window.api.clients.getAll(params);
     if (result?.success) {
@@ -347,10 +294,10 @@ export const useClientsData = () => {
       return await Promise.all(raw.map(enrichClientWithStats));
     }
     return [];
-  }, [debouncedSearch, sortOption, filters.filterType, filters.filterVille, filters.filterPays, getExportPeriodRange, enrichClientWithStats]);
+  }, [debouncedSearch, sortOption, filters.filterType, filters.filterVille, filters.filterPays, enrichClientWithStats]);
 
-  const exportToExcel = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = await fetchAllForExport(period, customDate);
+  const exportToExcel = useCallback(async () => {
+    const data = await fetchAllForExport();
     const rows = data.length
       ? data.map((c: any) => ({
           'Nom': c.nom || '',
@@ -376,7 +323,7 @@ export const useClientsData = () => {
     }], { origin: -1, skipHeader: true });
 
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const fileName = `clients_${period}_${customDate || toLocalDateString()}.xlsx`;
+    const fileName = `clients_${toLocalDateString()}.xlsx`;
     const result = await saveFileWithDialog(wbout, fileName, [{ name: 'Excel', extensions: ['xlsx'] }]);
     if (!result.success) {
       if (result.canceled) return result;
@@ -385,8 +332,8 @@ export const useClientsData = () => {
     return result;
   }, [fetchAllForExport]);
 
-  const exportToPDF = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = await fetchAllForExport(period, customDate);
+  const exportToPDF = useCallback(async () => {
+    const data = await fetchAllForExport();
 
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -394,7 +341,6 @@ export const useClientsData = () => {
     const margin = 14;
 
     const nowStr = new Date().toLocaleString('fr-FR');
-    const periodLabel = getPeriodLabel(period, customDate);
 
     const TABLE_STYLE = {
       styles: {
@@ -424,7 +370,11 @@ export const useClientsData = () => {
       : [['Aucun client', '', '', '', '', '', '', '0']];
 
     const totalAchats = data.reduce((sum: number, c: any) => sum + (Number(c.total_achats) || 0), 0);
+    const totalClients = data.length;
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ HEADER
+    // ═══════════════════════════════════════════════════════════
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, pageWidth, 16, 'F');
     doc.setDrawColor(0, 0, 0);
@@ -440,15 +390,29 @@ export const useClientsData = () => {
     doc.setFont('helvetica', 'normal');
     doc.text(`Généré le ${nowStr}`, pageWidth - margin, 10, { align: 'right' });
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ TITRE
+    // ═══════════════════════════════════════════════════════════
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(15);
     doc.setFont('helvetica', 'bold');
     doc.text('Rapport des clients', margin, 26);
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ TOTAL — tsy misy Période intsony
+    // ═══════════════════════════════════════════════════════════
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Période : ${periodLabel}`, margin, 32);
+    doc.setTextColor(60, 60, 60);
+    doc.text(
+      `Total : ${totalClients} client${totalClients > 1 ? 's' : ''}  ·  ${formatNumberNoSlash(totalAchats)} Ar`,
+      margin,
+      32
+    );
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ TABLE
+    // ═══════════════════════════════════════════════════════════
     autoTable(doc, {
       ...TABLE_STYLE,
       startY: 38,
@@ -488,6 +452,9 @@ export const useClientsData = () => {
       showFoot: 'lastPage',
     });
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ FOOTER (page numbers)
+    // ═══════════════════════════════════════════════════════════
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -502,7 +469,7 @@ export const useClientsData = () => {
     }
 
     const pdfArrayBuffer = doc.output('arraybuffer');
-    const fileName = `clients_${period}_${customDate || toLocalDateString()}.pdf`;
+    const fileName = `clients_${toLocalDateString()}.pdf`;
     const result = await saveFileWithDialog(pdfArrayBuffer, fileName, [{ name: 'PDF', extensions: ['pdf'] }]);
     if (!result.success) {
       if (result.canceled) return result;
@@ -511,8 +478,8 @@ export const useClientsData = () => {
     return result;
   }, [fetchAllForExport]);
 
-  const exportToCSV = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = await fetchAllForExport(period, customDate);
+  const exportToCSV = useCallback(async () => {
+    const data = await fetchAllForExport();
     const headers = ['Nom', 'Type', 'Email', 'Téléphone', 'Ville', 'Pays', 'Adresse', 'Total achats'];
     const escapeCSV = (value: any) => {
       if (value === undefined || value === null) return '""';
@@ -532,7 +499,7 @@ export const useClientsData = () => {
       ...rows.map(r => r.map(escapeCSV).join(',')).concat([totalRow.map(escapeCSV).join(',')]),
     ].join('\n');
 
-    const fileName = `clients_${period}_${customDate || toLocalDateString()}.csv`;
+    const fileName = `clients_${toLocalDateString()}.csv`;
     const result = await saveFileWithDialog(csv, fileName, [{ name: 'CSV', extensions: ['csv'] }]);
     if (!result.success) {
       if (result.canceled) return result;

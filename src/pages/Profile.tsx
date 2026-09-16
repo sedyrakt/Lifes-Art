@@ -1,3 +1,6 @@
+// src/pages/Profile.tsx
+// ⭐ NOUVEAU: Skeleton loader full-page (tsoloana ny ProfileSkeleton)
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -19,54 +22,128 @@ interface FormData {
   companyName: string;
 }
 
-const ProfileSkeleton = ({ isDark }: { isDark: boolean }) => {
-  const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
-  const border = isDark ? 'border-white/[0.08]' : 'border-slate-200';
+// ============================================================
+// ⭐ SKELETON LOADER FULL-PAGE
+// ============================================================
+
+const SkeletonBlock: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <div className={`animate-pulse rounded-md ${className}`} />
+);
+
+const ProfilePageSkeleton: React.FC<{ isDark: boolean }> = ({ isDark }) => {
+  const cardBg = isDark ? 'bg-white/[0.04]' : 'bg-slate-100';
+  const surfaceBg = isDark ? 'bg-[#0F172A]' : 'bg-white';
+  const borderColor = isDark ? 'border-white/[0.10]' : 'border-slate-200';
+  const pageBg = isDark ? '#0F172A' : '#FFFFFF';
+
   return (
-    <div className="min-h-[500px] w-full p-4">
-      <div className="space-y-3.5">
-        <div className={`rounded-lg border p-4 ${border}`}>
-          <div className="flex items-center justify-between">
-            <div className="space-y-2">
-              <div className={`h-5 w-48 rounded ${base} animate-pulse`} />
-              <div className={`h-3 w-32 rounded ${base} animate-pulse`} />
+    <div className="min-h-screen font-sans transition-colors duration-300" style={{ background: pageBg }}>
+      <div className="mx-auto w-full max-w-[1600px] space-y-4 px-2 py-4 sm:px-3 lg:px-5">
+
+        {/* ⭐ HEADER SKELETON */}
+        <div className={`rounded-xl border-[0.5px] p-4 ${surfaceBg} ${borderColor}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <SkeletonBlock className={`h-10 w-10 rounded-lg ${cardBg}`} />
+              <div className="space-y-2">
+                <SkeletonBlock className={`h-5 w-48 ${cardBg}`} />
+                <SkeletonBlock className={`h-3 w-64 ${cardBg}`} />
+              </div>
             </div>
-            <div className={`h-8 w-24 rounded-lg ${base} animate-pulse`} />
+            <div className="flex items-center gap-2">
+              <SkeletonBlock className={`h-9 w-24 rounded-lg ${cardBg}`} />
+              <SkeletonBlock className={`h-9 w-28 rounded-lg ${cardBg}`} />
+            </div>
           </div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[30%_1fr] gap-4">
-          <div className={`rounded-lg border p-4 ${border}`}>
-            <div className={`h-4 w-24 rounded ${base} animate-pulse`} />
-            <div className={`mt-3 h-3 w-32 rounded ${base} animate-pulse`} />
-            <div className={`mt-3 h-3 w-28 rounded ${base} animate-pulse`} />
-            <div className={`mt-5 h-4 w-20 rounded ${base} animate-pulse`} />
-            <div className={`mt-2 h-3 w-full rounded ${base} animate-pulse`} />
-            <div className={`mt-2 h-3 w-3/4 rounded ${base} animate-pulse`} />
-            <div className={`mt-5 h-9 w-full rounded-lg ${base} animate-pulse`} />
+
+        {/* ⭐ 2-COLUMN LAYOUT */}
+        <div className="grid grid-cols-1 gap-4 pb-8 lg:grid-cols-[30%_1fr]">
+
+          {/* ⭐ SIDEBAR SKELETON */}
+          <div className={`rounded-xl border-[0.5px] p-5 ${surfaceBg} ${borderColor}`}>
+            {/* Avatar + Name */}
+            <div className="flex flex-col items-center text-center">
+              <SkeletonBlock className={`h-24 w-24 rounded-full ${cardBg}`} />
+              <SkeletonBlock className={`mt-3 h-4 w-32 ${cardBg}`} />
+              <SkeletonBlock className={`mt-2 h-3 w-24 ${cardBg}`} />
+            </div>
+
+            {/* Separator */}
+            <div className={`my-5 border-t ${borderColor}`} />
+
+            {/* Info items */}
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <SkeletonBlock className={`h-8 w-8 shrink-0 rounded-lg ${cardBg}`} />
+                  <div className="flex-1 space-y-1.5">
+                    <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+                    <SkeletonBlock className={`h-3.5 w-32 ${cardBg}`} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Separator */}
+            <div className={`my-5 border-t ${borderColor}`} />
+
+            {/* Buttons */}
+            <div className="space-y-2">
+              <SkeletonBlock className={`h-9 w-full rounded-lg ${cardBg}`} />
+              <SkeletonBlock className={`h-9 w-full rounded-lg ${cardBg}`} />
+            </div>
           </div>
+
+          {/* ⭐ MAIN CONTENT SKELETON */}
           <div className="flex flex-col gap-4">
-            <div className={`rounded-lg border p-4 ${border}`}>
-              <div className="flex items-center gap-3">
-                <div className={`h-20 w-20 rounded-full ${base} animate-pulse`} />
-                <div className="space-y-2">
-                  <div className={`h-4 w-32 rounded ${base} animate-pulse`} />
-                  <div className={`h-3 w-24 rounded ${base} animate-pulse`} />
+
+            {/* Avatar card */}
+            <div className={`rounded-xl border-[0.5px] p-5 ${surfaceBg} ${borderColor}`}>
+              <div className="flex flex-wrap items-center gap-4">
+                <SkeletonBlock className={`h-20 w-20 rounded-full ${cardBg}`} />
+                <div className="flex-1 space-y-2">
+                  <SkeletonBlock className={`h-4 w-40 ${cardBg}`} />
+                  <SkeletonBlock className={`h-3 w-56 ${cardBg}`} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <SkeletonBlock className={`h-9 w-24 rounded-lg ${cardBg}`} />
+                  <SkeletonBlock className={`h-9 w-9 rounded-lg ${cardBg}`} />
                 </div>
               </div>
             </div>
-            <div className={`rounded-lg border p-4 ${border}`}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className={`h-9 rounded-lg ${base} animate-pulse`} />
+
+            {/* Form card */}
+            <div className={`rounded-xl border-[0.5px] p-5 ${surfaceBg} ${borderColor}`}>
+              <div className="mb-5 flex items-center justify-between">
+                <SkeletonBlock className={`h-4 w-40 ${cardBg}`} />
+                <SkeletonBlock className={`h-3 w-24 ${cardBg}`} />
+              </div>
+              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="space-y-1.5">
+                    <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+                    <SkeletonBlock className={`h-10 w-full rounded-lg ${cardBg}`} />
+                  </div>
                 ))}
               </div>
+              <div className="mt-5 flex justify-end gap-2">
+                <SkeletonBlock className={`h-9 w-24 rounded-lg ${cardBg}`} />
+                <SkeletonBlock className={`h-9 w-28 rounded-lg ${cardBg}`} />
+              </div>
             </div>
+
           </div>
         </div>
+
       </div>
     </div>
   );
 };
+
+// ============================================================
+// COMPOSANT
+// ============================================================
 
 const Profile: React.FC = () => {
   const { isDark } = useTheme();
@@ -393,32 +470,33 @@ const Profile: React.FC = () => {
   const textColor = isDark ? '#F8FAFC' : '#0F172A';
   const mutedColor = isDark ? '#94A3B8' : '#64748B';
 
+  // ============================================================
+  // ⭐ SKELETON FULL-PAGE — alohan'ny render ny page
+  // ============================================================
+  if (userLoading) {
+    return <ProfilePageSkeleton isDark={isDark} />;
+  }
+
   return (
     <div className="min-h-screen font-sans transition-colors duration-300" style={{ background: bgColor }}>
       <div className="mx-auto w-full max-w-[1600px] space-y-4 px-2 py-4 sm:px-3 lg:px-5">
 
-        {userLoading ? (
-          <ProfileSkeleton isDark={isDark} />
-        ) : (
-          <>
-            <div className="mb-4">
-              <ProfileHeader role={role} isEditing={isEditing} saving={saving} onEdit={handleEdit} onCancel={handleCancel} onSave={handleSave} />
-            </div>
+        <div className="mb-4">
+          <ProfileHeader role={role} isEditing={isEditing} saving={saving} onEdit={handleEdit} onCancel={handleCancel} onSave={handleSave} />
+        </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[30%_1fr] gap-4 pb-8">
-              <div>
-                <ProfileSidebar role={role} memberSince={memberSince} companyName={formData.companyName} twoFAEnabled={twoFAEnabled} onPasswordChange={() => setShowPasswordModal(true)} onLogout={() => setShowLogoutModal(true)} />
-              </div>
-              <div className="flex flex-col gap-4">
-                <ProfileAvatar imagePreview={profileImage} uploadingImage={uploadingImage} firstName={formData.firstName} lastName={formData.lastName} onImageUpload={handleImageChange} onImageRemove={handleRemoveImage} uploadProgress={uploadingImage ? 50 : 0} error={imageError ? "Erreur de chargement de l'image" : null} />
-                <input type="file" ref={fileInputRef} accept="image/*" onChange={(e) => { if (e.target.files?.[0]) handleImageChange(e.target.files[0]); }} className="hidden" />
-                <div className="w-full">
-                  <ProfileForm formData={formData} onChange={handleFormChange} errors={errors} isEditing={isEditing} onSubmit={(e) => e.preventDefault()} />
-                </div>
-              </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[30%_1fr] gap-4 pb-8">
+          <div>
+            <ProfileSidebar role={role} memberSince={memberSince} companyName={formData.companyName} twoFAEnabled={twoFAEnabled} onPasswordChange={() => setShowPasswordModal(true)} onLogout={() => setShowLogoutModal(true)} />
+          </div>
+          <div className="flex flex-col gap-4">
+            <ProfileAvatar imagePreview={profileImage} uploadingImage={uploadingImage} firstName={formData.firstName} lastName={formData.lastName} onImageUpload={handleImageChange} onImageRemove={handleRemoveImage} uploadProgress={uploadingImage ? 50 : 0} error={imageError ? "Erreur de chargement de l'image" : null} />
+            <input type="file" ref={fileInputRef} accept="image/*" onChange={(e) => { if (e.target.files?.[0]) handleImageChange(e.target.files[0]); }} className="hidden" />
+            <div className="w-full">
+              <ProfileForm formData={formData} onChange={handleFormChange} errors={errors} isEditing={isEditing} onSubmit={(e) => e.preventDefault()} />
             </div>
-          </>
-        )}
+          </div>
+        </div>
       </div>
 
       <SuccessModal

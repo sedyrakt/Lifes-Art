@@ -1,13 +1,15 @@
 // src/hooks/produits/useProduitsExport.ts
+// ⭐ FIX: Nesorina ny filtre période — affichage ny produits REHETRA
+// ⭐ FIX: PDF — Total produits + Valeur stock ihany (tsy misy Période intsony)
+
 import { useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { saveFileWithDialog } from '../../utils/saveFileWithDialog';
-import { formatNumberNoSlash, toLocalDateString, getPeriodLabel } from './formatters';
-import { getExportPeriodRange } from './exportHelpers';
+import { formatNumberNoSlash, toLocalDateString } from './formatters';
 import { SORT_MAP } from './constants';
-import type { ExportPeriod, ProduitFilters, SortOption } from './types';
+import type { ProduitFilters, SortOption } from './types';
 
 interface ExportParams {
   debouncedSearch: string;
@@ -16,9 +18,9 @@ interface ExportParams {
 }
 
 export const useProduitsExport = ({ debouncedSearch, sortOption, filters }: ExportParams) => {
-  const fetchAllForExport = useCallback(async (period: ExportPeriod, customDate: string) => {
+  // ⭐ Nalaina ny produits REHETRA (tsy misy filtre période)
+  const fetchAllForExport = useCallback(async () => {
     if (!window.api?.products?.getAll) return [];
-    const range = getExportPeriodRange(period, customDate);
     const sort = SORT_MAP[sortOption] || SORT_MAP['Nom (A-Z)'];
     const params = {
       page: 1,
@@ -30,8 +32,7 @@ export const useProduitsExport = ({ debouncedSearch, sortOption, filters }: Expo
       categorieId: filters?.filterCategorie || undefined,
       prixMin: filters?.prixMin || undefined,
       prixMax: filters?.prixMax || undefined,
-      dateFrom: range.startDate,
-      dateTo: range.endDate,
+      // ⭐ Nesorina: dateFrom / dateTo
     };
     const result = await window.api.products.getAll(params);
     if (result?.success) return result.data || [];
@@ -39,8 +40,8 @@ export const useProduitsExport = ({ debouncedSearch, sortOption, filters }: Expo
   }, [debouncedSearch, sortOption, filters]);
 
   // ⭐ Export Excel
-  const exportToExcel = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = await fetchAllForExport(period, customDate);
+  const exportToExcel = useCallback(async () => {
+    const data = await fetchAllForExport();
     const rows = data.length
       ? data.map((p: any) => ({
           'Code': p.code || '',
@@ -71,15 +72,15 @@ export const useProduitsExport = ({ debouncedSearch, sortOption, filters }: Expo
     }], { origin: -1, skipHeader: true });
 
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const fileName = `produits_${period}_${customDate || toLocalDateString()}.xlsx`;
+    const fileName = `produits_${toLocalDateString()}.xlsx`;
     const result = await saveFileWithDialog(wbout, fileName, [{ name: 'Excel', extensions: ['xlsx'] }]);
     if (!result.success) { if (result.canceled) return result; throw new Error(result.error || 'Erreur'); }
     return result;
   }, [fetchAllForExport]);
 
-  // ⭐⭐⭐ PDF — Border mainty mitovy amin'ny Dashboard ⭐⭐⭐
-  const exportToPDF = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = await fetchAllForExport(period, customDate);
+  // ⭐⭐⭐ PDF — Border mainty, tsy misy Période ⭐⭐⭐
+  const exportToPDF = useCallback(async () => {
+    const data = await fetchAllForExport();
 
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth  = doc.internal.pageSize.getWidth();
@@ -87,7 +88,6 @@ export const useProduitsExport = ({ debouncedSearch, sortOption, filters }: Expo
     const margin = 14;
 
     const nowStr = new Date().toLocaleString('fr-FR');
-    const periodLabel = getPeriodLabel(period, customDate);
 
     const TABLE_STYLE = {
       styles: {
@@ -126,7 +126,11 @@ export const useProduitsExport = ({ debouncedSearch, sortOption, filters }: Expo
 
     const totalValeur = data.reduce((sum: number, p: any) =>
       sum + (Number(p.quantite_stock || 0) * Number(p.prix_vente || 0)), 0);
+    const totalProduits = data.length;
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ HEADER
+    // ═══════════════════════════════════════════════════════════
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, pageWidth, 16, 'F');
     doc.setDrawColor(0, 0, 0);
@@ -142,15 +146,29 @@ export const useProduitsExport = ({ debouncedSearch, sortOption, filters }: Expo
     doc.setFont('helvetica', 'normal');
     doc.text(`Généré le ${nowStr}`, pageWidth - margin, 10, { align: 'right' });
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ TITRE
+    // ═══════════════════════════════════════════════════════════
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(15);
     doc.setFont('helvetica', 'bold');
     doc.text('Rapport des produits', margin, 26);
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ TOTAL — tsy misy Période intsony
+    // ═══════════════════════════════════════════════════════════
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Période : ${periodLabel}`, margin, 32);
+    doc.setTextColor(60, 60, 60);
+    doc.text(
+      `Total : ${totalProduits} produit${totalProduits > 1 ? 's' : ''}  ·  Valeur stock : ${formatNumberNoSlash(totalValeur)} Ar`,
+      margin,
+      32
+    );
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ TABLE
+    // ═══════════════════════════════════════════════════════════
     autoTable(doc, {
       ...TABLE_STYLE,
       startY: 38,
@@ -192,6 +210,9 @@ export const useProduitsExport = ({ debouncedSearch, sortOption, filters }: Expo
       showFoot: 'lastPage',
     });
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ FOOTER (page numbers)
+    // ═══════════════════════════════════════════════════════════
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -206,15 +227,15 @@ export const useProduitsExport = ({ debouncedSearch, sortOption, filters }: Expo
     }
 
     const pdfArrayBuffer = doc.output('arraybuffer');
-    const fileName = `produits_${period}_${customDate || toLocalDateString()}.pdf`;
+    const fileName = `produits_${toLocalDateString()}.pdf`;
     const result = await saveFileWithDialog(pdfArrayBuffer, fileName, [{ name: 'PDF', extensions: ['pdf'] }]);
     if (!result.success) { if (result.canceled) return result; throw new Error(result.error || 'Erreur'); }
     return result;
   }, [fetchAllForExport]);
 
   // ⭐ Export CSV
-  const exportToCSV = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = await fetchAllForExport(period, customDate);
+  const exportToCSV = useCallback(async () => {
+    const data = await fetchAllForExport();
     const headers = ['Code', 'Nom', 'Catégorie', 'Prix achat', 'Prix vente', 'Stock', 'Unité', 'TVA', 'Statut'];
     const escapeCSV = (value: any) => {
       if (value === undefined || value === null) return '""';
@@ -237,7 +258,7 @@ export const useProduitsExport = ({ debouncedSearch, sortOption, filters }: Expo
       ...rows.map(r => r.map(escapeCSV).join(',')).concat([totalRow.map(escapeCSV).join(',')]),
     ].join('\n');
 
-    const fileName = `produits_${period}_${customDate || toLocalDateString()}.csv`;
+    const fileName = `produits_${toLocalDateString()}.csv`;
     const result = await saveFileWithDialog(csv, fileName, [{ name: 'CSV', extensions: ['csv'] }]);
     if (!result.success) { if (result.canceled) return result; throw new Error(result.error || 'Erreur'); }
     return result;

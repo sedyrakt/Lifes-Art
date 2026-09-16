@@ -3,6 +3,7 @@
 // ⭐ FIX: Afindra alohan'ny fiverenana mialoha ny hooks rehetra (useMemo, useEffect)
 // ⭐ NEW: "Nouveau paiement" ao amin'ny dropdown (mampiasa onNouveauPaiement)
 // ⭐ REMOVE: "Gérer Congés" nesorina tao amin'ny dropdown
+// ⭐ FIX: Couleur de fond amin'ny ellipsis button rehefa dark mode
 
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -365,7 +366,7 @@ const EmployesTable: React.FC<EmployesTableProps> = ({
                       <button type="button" onClick={(event) => toggleMenu(employe.id, event)} title="Actions" aria-label={`Actions pour ${employe.prenom} ${employe.nom}`} aria-expanded={openMenuId === employe.id} className={`flex h-7 w-7 items-center justify-center rounded border transition-all duration-150 ${
                         openMenuId === employe.id
                           ? 'bg-brand-50 border-brand-200 text-brand-600 dark:bg-brand-500/10 dark:border-brand-500/20 dark:text-brand-400'
-                          : 'border-slate-200 bg-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-200 hover:text-brand-600 dark:border-transparent dark:bg-transparent dark:text-slate-400 dark:hover:border-white/[0.12] dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                          : 'border-slate-200 bg-slate-100 text-slate-500 hover:border-slate-300 hover:bg-slate-200 hover:text-brand-600 dark:border-white/[0.10] dark:bg-white/[0.06] dark:text-slate-300 dark:hover:border-white/[0.18] dark:hover:bg-white/[0.10] dark:hover:text-slate-100'
                       }`}>
                         <span className="text-[14.5px] font-bold tracking-widest">...</span>
                       </button>

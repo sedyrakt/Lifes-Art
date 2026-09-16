@@ -1,3 +1,6 @@
+// src/pages/EntreesStock.tsx
+// ⭐ NOUVEAU: Skeleton loader full-page (tsoloana ny skeleton table kely)
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Package } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
@@ -18,6 +21,115 @@ import autoTable from 'jspdf-autotable';
 import { saveFileWithDialog } from '../utils/saveFileWithDialog';
 
 const formatNumberNoSlash = (value: number) => value.toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
+
+// ============================================================
+// ⭐ SKELETON LOADER FULL-PAGE
+// ============================================================
+
+const SkeletonBlock: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <div className={`animate-pulse rounded-md ${className}`} />
+);
+
+const EntreesPageSkeleton: React.FC<{ isDark: boolean }> = ({ isDark }) => {
+  const cardBg = isDark ? 'bg-white/[0.04]' : 'bg-slate-100';
+  const surfaceBg = isDark ? 'bg-[#0F172A]' : 'bg-white';
+  const borderColor = isDark ? 'border-white/[0.10]' : 'border-slate-200';
+  const rowBorderColor = isDark ? 'border-white/[0.06]' : 'border-slate-100';
+  const pageBg = isDark ? '#0F172A' : '#FFFFFF';
+
+  return (
+    <div className="min-h-full w-full transition-colors duration-300" style={{ background: pageBg }}>
+      <div className="mx-auto w-full max-w-[1600px] space-y-5 px-2 py-5 sm:px-3 lg:px-5">
+
+        {/* ⭐ HEADER SKELETON */}
+        <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border-[0.5px] p-4 ${surfaceBg} ${borderColor}`}>
+          <div className="flex items-center gap-3">
+            <SkeletonBlock className={`h-10 w-10 rounded-lg ${cardBg}`} />
+            <div className="space-y-2">
+              <SkeletonBlock className={`h-4 w-40 ${cardBg}`} />
+              <SkeletonBlock className={`h-3 w-56 ${cardBg}`} />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <SkeletonBlock className={`h-9 w-9 rounded-lg ${cardBg}`} />
+            <SkeletonBlock className={`h-9 w-32 rounded-lg ${cardBg}`} />
+            <SkeletonBlock className={`h-9 w-40 rounded-lg ${cardBg}`} />
+          </div>
+        </div>
+
+        {/* ⭐ STATS CARDS SKELETON (4 cards) */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className={`rounded-xl border-[0.5px] p-4 ${surfaceBg} ${borderColor}`}>
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+                  <SkeletonBlock className={`h-6 w-28 ${cardBg}`} />
+                </div>
+                <SkeletonBlock className={`h-10 w-10 rounded-lg ${cardBg}`} />
+              </div>
+              <div className="mt-3">
+                <SkeletonBlock className={`h-2 w-full rounded-full ${cardBg}`} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ⭐ SEARCH BAR SKELETON */}
+        <div className={`flex items-center gap-2 rounded-xl border-[0.5px] p-3 ${surfaceBg} ${borderColor}`}>
+          <SkeletonBlock className={`h-10 flex-1 rounded-lg ${cardBg}`} />
+        </div>
+
+        {/* ⭐ TABLE SKELETON */}
+        <section className={`relative overflow-hidden rounded-2xl border-[0.5px] ${surfaceBg} ${borderColor}`}>
+          {/* Table header */}
+          <div className={`flex items-center gap-3 border-b px-3 py-2.5 ${rowBorderColor}`}>
+            <SkeletonBlock className={`h-4 w-4 rounded ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-20 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-32 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-16 ${cardBg}`} />
+            <SkeletonBlock className={`h-3 w-24 ${cardBg}`} />
+            <div className="ml-auto">
+              <SkeletonBlock className={`h-3 w-16 ${cardBg}`} />
+            </div>
+          </div>
+
+          {/* Table rows */}
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className={`flex items-center gap-3 border-b px-3 py-3 ${rowBorderColor}`}>
+              <SkeletonBlock className={`h-4 w-4 rounded ${cardBg}`} />
+              <SkeletonBlock className={`h-5 w-20 rounded ${cardBg}`} />
+              <div className="flex-1 space-y-1.5">
+                <SkeletonBlock className={`h-3.5 w-40 ${cardBg}`} />
+                <SkeletonBlock className={`h-2.5 w-24 ${cardBg}`} />
+              </div>
+              <SkeletonBlock className={`h-5 w-16 rounded ${cardBg}`} />
+              <SkeletonBlock className={`h-3.5 w-24 ${cardBg}`} />
+              <div className="ml-auto">
+                <SkeletonBlock className={`h-7 w-7 rounded ${cardBg}`} />
+              </div>
+            </div>
+          ))}
+
+          {/* Table footer */}
+          <div className={`flex flex-wrap items-center justify-between gap-3 border-t px-3 py-2.5 ${rowBorderColor}`}>
+            <div className="flex items-center gap-3">
+              <SkeletonBlock className={`h-3.5 w-24 ${cardBg}`} />
+              <SkeletonBlock className={`h-3.5 w-20 ${cardBg}`} />
+              <SkeletonBlock className={`h-3.5 w-24 ${cardBg}`} />
+            </div>
+            <SkeletonBlock className={`h-3.5 w-28 ${cardBg}`} />
+          </div>
+        </section>
+
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// COMPOSANT
+// ============================================================
 
 const EntreesStock: React.FC = () => {
   const { isDark } = useTheme();
@@ -293,38 +405,16 @@ const EntreesStock: React.FC = () => {
     } catch (error: any) { setErrorMessage(error?.message || 'Erreur'); setShowErrorModal(true); }
   }, [exportToExcel, exportToPDF, exportToCSV]);
 
-  const renderSkeleton = () => {
-    const base = isDark ? 'bg-white/[0.06]' : 'bg-slate-200';
-    const border = isDark ? 'border-white/[0.08]' : 'border-slate-200';
-    return (
-      <div className="min-h-[500px] w-full p-5" style={{ background: isDark ? '#0F172A' : '#FFFFFF' }}>
-        <div className="space-y-4">
-          <div className={`flex items-center gap-4 border-b pb-4 ${border}`}>
-            {[...Array(7)].map((_, i) => <div key={i} className={`h-4 w-${i === 0 ? 8 : i === 1 ? 24 : i === 2 ? 32 : i === 3 ? 20 : i === 4 ? 28 : i === 5 ? 20 : 28} rounded ${base} animate-pulse`} />)}
-          </div>
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className={`flex items-center gap-4 py-3 ${border}`}>
-              <div className={`h-4 w-8 rounded ${base} animate-pulse`} />
-              <div className={`h-10 w-10 rounded-lg ${base} animate-pulse`} />
-              <div className={`h-4 w-32 rounded ${base} animate-pulse`} />
-              <div className={`h-4 w-20 rounded ${base} animate-pulse`} />
-              <div className="flex-1 space-y-2">
-                <div className={`h-4 w-1/3 rounded ${base} animate-pulse`} />
-                <div className={`h-3 w-1/2 rounded ${base} animate-pulse`} />
-              </div>
-              <div className={`h-4 w-24 rounded ${base} animate-pulse`} />
-              <div className={`h-4 w-20 rounded ${base} animate-pulse`} />
-              <div className={`h-4 w-28 rounded ${base} animate-pulse`} />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   const cardBg = isDark ? '#0F172A' : '#FFFFFF';
   const borderColor = isDark ? 'rgba(255,255,255,0.10)' : '#E2E8F0';
   const shadow = isDark ? '0 4px 24px -4px rgba(0,0,0,0.35)' : '0 4px 20px -4px rgba(79,70,229,0.08)';
+
+  // ============================================================
+  // ⭐ SKELETON FULL-PAGE — alohan'ny render ny page
+  // ============================================================
+  if (loading && entrees.length === 0) {
+    return <EntreesPageSkeleton isDark={isDark} />;
+  }
 
   return (
     <div className="min-h-full w-full transition-colors duration-300 bg-white dark:bg-[#0F172A]">
@@ -341,26 +431,22 @@ const EntreesStock: React.FC = () => {
 
         <EntreesSearchBar searchInput={searchInput} onSearchChange={(value) => { setSearchInput(value); setCurrentPage(1); }} />
 
-        {loading ? (
-          renderSkeleton()
-        ) : (
-          <section className="relative overflow-hidden rounded-2xl border transition-all duration-300" style={{ background: cardBg, borderColor, boxShadow: shadow }}>
-            {refreshing && <div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent"><div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" /></div>}
+        <section className="relative overflow-hidden rounded-2xl border transition-all duration-300" style={{ background: cardBg, borderColor, boxShadow: shadow }}>
+          {refreshing && <div className="absolute left-0 right-0 top-0 z-20 h-[3px] overflow-hidden rounded-t-2xl bg-transparent"><div className="h-full w-1/3 animate-[loading_1.2s_ease-in-out_infinite] rounded-full bg-brand-500" /></div>}
 
-            {pagedEntrees.length === 0 ? (
-              <div className="flex min-h-[320px] flex-col items-center justify-center px-6 py-14 text-center">
-                <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-500 dark:bg-brand-500/10 dark:text-brand-400"><Package size={26} /></div>
-                <h3 className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">Aucune entrée trouvée</h3>
-                <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">Cliquez sur "Nouvelle entrée" pour ajouter du stock.</p>
-              </div>
-            ) : (
-              <>
-                <EntreesTable entrees={pagedEntrees} selectedIds={selectedIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne} onDelete={(id) => { setDeleteTarget(id); setShowDeleteModal(true); }} onBulkDelete={handleBulkDelete} onClearSelection={() => setSelectedIds(new Set())} />
-                <EntreesPagination currentPage={currentPage} totalPages={totalPages} totalItems={filteredEntrees.length} onPageChange={setCurrentPage} />
-              </>
-            )}
-          </section>
-        )}
+          {pagedEntrees.length === 0 ? (
+            <div className="flex min-h-[320px] flex-col items-center justify-center px-6 py-14 text-center">
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-500 dark:bg-brand-500/10 dark:text-brand-400"><Package size={26} /></div>
+              <h3 className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">Aucune entrée trouvée</h3>
+              <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">Cliquez sur "Nouvelle entrée" pour ajouter du stock.</p>
+            </div>
+          ) : (
+            <>
+              <EntreesTable entrees={pagedEntrees} selectedIds={selectedIds} onSelectAll={handleSelectAll} onSelectOne={handleSelectOne} onDelete={(id) => { setDeleteTarget(id); setShowDeleteModal(true); }} onBulkDelete={handleBulkDelete} onClearSelection={() => setSelectedIds(new Set())} />
+              <EntreesPagination currentPage={currentPage} totalPages={totalPages} totalItems={filteredEntrees.length} onPageChange={setCurrentPage} />
+            </>
+          )}
+        </section>
       </div>
 
       <EntreesModalForm isOpen={showFormModal} onClose={() => setShowFormModal(false)} onSubmit={handleFormSubmit} produits={produits} />

@@ -23,7 +23,7 @@ const FormInput: React.FC<{
   label: string; name: string; value: string; placeholder?: string; type?: string;
   icon: React.ElementType; error?: string; disabled?: boolean; autoComplete?: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; rightElement?: React.ReactNode;
-  iconColor?: string; 
+  iconColor?: string;
 }> = ({ label, name, value, placeholder, type = 'text', icon: Icon, error, disabled, autoComplete, onChange, rightElement, iconColor = '#4F46E5' }) => {
   const { isDark } = useTheme();
   const [focused, setFocused] = useState(false);
@@ -97,6 +97,7 @@ const Login: React.FC = () => {
   const { isAuthenticated, loading: authLoading, login, error: authError, clearError, setSession } = useAuth();
   const { isLicenseValid, isLoading: licenseLoading, refresh: refreshLicense } = useLicense();
   const navigate = useNavigate();
+  const [logoError, setLogoError] = useState(false);
 
   const logoSrc = isDark ? LOGO_DARK : LOGO_LIGHT;
   const backgroundImage = "url('./images/abstract3.jpeg')";
@@ -303,9 +304,7 @@ const Login: React.FC = () => {
                 />
               </div>
 
-              {/* ⭐ RESUMÉ FOHY: Nohafohezina ny lisitra */}
               <div className="space-y-1.5">
-
                 {[
                   "Gestion complète : Produits, Ventes, Achats & Stock.",
                   "Tableaux de bord en temps réel.",
@@ -341,11 +340,22 @@ const Login: React.FC = () => {
             <span className="text-[15px] font-bold" style={{ color: textColor }}>Life's Art</span>
           </div>
 
-          <img src={logoSrc} alt="Life's Art" className="mx-auto mb-3 h-16 w-16 object-contain" />
+          {/* ⭐ LOGO + TITRE — groupés (mitovy amin'ny Kajio ERP) */}
+          <div className="flex flex-col items-center gap-1.5 mt-5">
+            {!logoError && (
+              <img
+                src={logoSrc}
+                alt="Life's Art"
+                className="h-[52px] w-auto object-contain"
+                onError={() => setLogoError(true)}
+                draggable={false}
+              />
+            )}
 
-          <div className="mb-3 text-center">
-            <h1 className="text-[24px] font-bold" style={{ color: textColor }}>Bienvenue</h1>
-            <p className="mt-1 text-[14px]" style={{ color: mutedColor }}>Connectez-vous à votre espace de travail</p>
+            <div className="text-center">
+              <h1 className="text-[24px] font-bold" style={{ color: textColor }}>Bienvenue</h1>
+              <p className="mt-1 text-[14px]" style={{ color: mutedColor }}>Connectez-vous à votre espace de travail</p>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-2.5">
@@ -372,7 +382,7 @@ const Login: React.FC = () => {
           </form>
 
           <div className="mt-3 text-center"><p className="text-[14px]" style={{ color: mutedColor }}>Pas encore de compte ? <Link to="/register" className="font-medium text-brand-500 hover:underline">S'inscrire</Link></p></div>
-          
+
           <div className="mt-4 flex items-center justify-between border-t pt-2" style={{ borderColor }}>
             <span className="text-[13px]" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>© 2026 Life's Art ERP</span>
             <div className="flex gap-3"><Link to="/terms" className="text-[13px] hover:underline" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Conditions</Link><Link to="/support" className="text-[13px] hover:underline" style={{ color: isDark ? '#64748B' : '#94A3B8' }}>Support</Link></div>

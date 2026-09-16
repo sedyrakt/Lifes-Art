@@ -1,12 +1,16 @@
 // src/components/employes/EmployesPresenceModal.tsx
 // ⭐ REDESIGN: Mitovy amin'ny BulkPresenceModal ny design
 // ⭐ Label "Pointage individuel" + Justification rehefa Absent
+// ⭐ NEW: readOnly mode ho an'ny bouton "Voir"
+// ⭐ FIX: Retard formaté en "1h40min"
+// ⭐ FIX: Retard calculé même sans heure de départ
+// ⭐ REMOVED: Icons tsy ilaina (User, Briefcase, AlertTriangle, Clock3, Timer)
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Save, CalendarDays, Clock3, AlertTriangle, CheckCircle2, Timer, FileText,
-  User, Briefcase, Calendar, Hourglass,
+  Eye,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import TimePicker from '../common/TimePicker';
@@ -19,6 +23,7 @@ interface Props {
   mode?: 'monthly' | 'daily'; date?: string;
   onSaveDaily?: (data: any) => Promise<any>;
   loadPresenceJournaliere?: (employeId: number, date: string) => Promise<any>;
+  readOnly?: boolean;
 }
 
 type PresenceStatus = 'present' | 'absent' | 'conge';
@@ -66,21 +71,48 @@ function formatMinutes(value: number | null | undefined): string {
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  return rest > 0 ? `${hours}h${String(rest).padStart(2, '0')}` : `${hours}h`;
+  return rest > 0 ? `${hours}h${String(rest).padStart(2, '0')}min` : `${hours}h`;
 }
 
-function calculatePresence(statut: PresenceStatus, heureArrivee: string, heureDepart: string, heureDebutPrevue = DEFAULT_START, heureFinPrevue = DEFAULT_END): CalculPresence {
+function calculatePresence(
+  statut: PresenceStatus,
+  heureArrivee: string,
+  heureDepart: string,
+  heureDebutPrevue = DEFAULT_START,
+  heureFinPrevue = DEFAULT_END,
+): CalculPresence {
   if (statut !== 'present') return { retard: 0, heures_travaillees: 0, heures_sup: 0 };
+
   const arrival = timeToMinutes(heureArrivee);
   const departure = timeToMinutes(heureDepart);
   const plannedStart = timeToMinutes(heureDebutPrevue);
   const plannedEnd = timeToMinutes(heureFinPrevue);
-  if (arrival === null || departure === null || plannedStart === null || plannedEnd === null) return { retard: 0, heures_travaillees: 0, heures_sup: 0 };
-  if (departure < arrival) return { retard: Math.max(0, arrival - plannedStart), heures_travaillees: 0, heures_sup: 0 };
-  const retard = Math.max(0, arrival - plannedStart);
+
+  let retard = 0;
+  if (arrival !== null && plannedStart !== null) {
+    retard = Math.max(0, arrival - plannedStart);
+  }
+
+  if (arrival === null || plannedStart === null) {
+    return { retard: 0, heures_travaillees: 0, heures_sup: 0 };
+  }
+
+  if (departure === null || plannedEnd === null) {
+    return { retard, heures_travaillees: 0, heures_sup: 0 };
+  }
+
+  if (departure < arrival) {
+    return { retard, heures_travaillees: 0, heures_sup: 0 };
+  }
+
   const workedMinutes = Math.max(0, departure - arrival);
   const overtimeMinutes = Math.max(0, departure - plannedEnd);
-  return { retard, heures_travaillees: Number((workedMinutes / 60).toFixed(4)), heures_sup: Number((overtimeMinutes / 60).toFixed(4)) };
+
+  return {
+    retard,
+    heures_travaillees: Number((workedMinutes / 60).toFixed(4)),
+    heures_sup: Number((overtimeMinutes / 60).toFixed(4)),
+  };
 }
 
 const STATUS_CONFIG: Record<PresenceStatus, { label: string; active: string; inactive: string }> = {
@@ -104,6 +136,7 @@ const STATUS_CONFIG: Record<PresenceStatus, { label: string; active: string; ina
 const EmployesPresenceModal: React.FC<Props> = ({
   isOpen, onClose, employe, mois, annee, moisLabels,
   onSave, loadPresence, mode = 'monthly', date, onSaveDaily, loadPresenceJournaliere,
+  readOnly = false,
 }) => {
   const { isDark } = useTheme();
   const [loading, setLoading] = useState(false);
@@ -174,6 +207,7 @@ const EmployesPresenceModal: React.FC<Props> = ({
   const calculated = useMemo(() => calculatePresence(dailyForm.statut, dailyForm.heure_arrivee, dailyForm.heure_depart, plannedStart, plannedEnd), [dailyForm.statut, dailyForm.heure_arrivee, dailyForm.heure_depart, plannedStart, plannedEnd]);
 
   const handleStatusChange = (statut: PresenceStatus) => {
+    if (readOnly) return;
     setErrorMessage('');
     if (statut !== 'present') {
       setDailyForm((prev) => ({ ...prev, statut, heure_arrivee: '', heure_depart: '' }));
@@ -199,6 +233,7 @@ const EmployesPresenceModal: React.FC<Props> = ({
   };
 
   const handleSave = async () => {
+    if (readOnly) return;
     if (!employe) return;
     setErrorMessage('');
     setSaving(true);
@@ -262,26 +297,28 @@ const EmployesPresenceModal: React.FC<Props> = ({
   const isPresentType = dailyForm.statut === 'present';
   const isAbsent = dailyForm.statut === 'absent';
 
-  // ⭐ Header icon color based on statut
-  const headerIconColor =
-    dailyForm.statut === 'present' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
-    dailyForm.statut === 'absent' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
-    'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400';
+  const headerIconColor = readOnly
+    ? 'bg-slate-100 text-slate-600 dark:bg-white/[0.06] dark:text-slate-300'
+    : dailyForm.statut === 'present' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' :
+      dailyForm.statut === 'absent' ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' :
+      'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400';
+
+  const headerAccent = readOnly ? 'bg-slate-400 dark:bg-slate-500' : 'bg-brand-500';
 
   const modal = (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="relative flex max-h-[92vh] w-full max-w-[640px] flex-col overflow-hidden rounded-xl border-[0.5px] border-slate-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.35)] dark:border-white/[0.12] dark:bg-[#0F172A]">
-        <div className="absolute left-0 right-0 top-0 h-[2px] bg-brand-500" />
+        <div className={`absolute left-0 right-0 top-0 h-[2px] ${headerAccent}`} />
 
         {/* HEADER */}
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3.5 dark:border-white/[0.08]">
           <div className="flex min-w-0 items-center gap-3">
             <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${headerIconColor}`}>
-              {mode === 'daily' ? <Clock3 size={20} strokeWidth={2.2} /> : <CalendarDays size={20} strokeWidth={2.2} />}
+              {readOnly ? <Eye size={20} strokeWidth={2.2} /> : (mode === 'daily' ? <Clock3 size={20} strokeWidth={2.2} /> : <CalendarDays size={20} strokeWidth={2.2} />)}
             </div>
             <div className="min-w-0">
               <h2 className="truncate text-[17px] font-semibold text-slate-900 dark:text-slate-100">
-                {mode === 'daily' ? 'Pointage individuel' : 'Gestion mensuelle'}
+                {readOnly ? 'Détail du pointage' : (mode === 'daily' ? 'Pointage individuel' : 'Gestion mensuelle')}
               </h2>
               <p className="mt-0.5 truncate text-[13.5px] leading-[1.3] text-slate-500 dark:text-slate-400">
                 {employeeName}{mode === 'daily' && ` — ${modalDate.split('-').reverse().join('/')}`}
@@ -301,23 +338,21 @@ const EmployesPresenceModal: React.FC<Props> = ({
               <p className="mt-3 text-[14px] text-slate-500 dark:text-slate-400">Chargement...</p>
             </div>
           ) : mode === 'monthly' ? (
-            /* MONTHLY — mitovy amin'ny taloha */
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field label="Jours d'absence" value={monthlyForm.jours_absences} type="number" min={0} onChange={(value) => setMonthlyForm((prev) => ({ ...prev, jours_absences: Math.max(0, Number(value) || 0) }))} />
-                <Field label="Jours de congé" value={monthlyForm.jours_conges} type="number" min={0} onChange={(value) => setMonthlyForm((prev) => ({ ...prev, jours_conges: Math.max(0, Number(value) || 0) }))} />
-                <Field label="Jours de maladie" value={monthlyForm.jours_maladie} type="number" min={0} onChange={(value) => setMonthlyForm((prev) => ({ ...prev, jours_maladie: Math.max(0, Number(value) || 0) }))} />
-                <Field label="Certificat médical" value={monthlyForm.justificatif_maladie} onChange={(value) => setMonthlyForm((prev) => ({ ...prev, justificatif_maladie: value }))} placeholder="N° certificat..." />
+                <Field label="Jours d'absence" value={monthlyForm.jours_absences} type="number" min={0} readOnly={readOnly} onChange={(value) => setMonthlyForm((prev) => ({ ...prev, jours_absences: Math.max(0, Number(value) || 0) }))} />
+                <Field label="Jours de congé" value={monthlyForm.jours_conges} type="number" min={0} readOnly={readOnly} onChange={(value) => setMonthlyForm((prev) => ({ ...prev, jours_conges: Math.max(0, Number(value) || 0) }))} />
+                <Field label="Jours de maladie" value={monthlyForm.jours_maladie} type="number" min={0} readOnly={readOnly} onChange={(value) => setMonthlyForm((prev) => ({ ...prev, jours_maladie: Math.max(0, Number(value) || 0) }))} />
+                <Field label="Certificat médical" value={monthlyForm.justificatif_maladie} readOnly={readOnly} onChange={(value) => setMonthlyForm((prev) => ({ ...prev, justificatif_maladie: value }))} placeholder="N° certificat..." />
               </div>
               <div>
                 <label className="mb-1.5 block text-[14px] font-semibold text-slate-500 dark:text-slate-400">Observation</label>
-                <textarea rows={3} value={monthlyForm.observation} onChange={(event) => setMonthlyForm((prev) => ({ ...prev, observation: event.target.value }))} className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-100" />
+                <textarea rows={3} value={monthlyForm.observation} readOnly={readOnly} onChange={(event) => setMonthlyForm((prev) => ({ ...prev, observation: event.target.value }))} className={`w-full resize-none rounded-lg border border-slate-200 bg-white px-3.5 py-3 text-[15px] text-slate-900 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-100 ${readOnly ? 'cursor-not-allowed opacity-70' : ''}`} />
               </div>
             </div>
           ) : (
-            /* DAILY — ⭐ DESIGN MITOVY AMIN'NY BULK MODAL */
             <div className="space-y-4">
-              {/* ═══ SECTION 1: Statut ═══ */}
+              {/* Statut */}
               <div>
                 <label className="mb-2 block text-[14px] font-semibold text-slate-900 dark:text-slate-100">Statut de présence</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -325,7 +360,13 @@ const EmployesPresenceModal: React.FC<Props> = ({
                     const config = STATUS_CONFIG[status];
                     const active = dailyForm.statut === status;
                     return (
-                      <button key={status} type="button" onClick={() => handleStatusChange(status)} className={`flex min-h-[46px] items-center justify-center gap-2 rounded-lg border px-3 text-[15px] font-semibold transition-colors ${active ? config.active : config.inactive}`}>
+                      <button
+                        key={status}
+                        type="button"
+                        disabled={readOnly}
+                        onClick={() => handleStatusChange(status)}
+                        className={`flex min-h-[46px] items-center justify-center gap-2 rounded-lg border px-3 text-[15px] font-semibold transition-colors ${active ? config.active : config.inactive} ${readOnly ? 'cursor-not-allowed opacity-70' : ''}`}
+                      >
                         {status === 'present' && <CheckCircle2 size={17} strokeWidth={2.2} />}
                         {status === 'absent' && <AlertTriangle size={17} strokeWidth={2.2} />}
                         {status === 'conge' && <CalendarDays size={17} strokeWidth={2.2} />}
@@ -336,74 +377,63 @@ const EmployesPresenceModal: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* ═══ SECTION 2: Info employé (mifanaraka amin'ny bulk) ═══ */}
+              {/* Info employé — ⭐ NESORINA ny User/Briefcase icons */}
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/[0.08] dark:bg-white/[0.02]">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-start gap-2">
-                    <User size={14} strokeWidth={2.2} className="mt-1 shrink-0 text-slate-400" />
-                    <div className="min-w-0">
-                      <p className="text-[12px] leading-[1.3] text-slate-500 dark:text-slate-400">Employé</p>
-                      <p className="mt-0.5 truncate text-[14px] font-semibold text-slate-900 dark:text-slate-100">{employeeName}</p>
-                    </div>
+                  <div className="min-w-0">
+                    <p className="text-[12px] leading-[1.3] text-slate-500 dark:text-slate-400">Employé</p>
+                    <p className="mt-0.5 truncate text-[14px] font-semibold text-slate-900 dark:text-slate-100">{employeeName}</p>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <Briefcase size={14} strokeWidth={2.2} className="mt-1 shrink-0 text-slate-400" />
-                    <div className="min-w-0">
-                      <p className="text-[12px] leading-[1.3] text-slate-500 dark:text-slate-400">Poste</p>
-                      <p className="mt-0.5 truncate text-[14px] font-semibold text-slate-900 dark:text-slate-100">{employe?.poste || '—'}</p>
-                    </div>
+                  <div className="min-w-0">
+                    <p className="text-[12px] leading-[1.3] text-slate-500 dark:text-slate-400">Poste</p>
+                    <p className="mt-0.5 truncate text-[14px] font-semibold text-slate-900 dark:text-slate-100">{employe?.poste || '—'}</p>
                   </div>
                 </div>
               </div>
 
-              {/* ═══ SECTION 3: Planning + Heures (raha Present) ═══ */}
+              {/* Planning + Heures */}
               {isPresentType && (
                 <>
-                  {/* Planning prévu */}
                   <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/[0.08] dark:bg-white/[0.02]">
                     <div>
                       <label className="mb-1.5 block text-[13px] font-semibold text-slate-500 dark:text-slate-400">Début prévu</label>
-                      <TimePicker value={plannedStart} onChange={setPlannedStart} isDark={isDark} showSeconds={false} placeholder="08:00" />
+                      <TimePicker value={plannedStart} onChange={readOnly ? () => {} : setPlannedStart} isDark={isDark} showSeconds={false} placeholder="08:00" />
                     </div>
                     <div>
                       <label className="mb-1.5 block text-[13px] font-semibold text-slate-500 dark:text-slate-400">Fin prévue</label>
-                      <TimePicker value={plannedEnd} onChange={setPlannedEnd} isDark={isDark} showSeconds={false} placeholder="17:00" />
+                      <TimePicker value={plannedEnd} onChange={readOnly ? () => {} : setPlannedEnd} isDark={isDark} showSeconds={false} placeholder="17:00" />
                     </div>
                   </div>
 
-                  {/* Arrivée / Départ */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="mb-1.5 block text-[14px] font-semibold text-slate-500 dark:text-slate-400">Heure d'arrivée</label>
-                      <TimePicker value={dailyForm.heure_arrivee} onChange={(v) => setDailyForm((prev) => ({ ...prev, heure_arrivee: v }))} isDark={isDark} showSeconds={false} placeholder="--:--" />
+                      <TimePicker value={dailyForm.heure_arrivee} onChange={readOnly ? () => {} : (v) => setDailyForm((prev) => ({ ...prev, heure_arrivee: v }))} isDark={isDark} showSeconds={false} placeholder="--:--" />
                     </div>
                     <div>
                       <label className="mb-1.5 block text-[14px] font-semibold text-slate-500 dark:text-slate-400">Heure de départ</label>
-                      <TimePicker value={dailyForm.heure_depart} onChange={(v) => setDailyForm((prev) => ({ ...prev, heure_depart: v }))} isDark={isDark} showSeconds={false} placeholder="--:--" />
+                      <TimePicker value={dailyForm.heure_depart} onChange={readOnly ? () => {} : (v) => setDailyForm((prev) => ({ ...prev, heure_depart: v }))} isDark={isDark} showSeconds={false} placeholder="--:--" />
                     </div>
                   </div>
 
-                  {/* ═══ METRICS — mitovy amin'ny bulk modal ═══ */}
+                  {/* METRICS — ⭐ NESORINA ny icons */}
                   <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 dark:border-white/[0.08] dark:bg-white/[0.08]">
                     <div className="bg-white px-3 py-3 dark:bg-[#0F172A]">
-                      <div className={`flex items-center gap-1.5 text-[12.5px] font-semibold ${calculated.retard > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                        <AlertTriangle size={13} strokeWidth={2.2} />
-                        <span>Retard</span>
-                      </div>
+                      <p className={`text-[12.5px] font-semibold ${calculated.retard > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        Retard
+                      </p>
                       <p className="mt-1 text-[15px] font-bold text-slate-900 dark:text-slate-100">{formatMinutes(calculated.retard)}</p>
                     </div>
                     <div className="bg-white px-3 py-3 dark:bg-[#0F172A]">
-                      <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-brand-600 dark:text-brand-400">
-                        <Clock3 size={13} strokeWidth={2.2} />
-                        <span>Travaillé</span>
-                      </div>
+                      <p className="text-[12.5px] font-semibold text-brand-600 dark:text-brand-400">
+                        Travaillé
+                      </p>
                       <p className="mt-1 text-[15px] font-bold text-slate-900 dark:text-slate-100">{formatHours(calculated.heures_travaillees)}</p>
                     </div>
                     <div className="bg-white px-3 py-3 dark:bg-[#0F172A]">
-                      <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-violet-600 dark:text-violet-400">
-                        <Timer size={13} strokeWidth={2.2} />
-                        <span>Heures sup.</span>
-                      </div>
+                      <p className="text-[12.5px] font-semibold text-violet-600 dark:text-violet-400">
+                        Heures sup.
+                      </p>
                       <p className="mt-1 text-[15px] font-bold text-slate-900 dark:text-slate-100">{formatHours(calculated.heures_sup)}</p>
                     </div>
                   </div>
@@ -420,60 +450,58 @@ const EmployesPresenceModal: React.FC<Props> = ({
                 </>
               )}
 
-              {/* ═══ Absent/Congé message ═══ */}
+              {/* Absent/Congé message */}
               {!isPresentType && (
                 <div className={`rounded-lg border-2 p-4 ${dailyForm.statut === 'absent' ? 'border-red-300 bg-red-50 dark:border-red-500/40 dark:bg-red-500/10' : 'border-amber-300 bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10'}`}>
-                  <div className="flex items-start gap-3">
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${dailyForm.statut === 'absent' ? 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400' : 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400'}`}>
-                      {dailyForm.statut === 'absent' ? <AlertTriangle size={18} strokeWidth={2.2} /> : <CalendarDays size={18} strokeWidth={2.2} />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-[14px] font-bold ${dailyForm.statut === 'absent' ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'}`}>
-                        {dailyForm.statut === 'absent' ? 'Employé absent' : 'Employé en congé'}
-                      </p>
-                      <p className={`mt-1 text-[12.5px] leading-[1.4] ${dailyForm.statut === 'absent' ? 'text-red-700/80 dark:text-red-300/80' : 'text-amber-700/80 dark:text-amber-300/80'}`}>
-                        Aucune heure d'arrivée, de départ ou de retard ne sera enregistrée pour ce statut.
-                      </p>
-                    </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-[14px] font-bold ${dailyForm.statut === 'absent' ? 'text-red-700 dark:text-red-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                      {dailyForm.statut === 'absent' ? 'Employé absent' : 'Employé en congé'}
+                    </p>
+                    <p className={`mt-1 text-[12.5px] leading-[1.4] ${dailyForm.statut === 'absent' ? 'text-red-700/80 dark:text-red-300/80' : 'text-amber-700/80 dark:text-amber-300/80'}`}>
+                      Aucune heure d'arrivée, de départ ou de retard ne sera enregistrée pour ce statut.
+                    </p>
                   </div>
                 </div>
               )}
 
-              {/* ═══ Justification rehefa Absent ═══ */}
+              {/* Justification rehefa Absent */}
               {isAbsent && (
                 <div>
                   <label className="mb-1.5 block text-[14px] font-semibold text-slate-500 dark:text-slate-400">
-                    Justification <span className="text-red-500">*</span>
+                    Justification {!readOnly && <span className="text-red-500">*</span>}
                   </label>
                   <div className="relative">
-                    <FileText size={15} strokeWidth={2.2} className="absolute left-3 top-3.5 text-red-400" />
                     <textarea
                       rows={2}
                       value={dailyForm.justification}
+                      readOnly={readOnly}
                       onChange={(event) => setDailyForm((prev) => ({ ...prev, justification: event.target.value }))}
                       placeholder="Raison de l'absence (maladie, urgence familiale, ...)"
-                      className="w-full resize-none rounded-lg border border-red-200 bg-red-50/30 pl-9 pr-3.5 py-3 text-[14.5px] text-slate-900 outline-none transition-colors focus:border-red-500 focus:ring-2 focus:ring-red-500/10 dark:border-red-500/30 dark:bg-red-500/5 dark:text-slate-100"
+                      className={`w-full resize-none rounded-lg border border-red-200 bg-red-50/30 px-3.5 py-3 text-[14.5px] text-slate-900 outline-none transition-colors focus:border-red-500 focus:ring-2 focus:ring-red-500/10 dark:border-red-500/30 dark:bg-red-500/5 dark:text-slate-100 ${readOnly ? 'cursor-not-allowed opacity-70' : ''}`}
                     />
                   </div>
-                  <p className="mt-1 text-[11.5px] italic text-slate-500 dark:text-slate-500">
-                    Obligatoire pour justifier l'absence dans le dossier RH.
-                  </p>
+                  {!readOnly && (
+                    <p className="mt-1 text-[11.5px] italic text-slate-500 dark:text-slate-500">
+                      Obligatoire pour justifier l'absence dans le dossier RH.
+                    </p>
+                  )}
                 </div>
               )}
 
-              {/* ═══ Observation ═══ */}
+              {/* Observation */}
               <div>
                 <label className="mb-1.5 block text-[14px] font-semibold text-slate-500 dark:text-slate-400">Observation (optionnel)</label>
                 <textarea
                   rows={2}
                   value={dailyForm.observation}
+                  readOnly={readOnly}
                   onChange={(event) => setDailyForm((prev) => ({ ...prev, observation: event.target.value }))}
-                  className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-[14.5px] text-slate-900 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-100"
+                  className={`w-full resize-none rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-[14.5px] text-slate-900 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-100 ${readOnly ? 'cursor-not-allowed opacity-70' : ''}`}
                   placeholder="Remarque RH..."
                 />
               </div>
 
-              {/* ═══ Error ═══ */}
+              {/* Error */}
               {errorMessage && (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-3 text-[14px] font-medium text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
                   {errorMessage}
@@ -491,18 +519,31 @@ const EmployesPresenceModal: React.FC<Props> = ({
 
         {/* FOOTER */}
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4 dark:border-white/[0.08] dark:bg-[#0F172A]">
-          <button type="button" onClick={onClose} disabled={saving} className="h-10 rounded-lg border border-slate-200 px-4 text-[14.5px] font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:border-white/[0.12] dark:text-slate-400 dark:hover:bg-white/[0.06]">
-            Annuler
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || loading || (isAbsent && !dailyForm.justification.trim())}
-            className="flex h-10 items-center gap-2 rounded-lg bg-brand-500 px-5 text-[14.5px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {saving ? (<span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />) : (<Save size={16} strokeWidth={2.2} />)}
-            {saving ? 'Enregistrement...' : 'Enregistrer'}
-          </button>
+          {readOnly ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-10 items-center gap-2 rounded-lg bg-brand-500 px-5 text-[14.5px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-600"
+            >
+              <X size={16} strokeWidth={2.2} />
+              Fermer
+            </button>
+          ) : (
+            <>
+              <button type="button" onClick={onClose} disabled={saving} className="h-10 rounded-lg border border-slate-200 px-4 text-[14.5px] font-medium text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50 dark:border-white/[0.12] dark:text-slate-400 dark:hover:bg-white/[0.06]">
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || loading || (isAbsent && !dailyForm.justification.trim())}
+                className="flex h-10 items-center gap-2 rounded-lg bg-brand-500 px-5 text-[14.5px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving ? (<span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />) : (<Save size={16} strokeWidth={2.2} />)}
+                {saving ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -511,13 +552,21 @@ const EmployesPresenceModal: React.FC<Props> = ({
   return createPortal(modal, document.body);
 };
 
-interface FieldProps { label: string; value: any; onChange: (value: string) => void; type?: string; min?: number; placeholder?: string; }
+interface FieldProps { label: string; value: any; onChange: (value: string) => void; type?: string; min?: number; placeholder?: string; readOnly?: boolean; }
 
-function Field({ label, value, onChange, type = 'text', min, placeholder }: FieldProps) {
+function Field({ label, value, onChange, type = 'text', min, placeholder, readOnly = false }: FieldProps) {
   return (
     <div>
       <label className="mb-1.5 block text-[14px] font-semibold text-slate-500 dark:text-slate-400">{label}</label>
-      <input type={type} min={min} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-[15px] text-slate-900 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-100" />
+      <input
+        type={type}
+        min={min}
+        value={value}
+        readOnly={readOnly}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className={`h-11 w-full rounded-lg border border-slate-200 bg-white px-3.5 text-[15px] text-slate-900 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-white/[0.12] dark:bg-[#0F172A] dark:text-slate-100 ${readOnly ? 'cursor-not-allowed opacity-70' : ''}`}
+      />
     </div>
   );
 }

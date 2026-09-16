@@ -1,30 +1,21 @@
 // CategoriesHeader.tsx
 // ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
-// ⭐ TYPOGRAPHIE alignée sur DashboardHeader & ProduitsHeader
+// ⭐ FIX: Nesorina ny filtre période amin'ny export dropdown
 // ⭐ FONT SIZE: h1 20px, subtitle 13px, buttons 14px, menu items 14px
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, RefreshCw, Download, FileSpreadsheet, FileText, File as FileCsv, ChevronDown, X, Check, Calendar } from 'lucide-react';
+import { Plus, RefreshCw, Download, FileSpreadsheet, FileText, File as FileCsv, ChevronDown, X, Check } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { ExportPeriod } from '../../hooks/useCategoriesData';
 
 interface CategoriesHeaderProps {
   onAddCategorie: () => void;
   onOpenStats?: () => void;
-  onExport?: (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => void;
+  // ⭐ Nalaina ny period sy customDate amin'ny signature
+  onExport?: (format: 'excel' | 'pdf' | 'csv') => void;
   refreshing?: boolean;
   onRefresh?: () => void;
   totalItems?: number;
 }
-
-const PERIOD_OPTIONS: { value: ExportPeriod; label: string }[] = [
-  { value: 'aujourdhui', label: "Aujourd'hui" },
-  { value: 'hier', label: 'Hier' },
-  { value: 'semaine', label: 'Cette semaine' },
-  { value: 'mois', label: 'Ce mois' },
-  { value: 'annee', label: 'Cette année' },
-  { value: 'custom', label: 'Date spécifique' },
-];
 
 const CategoriesHeader: React.FC<CategoriesHeaderProps> = ({
   onAddCategorie,
@@ -36,12 +27,9 @@ const CategoriesHeader: React.FC<CategoriesHeaderProps> = ({
 }) => {
   const { isDark } = useTheme();
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState<ExportPeriod>('mois');
-  const [selectedCustomDate, setSelectedCustomDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
 
   const borderColor = isDark ? 'border-white/[0.12]' : 'border-slate-200';
-  const cardBg = isDark ? 'bg-[#0F172A]' : 'bg-white';
 
   useEffect(() => {
     if (!showExportMenu) return;
@@ -59,7 +47,7 @@ const CategoriesHeader: React.FC<CategoriesHeaderProps> = ({
     };
   }, [showExportMenu]);
 
-  // ⭐ Export item : 13.5px → 14px
+  // ⭐ Export item : 14px
   const exportItemClass = `group flex w-full items-center gap-2.5 px-2.5 py-2 text-left text-[14px] font-medium text-slate-700 transition-colors hover:bg-brand-50 dark:text-slate-200 dark:hover:bg-brand-500/10`;
 
   const getIconStyle = (type: 'excel' | 'pdf' | 'csv') => {
@@ -79,18 +67,15 @@ const CategoriesHeader: React.FC<CategoriesHeaderProps> = ({
 
         <div className="relative z-10 flex min-w-0 flex-col">
           <div className="flex items-center gap-2">
-            {/* ⭐ h1 : 18px → 20px */}
             <h1 className="text-[20px] font-semibold leading-tight tracking-[-0.02em] text-slate-900 dark:text-slate-100">
               Catégories
             </h1>
             {totalItems !== undefined && (
-              // ⭐ Badge : 11.5px → 12.5px
               <span className="inline-flex min-w-[26px] items-center justify-center rounded-md border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-[12.5px] font-semibold leading-tight text-brand-600 dark:border-brand-500/25 dark:bg-brand-500/10 dark:text-brand-400">
                 {totalItems}
               </span>
             )}
           </div>
-          {/* ⭐ Subtitle : 12.5px → 13px */}
           <p className="mt-0.5 text-[13px] font-medium leading-tight text-slate-500 dark:text-slate-400">
             Gérez et organisez les catégories de vos produits.
           </p>
@@ -107,12 +92,11 @@ const CategoriesHeader: React.FC<CategoriesHeaderProps> = ({
               aria-label="Actualiser"
               title="Actualiser"
             >
-              {/* ⭐ Icon : 15 → 16 */}
               <RefreshCw size={16} strokeWidth={2.2} className={refreshing ? 'animate-spin' : ''} />
             </button>
           )}
 
-          {/* ⭐ Dropdown Export (2 colonnes) */}
+          {/* ⭐ Dropdown Export (format ihany, tsy misy période) */}
           {onExport && (
             <div className="relative z-[200]" ref={exportMenuRef}>
               <button
@@ -120,23 +104,18 @@ const CategoriesHeader: React.FC<CategoriesHeaderProps> = ({
                 onClick={() => setShowExportMenu(prev => !prev)}
                 aria-expanded={showExportMenu}
                 aria-haspopup="menu"
-                /* ⭐ Button : 13px → 14px */
                 className="inline-flex h-9 items-center gap-2 rounded-lg bg-brand-500 px-3.5 text-[14px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-600 active:scale-[0.98]"
               >
-                {/* ⭐ Icon : 15 → 16 */}
                 <Download size={16} strokeWidth={2.2} />
                 <span>Exporter</span>
-                {/* ⭐ Chevron : 13 → 14 */}
                 <ChevronDown size={14} className={`transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} />
               </button>
 
               {showExportMenu && (
-                <div role="menu" className={`absolute right-0 top-full mt-2 w-[500px] overflow-hidden rounded-xl border-[0.5px] py-1.5 shadow-[0_18px_55px_rgba(15,23,42,0.35)] animate-in fade-in zoom-in-95 duration-100 ${isDark ? 'border-white/[0.10] bg-[#0F172A]' : 'border-slate-200 bg-white'}`}>
+                <div role="menu" className={`absolute right-0 top-full mt-2 w-[260px] overflow-hidden rounded-xl border-[0.5px] py-1.5 shadow-[0_18px_55px_rgba(15,23,42,0.35)] animate-in fade-in zoom-in-95 duration-100 ${isDark ? 'border-white/[0.10] bg-[#0F172A]' : 'border-slate-200 bg-white'}`}>
                   <div className={`flex items-center justify-between border-b px-3 py-2.5 ${borderColor}`}>
                     <div className="flex items-center gap-2">
-                      {/* ⭐ Icon : 13 → 14 */}
                       <Download size={14} strokeWidth={2.2} className="text-brand-500 dark:text-brand-400" />
-                      {/* ⭐ Header label : 11.5px → 12px */}
                       <span className="text-[12px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Exporter les données</span>
                     </div>
                     <button
@@ -145,94 +124,42 @@ const CategoriesHeader: React.FC<CategoriesHeaderProps> = ({
                       className="rounded-md p-1 text-slate-400 transition-colors hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-slate-700/30 dark:hover:text-slate-200"
                       aria-label="Fermer"
                     >
-                      {/* ⭐ Icon : 13 → 14 */}
                       <X size={14} strokeWidth={2.2} />
                     </button>
                   </div>
 
-                  {/* ⭐ FLEXBOX */}
-                  <div className="flex w-full">
-                    {/* LEFT BOX: Période */}
-                    <div className={`w-1/2 border-r p-2.5 ${isDark ? 'border-white/[0.08]' : 'border-slate-200'}`}>
-                      {/* ⭐ Section label : 11.5px → 12px */}
-                      <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Période</p>
-                      <div className="grid grid-cols-1 gap-1">
-                        {PERIOD_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => setSelectedPeriod(opt.value)}
-                            /* ⭐ Menu items : 13.5px → 14px */
-                            className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-[14px] font-medium transition-colors ${
-                              selectedPeriod === opt.value
-                                ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400'
-                                : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/30'
-                            }`}
-                          >
-                            <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-full border ${
-                              selectedPeriod === opt.value ? 'border-brand-500 bg-brand-500' : 'border-slate-300 dark:border-slate-600'
-                            }`}>
-                              {selectedPeriod === opt.value && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
-                            </span>
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
+                  {/* ⭐ Format options (tsotra — tsy misy période) */}
+                  <div className="p-2.5">
+                    <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Format</p>
 
-                      {/* Date picker raha 'custom' */}
-                      {selectedPeriod === 'custom' && (
-                        <div className={`mt-2 flex items-center gap-2 rounded-md border px-2 py-1.5 ${isDark ? 'border-white/[0.10]' : 'border-slate-200'}`}>
-                          {/* ⭐ Icon : 13 → 14 */}
-                          <Calendar size={14} strokeWidth={2.2} className="text-brand-500" />
-                          <input
-                            type="date"
-                            value={selectedCustomDate}
-                            onChange={(e) => setSelectedCustomDate(e.target.value)}
-                            /* ⭐ Input : 13.5px → 14px */
-                            className="w-full bg-transparent text-[14px] font-medium text-slate-700 outline-none dark:text-slate-200"
-                          />
-                        </div>
-                      )}
-                    </div>
+                    <button type="button" role="menuitem" onClick={() => { onExport('excel'); setShowExportMenu(false); }} className={exportItemClass}>
+                      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${getIconStyle('excel').bg} ${getIconStyle('excel').text}`}>
+                        <FileSpreadsheet size={15} strokeWidth={2.2} />
+                      </span>
+                      <span>Excel</span>
+                    </button>
 
-                    {/* RIGHT BOX: Format d'export */}
-                    <div className="w-1/2 p-2.5">
-                      {/* ⭐ Section label : 11.5px → 12px */}
-                      <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Format</p>
+                    <button type="button" role="menuitem" onClick={() => { onExport('pdf'); setShowExportMenu(false); }} className={exportItemClass}>
+                      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${getIconStyle('pdf').bg} ${getIconStyle('pdf').text}`}>
+                        <FileText size={15} strokeWidth={2.2} />
+                      </span>
+                      <span>PDF</span>
+                    </button>
 
-                      <button type="button" role="menuitem" onClick={() => { onExport('excel', selectedPeriod, selectedCustomDate); setShowExportMenu(false); }} className={exportItemClass}>
-                        {/* ⭐ Icon container : h-6 w-6 → h-7 w-7 */}
-                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${getIconStyle('excel').bg} ${getIconStyle('excel').text}`}>
-                          {/* ⭐ Icon : 14 → 15 */}
-                          <FileSpreadsheet size={15} strokeWidth={2.2} />
-                        </span>
-                        <span>Excel</span>
-                      </button>
-
-                      <button type="button" role="menuitem" onClick={() => { onExport('pdf', selectedPeriod, selectedCustomDate); setShowExportMenu(false); }} className={exportItemClass}>
-                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${getIconStyle('pdf').bg} ${getIconStyle('pdf').text}`}>
-                          <FileText size={15} strokeWidth={2.2} />
-                        </span>
-                        <span>PDF</span>
-                      </button>
-
-                      <button type="button" role="menuitem" onClick={() => { onExport('csv', selectedPeriod, selectedCustomDate); setShowExportMenu(false); }} className={exportItemClass}>
-                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${getIconStyle('csv').bg} ${getIconStyle('csv').text}`}>
-                          <FileCsv size={15} strokeWidth={2.2} />
-                        </span>
-                        <span>CSV</span>
-                      </button>
-                    </div>
+                    <button type="button" role="menuitem" onClick={() => { onExport('csv'); setShowExportMenu(false); }} className={exportItemClass}>
+                      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${getIconStyle('csv').bg} ${getIconStyle('csv').text}`}>
+                        <FileCsv size={15} strokeWidth={2.2} />
+                      </span>
+                      <span>CSV</span>
+                    </button>
                   </div>
 
                   <div className={`mt-1 border-t px-3 py-2 ${borderColor}`}>
                     <button
                       type="button"
                       onClick={() => setShowExportMenu(false)}
-                      /* ⭐ Close button : 11.5px → 12px */
                       className="flex w-full items-center justify-center gap-1.5 rounded-md py-1.5 text-[12px] font-medium text-slate-400 transition-colors hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-slate-700/30 dark:hover:text-slate-300"
                     >
-                      {/* ⭐ Icon : 12 → 13 */}
                       <Check size={13} strokeWidth={2.2} />Fermer
                     </button>
                   </div>
@@ -244,11 +171,9 @@ const CategoriesHeader: React.FC<CategoriesHeaderProps> = ({
           <button
             type="button"
             onClick={onAddCategorie}
-            /* ⭐ Button : 13px → 14px */
             className="inline-flex h-9 flex-1 sm:flex-none items-center justify-center gap-2 rounded-lg bg-brand-500 px-3.5 text-[14px] font-semibold text-white shadow-sm transition-colors hover:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30 active:scale-[0.98]"
             aria-label="Ajouter une catégorie"
           >
-            {/* ⭐ Icon : 16 → 17 */}
             <Plus size={17} strokeWidth={2.2} />
             <span>Nouvelle catégorie</span>
           </button>

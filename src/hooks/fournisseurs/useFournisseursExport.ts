@@ -1,13 +1,15 @@
 // src/hooks/fournisseurs/useFournisseursExport.ts
+// ⭐ FIX: Nesorina ny filtre période — affichage ny fournisseurs REHETRA
+// ⭐ FIX: PDF — Total fournisseurs ihany (tsy misy Période intsony)
+
 import { useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { saveFileWithDialog } from '../../utils/saveFileWithDialog';
-import { formatNumberNoSlash, toLocalDateString, getPeriodLabel } from './formatters';
-import { getExportPeriodRange } from './exportHelpers';
+import { toLocalDateString } from './formatters';
 import { SORT_MAP } from './constants';
-import type { ExportPeriod, FournisseurFilters } from './types';
+import type { FournisseurFilters } from './types';
 
 interface ExportParams {
   debouncedSearch: string;
@@ -16,9 +18,9 @@ interface ExportParams {
 }
 
 export const useFournisseursExport = ({ debouncedSearch, sortOption, filters }: ExportParams) => {
-  const fetchAllForExport = useCallback(async (period: ExportPeriod, customDate: string) => {
+  // ⭐ Nalaina ny fournisseurs REHETRA (tsy misy filtre période)
+  const fetchAllForExport = useCallback(async () => {
     if (!window.api?.fournisseurs?.getAll) return [];
-    const range = getExportPeriodRange(period, customDate);
     const sort = SORT_MAP[sortOption] || SORT_MAP['Nom (A-Z)'];
     const params = {
       page: 1,
@@ -28,16 +30,15 @@ export const useFournisseursExport = ({ debouncedSearch, sortOption, filters }: 
       sortOrder: sort.direction,
       email: filters.email || undefined,
       telephone: filters.telephone || undefined,
-      dateFrom: range.startDate || undefined,
-      dateTo: range.endDate || undefined,
+      // ⭐ Nesorina: dateFrom / dateTo
     };
     const result = await window.api.fournisseurs.getAll(params);
     if (result?.success) return result.data || [];
     return [];
   }, [debouncedSearch, sortOption, filters]);
 
-  const exportToExcel = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = await fetchAllForExport(period, customDate);
+  const exportToExcel = useCallback(async () => {
+    const data = await fetchAllForExport();
     const rows = data.length
       ? data.map((f: any) => ({
           'Nom': f.nom || '',
@@ -54,14 +55,14 @@ export const useFournisseursExport = ({ debouncedSearch, sortOption, filters }: 
     ws['!freeze'] = { xSplit: 0, ySplit: 1 };
 
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const fileName = `fournisseurs_${period}_${customDate || toLocalDateString()}.xlsx`;
+    const fileName = `fournisseurs_${toLocalDateString()}.xlsx`;
     const result = await saveFileWithDialog(wbout, fileName, [{ name: 'Excel', extensions: ['xlsx'] }]);
     if (!result.success) { if (result.canceled) return result; throw new Error(result.error || 'Erreur'); }
     return result;
   }, [fetchAllForExport]);
 
-  const exportToPDF = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = await fetchAllForExport(period, customDate);
+  const exportToPDF = useCallback(async () => {
+    const data = await fetchAllForExport();
 
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth  = doc.internal.pageSize.getWidth();
@@ -69,7 +70,7 @@ export const useFournisseursExport = ({ debouncedSearch, sortOption, filters }: 
     const margin = 14;
 
     const nowStr = new Date().toLocaleString('fr-FR');
-    const periodLabel = getPeriodLabel(period, customDate);
+    const totalFournisseurs = data.length;
 
     const TABLE_STYLE = {
       styles: {
@@ -102,6 +103,9 @@ export const useFournisseursExport = ({ debouncedSearch, sortOption, filters }: 
         ])
       : [['Aucun fournisseur', '', '', '', '']];
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ HEADER
+    // ═══════════════════════════════════════════════════════════
     doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, pageWidth, 16, 'F');
     doc.setDrawColor(0, 0, 0);
@@ -117,15 +121,25 @@ export const useFournisseursExport = ({ debouncedSearch, sortOption, filters }: 
     doc.setFont('helvetica', 'normal');
     doc.text(`Généré le ${nowStr}`, pageWidth - margin, 10, { align: 'right' });
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ TITRE
+    // ═══════════════════════════════════════════════════════════
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(15);
     doc.setFont('helvetica', 'bold');
     doc.text('Rapport des fournisseurs', margin, 26);
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ TOTAL FOURNISSEURS — tsy misy Période intsony
+    // ═══════════════════════════════════════════════════════════
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Période : ${periodLabel}`, margin, 32);
+    doc.setTextColor(60, 60, 60);
+    doc.text(`Total : ${totalFournisseurs} fournisseur${totalFournisseurs > 1 ? 's' : ''}`, margin, 32);
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ TABLE
+    // ═══════════════════════════════════════════════════════════
     autoTable(doc, {
       ...TABLE_STYLE,
       startY: 38,
@@ -143,7 +157,7 @@ export const useFournisseursExport = ({ debouncedSearch, sortOption, filters }: 
       foot: [[
         { content: '', colSpan: 1 },
         {
-          content: `TOTAL : ${data.length} fournisseur${data.length > 1 ? 's' : ''}`,
+          content: `TOTAL : ${totalFournisseurs} fournisseur${totalFournisseurs > 1 ? 's' : ''}`,
           colSpan: 4,
           styles: { halign: 'right' as const, fontStyle: 'bold' as const, fontSize: 9 },
         },
@@ -162,6 +176,9 @@ export const useFournisseursExport = ({ debouncedSearch, sortOption, filters }: 
       showFoot: 'lastPage',
     });
 
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ FOOTER (page numbers)
+    // ═══════════════════════════════════════════════════════════
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -176,14 +193,14 @@ export const useFournisseursExport = ({ debouncedSearch, sortOption, filters }: 
     }
 
     const pdfArrayBuffer = doc.output('arraybuffer');
-    const fileName = `fournisseurs_${period}_${customDate || toLocalDateString()}.pdf`;
+    const fileName = `fournisseurs_${toLocalDateString()}.pdf`;
     const result = await saveFileWithDialog(pdfArrayBuffer, fileName, [{ name: 'PDF', extensions: ['pdf'] }]);
     if (!result.success) { if (result.canceled) return result; throw new Error(result.error || 'Erreur'); }
     return result;
   }, [fetchAllForExport]);
 
-  const exportToCSV = useCallback(async (period: ExportPeriod = 'mois', customDate: string = '') => {
-    const data = await fetchAllForExport(period, customDate);
+  const exportToCSV = useCallback(async () => {
+    const data = await fetchAllForExport();
     const headers = ['Nom', 'Contact', 'Téléphone', 'Email', 'Adresse'];
     const escapeCSV = (value: any) => {
       if (value === undefined || value === null) return '""';
@@ -205,7 +222,7 @@ export const useFournisseursExport = ({ debouncedSearch, sortOption, filters }: 
       ...rows.map(r => r.map(escapeCSV).join(',')).concat([totalRow.map(escapeCSV).join(',')])
     ].join('\n');
 
-    const fileName = `fournisseurs_${period}_${customDate || toLocalDateString()}.csv`;
+    const fileName = `fournisseurs_${toLocalDateString()}.csv`;
     const result = await saveFileWithDialog(csv, fileName, [{ name: 'CSV', extensions: ['csv'] }]);
     if (!result.success) { if (result.canceled) return result; throw new Error(result.error || 'Erreur'); }
     return result;

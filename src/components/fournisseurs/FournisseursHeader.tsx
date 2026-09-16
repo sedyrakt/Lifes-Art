@@ -1,30 +1,21 @@
 // FournisseursHeader.tsx
 // ⭐ INDIGO (#4F46E5) + SLATE (#0F172A) DARK MODE
-// ⭐ TYPOGRAPHIE alignée sur CommandesTable
+// ⭐ FIX: Nesorina ny filtre période amin'ny export dropdown
 // ⭐ fontSize : header 12px, cells 13.5px, footer 12.5px
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, RefreshCw, Download, FileSpreadsheet, FileText, File as FileCsv, ChevronDown, X, Check, Calendar } from 'lucide-react';
+import { Plus, RefreshCw, Download, FileSpreadsheet, FileText, File as FileCsv, ChevronDown, X, Check } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { ExportPeriod } from '../../hooks/useFournisseursData';
 
 interface FournisseursHeaderProps {
   onAddFournisseur: () => void;
-  onExport: (format: 'excel' | 'pdf' | 'csv', period: ExportPeriod, customDate: string) => void;
+  // ⭐ Nalaina ny period sy customDate amin'ny signature
+  onExport: (format: 'excel' | 'pdf' | 'csv') => void;
   refreshing?: boolean;
   onRefresh?: () => void;
   isLoading?: boolean;
   totalItems?: number;
 }
-
-const PERIOD_OPTIONS: { value: ExportPeriod; label: string }[] = [
-  { value: 'aujourdhui', label: "Aujourd'hui" },
-  { value: 'hier', label: 'Hier' },
-  { value: 'semaine', label: 'Cette semaine' },
-  { value: 'mois', label: 'Ce mois' },
-  { value: 'annee', label: 'Cette année' },
-  { value: 'custom', label: 'Date spécifique' },
-];
 
 const FournisseursHeader: React.FC<FournisseursHeaderProps> = ({
   onAddFournisseur,
@@ -36,8 +27,6 @@ const FournisseursHeader: React.FC<FournisseursHeaderProps> = ({
 }) => {
   const { isDark } = useTheme();
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState<ExportPeriod>('mois');
-  const [selectedCustomDate, setSelectedCustomDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const exportMenuRef = useRef<HTMLDivElement | null>(null);
 
   const borderColor = isDark ? 'border-white/[0.12]' : 'border-slate-200';
@@ -58,7 +47,7 @@ const FournisseursHeader: React.FC<FournisseursHeaderProps> = ({
     };
   }, [showExportMenu]);
 
-  // FontSize 13.5px aligné sur les cellules CommandesTable
+  // FontSize 13.5px aligné sur les cellules
   const exportItemClass = `group flex w-full items-center gap-2.5 px-2.5 py-2 text-left text-[13.5px] font-medium text-slate-700 transition-colors hover:bg-brand-50 dark:text-slate-200 dark:hover:bg-brand-500/10`;
 
   const getIconStyle = (type: 'excel' | 'pdf' | 'csv') => {
@@ -119,7 +108,7 @@ const FournisseursHeader: React.FC<FournisseursHeaderProps> = ({
             </button>
           )}
 
-          {/* ⭐ Dropdown Export (2 colonnes) */}
+          {/* ⭐ Dropdown Export (format ihany, tsy misy période) */}
           <div className="relative z-[200]" ref={exportMenuRef}>
             <button
               type="button"
@@ -134,7 +123,7 @@ const FournisseursHeader: React.FC<FournisseursHeaderProps> = ({
             </button>
 
             {showExportMenu && (
-              <div role="menu" className={`absolute right-0 top-full mt-2 w-[500px] overflow-hidden rounded-xl border-[0.5px] py-1.5 shadow-[0_18px_55px_rgba(15,23,42,0.35)] animate-in fade-in zoom-in-95 duration-100 ${isDark ? 'border-white/[0.10] bg-[#0F172A]' : 'border-slate-200 bg-white'}`}>
+              <div role="menu" className={`absolute right-0 top-full mt-2 w-[260px] overflow-hidden rounded-xl border-[0.5px] py-1.5 shadow-[0_18px_55px_rgba(15,23,42,0.35)] animate-in fade-in zoom-in-95 duration-100 ${isDark ? 'border-white/[0.10] bg-[#0F172A]' : 'border-slate-200 bg-white'}`}>
                 <div className={`flex items-center justify-between border-b px-3 py-2.5 ${borderColor}`}>
                   <div className="flex items-center gap-2">
                     <Download size={13} strokeWidth={2.2} className="text-brand-500 dark:text-brand-400" />
@@ -150,71 +139,29 @@ const FournisseursHeader: React.FC<FournisseursHeaderProps> = ({
                   </button>
                 </div>
 
-                {/* ⭐ FLEXBOX */}
-                <div className="flex w-full">
-                  {/* LEFT BOX: Période */}
-                  <div className={`w-1/2 border-r p-2.5 ${isDark ? 'border-white/[0.08]' : 'border-slate-200'}`}>
-                    <p className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Période</p>
-                    <div className="grid grid-cols-1 gap-1">
-                      {PERIOD_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => setSelectedPeriod(opt.value)}
-                          className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13.5px] font-medium transition-colors ${
-                            selectedPeriod === opt.value
-                              ? 'bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400'
-                              : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/30'
-                          }`}
-                        >
-                          <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-full border ${
-                            selectedPeriod === opt.value ? 'border-brand-500 bg-brand-500' : 'border-slate-300 dark:border-slate-600'
-                          }`}>
-                            {selectedPeriod === opt.value && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
-                          </span>
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
+                {/* ⭐ Format options (tsotra — tsy misy période) */}
+                <div className="p-2.5">
+                  <p className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Format</p>
+                  <button type="button" role="menuitem" onClick={() => { onExport('excel'); setShowExportMenu(false); }} className={exportItemClass}>
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${getIconStyle('excel').bg} ${getIconStyle('excel').text}`}>
+                      <FileSpreadsheet size={14} strokeWidth={2.2} />
+                    </span>
+                    <span>Excel</span>
+                  </button>
 
-                    {/* Date picker raha custom */}
-                    {selectedPeriod === 'custom' && (
-                      <div className={`mt-2 flex items-center gap-2 rounded-md border px-2 py-1.5 ${isDark ? 'border-white/[0.10]' : 'border-slate-200'}`}>
-                        <Calendar size={13} strokeWidth={2.2} className="text-brand-500" />
-                        <input
-                          type="date"
-                          value={selectedCustomDate}
-                          onChange={(e) => setSelectedCustomDate(e.target.value)}
-                          className="w-full bg-transparent text-[13.5px] font-medium text-slate-700 outline-none dark:text-slate-200"
-                        />
-                      </div>
-                    )}
-                  </div>
+                  <button type="button" role="menuitem" onClick={() => { onExport('pdf'); setShowExportMenu(false); }} className={exportItemClass}>
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${getIconStyle('pdf').bg} ${getIconStyle('pdf').text}`}>
+                      <FileText size={14} strokeWidth={2.2} />
+                    </span>
+                    <span>PDF</span>
+                  </button>
 
-                  {/* RIGHT BOX: Format d'export */}
-                  <div className="w-1/2 p-2.5">
-                    <p className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Format</p>
-                    <button type="button" role="menuitem" onClick={() => { onExport('excel', selectedPeriod, selectedCustomDate); setShowExportMenu(false); }} className={exportItemClass}>
-                      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${getIconStyle('excel').bg} ${getIconStyle('excel').text}`}>
-                        <FileSpreadsheet size={14} strokeWidth={2.2} />
-                      </span>
-                      <span>Excel</span>
-                    </button>
-
-                    <button type="button" role="menuitem" onClick={() => { onExport('pdf', selectedPeriod, selectedCustomDate); setShowExportMenu(false); }} className={exportItemClass}>
-                      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${getIconStyle('pdf').bg} ${getIconStyle('pdf').text}`}>
-                        <FileText size={14} strokeWidth={2.2} />
-                      </span>
-                      <span>PDF</span>
-                    </button>
-
-                    <button type="button" role="menuitem" onClick={() => { onExport('csv', selectedPeriod, selectedCustomDate); setShowExportMenu(false); }} className={exportItemClass}>
-                      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${getIconStyle('csv').bg} ${getIconStyle('csv').text}`}>
-                        <FileCsv size={14} strokeWidth={2.2} />
-                      </span>
-                      <span>CSV</span>
-                    </button>
-                  </div>
+                  <button type="button" role="menuitem" onClick={() => { onExport('csv'); setShowExportMenu(false); }} className={exportItemClass}>
+                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${getIconStyle('csv').bg} ${getIconStyle('csv').text}`}>
+                      <FileCsv size={14} strokeWidth={2.2} />
+                    </span>
+                    <span>CSV</span>
+                  </button>
                 </div>
 
                 <div className={`mt-1 border-t px-3 py-2 ${borderColor}`}>
