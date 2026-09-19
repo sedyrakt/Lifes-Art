@@ -4,13 +4,13 @@
 // ⭐ MODE COMPLET / SIMPLIFIÉ
 // ⭐ Design aligné sur ParametresPaieModal.tsx
 // ⭐ FIX: Charge les paramètres depuis la DB (taux CNaPS/OSTIE/IRSA)
-// ⭐ FIX: 1 paiement par mois/mpiasa — WarningModal automatique
-// ⭐ FIX: defaultDate prop ampiasaina amin'ny useRef (HMR fix)
+// ⭐ FIX: 1 paiement par mois/employé — WarningModal automatique
+// ⭐ FIX: prop defaultDate utilisée dans useRef (correction HMR)
 // ⭐ FONT SIZE: h2 18px, h3 15px, labels 14px, inputs 15px, buttons 15px
 // ⭐ NEW: Section "4. Totaux" full width (col-span-full) UNIQUEMENT en mode simplifié
 // ⭐ NEW: Bouton Fermer → icon X
-// ⭐ NEW: Toggle "Mode Complet / Simplifié" ao anaty modal (afaka ovaina)
-// ⭐ NEW: initialMois/initialAnnee props — handray ny période avy amin'ny calendar
+// ⭐ NEW: Toggle "Mode Complet / Simplifié" dans le modal (modifiable)
+// ⭐ NEW: props initialMois/initialAnnee — reçoit la période depuis le calendrier
 // ============================================================
 
 import React, { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -121,7 +121,7 @@ interface PaiementsModalFormProps {
   paiement?: PaiementEmploye | null;
   editingPaiement?: PaiementEmploye | null;
   employeId?: number | null;
-  // ⭐ VAOVAO: mois/annee initial (avy amin'ny calendar)
+  // ⭐ NOUVEAU: mois/annee initial (depuis le calendrier)
   initialMois?: number;
   initialAnnee?: number;
   onSuccess?: (paiement: PaiementEmploye) => void | Promise<void>;
@@ -237,8 +237,8 @@ function calculateOSTIE(salaireBrut: number, params: PayrollParams): number {
 export default function PaiementsModalForm({
   isOpen, onClose, employes = [], paiement = null, editingPaiement = null,
   employeId = null,
-  initialMois,       // ⭐ VAOVAO
-  initialAnnee,      // ⭐ VAOVAO
+  initialMois,       // ⭐ NOUVEAU
+  initialAnnee,      // ⭐ NOUVEAU
   onSuccess, payrollMode = 'complet',
   defaultDate = null,
   onExistingPayment,
@@ -249,11 +249,11 @@ export default function PaiementsModalForm({
   const today = useMemo(() => getLocalDateISO(), []);
   const currentYear = useMemo(() => new Date().getFullYear(), []);
 
-  // ⭐ VAOVAO: localPayrollMode — afaka ovaina ao anaty modal
+  // ⭐ NOUVEAU: localPayrollMode — modifiable dans le modal
   const [localPayrollMode, setLocalPayrollMode] = useState<PayrollMode>(payrollMode);
   const isSimplifie = localPayrollMode === 'simplifie';
 
-  // ⭐ Sync rehefa misokatra ny modal
+  // ⭐ Sync à l'ouverture du modal
   useEffect(() => {
     if (isOpen) setLocalPayrollMode(payrollMode);
   }, [isOpen, payrollMode]);
@@ -535,7 +535,7 @@ export default function PaiementsModalForm({
     const now = new Date();
     setSelectedEmployeId(employeId ? Number(employeId) : '');
 
-    // ⭐ FIX: Ampiasao ny initialMois/initialAnnee raha misy, raha tsy misy dia ny ankehitriny
+    // ⭐ FIX: Utiliser initialMois/initialAnnee si présent, sinon l'actuel
     setMois(
       initialMois && initialMois >= 1 && initialMois <= 12
         ? initialMois
@@ -625,13 +625,13 @@ export default function PaiementsModalForm({
     setStatut(computePaymentStatus(workflowStatus, montant));
   }, [workflowStatus, montant]);
 
-  // ⭐ VAOVAO: Rehefa miova ny mode
+  // ⭐ NOUVEAU: Lorsque le mode change
   const handleChangeMode = useCallback((newMode: PayrollMode) => {
     if (newMode === localPayrollMode) return;
     setLocalPayrollMode(newMode);
 
     if (newMode === 'simplifie') {
-      // Reset deductions sy primes
+      // Reset deductions et primes
       setHeuresSup(0); setHeuresSupMontant(0);
       setPrimeAnciennete(0); setPrimeLogement(0); setPrimeCherteVie(0);
       setIndemniteTransport(0); setAutresPrimes(0);
@@ -756,7 +756,8 @@ export default function PaiementsModalForm({
         onMouseDown={(e) => e.stopPropagation()}
       >
         {/* ══════════ HEADER ══════════ */}
-        <div className="flex shrink-0 items-center justify-between border-b px-5 py-4" style={{ borderColor: border }}>
+        {/* ⭐ RÉDUCTION DU PADDING : px-5 py-4 → px-4 py-2.5 */}
+        <div className="flex shrink-0 items-center justify-between border-b px-4 py-2.5" style={{ borderColor: border }}>
           <div>
             <h2 className="text-[18px] font-bold" style={{ color: text }}>
               {isEdit ? 'Modifier le paiement' : 'Nouveau paiement'}
@@ -778,7 +779,7 @@ export default function PaiementsModalForm({
         </div>
 
         {/* ══════════ TOGGLE MODE COMPLET / SIMPLIFIÉ ══════════ */}
-        <div className="shrink-0 border-b px-5 py-3" style={{ borderColor: border }}>
+        <div className="shrink-0 border-b px-4 py-2.5" style={{ borderColor: border }}>
           <div className="flex items-center justify-between gap-3">
             <span className="text-[13px] font-semibold" style={{ color: muted }}>
               Mode de calcul
@@ -823,7 +824,7 @@ export default function PaiementsModalForm({
           </div>
           <p className="mt-2 text-[12px] leading-[1.4]" style={{ color: muted }}>
             {localPayrollMode === 'complet'
-              ? 'CNaPS, OSTIE, IRSA, primes sy heures sup. misy — kajy ara-dalàna.'
+              ? 'CNaPS, OSTIE, IRSA, primes et heures sup. inclus — calcul conforme.'
               : 'Net = Salaire brut − Avance − Absences. Aucun CNaPS/OSTIE/IRSA.'}
           </p>
         </div>
@@ -1135,7 +1136,8 @@ export default function PaiementsModalForm({
           </div>
 
           {/* ══════════ FOOTER ══════════ */}
-          <div className="flex shrink-0 items-center justify-end gap-2 border-t px-5 py-5" style={{ borderColor: border }}>
+          {/* ⭐ RÉDUCTION DU PADDING : px-5 py-5 → px-4 py-3 */}
+          <div className="flex shrink-0 items-center justify-end gap-2 border-t px-4 py-3" style={{ borderColor: border }}>
             <button
               type="button"
               onClick={handleClose}

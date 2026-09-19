@@ -4,6 +4,9 @@
 // ⭐ FIX: FOND DARK = #0F172A ho an'ny modal, header, footer
 // ⭐ FONT SIZE: h2 18px, subtitle 13.5px, labels 14px, inputs 15px, buttons 15px
 // ⭐ FIX: Custom dropdown (Type + Mode paiement + Fournisseur)
+// ⭐ UPDATE: Catégories adaptées au contexte de Madagascar (Jirama, Loyer, etc.)
+// ⭐ FIX: Montant sy Référence controlled inputs ho an'ny Résumé dynamique
+// ⭐ UPDATE: Description lasa optionnel (tsy required intsony)
 
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -132,6 +135,28 @@ const DepensesModalForm: React.FC<DepensesModalFormProps> = ({ isOpen, onClose, 
   const [categorie, setCategorie] = useState<string>(editingDepense?.categorie || '');
   const [modePaiement, setModePaiement] = useState<string>(editingDepense?.mode_paiement || 'Espèces');
   const [fournisseurId, setFournisseurId] = useState<number | ''>(editingDepense?.fournisseur_id || '');
+  // ⭐ NOUVEAU: State ho an'ny montant sy reference
+  const [montant, setMontant] = useState<number | string>(editingDepense?.montant || '');
+  const [reference, setReference] = useState<string>(editingDepense?.reference || '');
+
+  // ⭐ NOUVEAU: Sokajy mifanaraka amin'ny zava-misy eto Madagasikara
+  const defaultLocalCategories = [
+    'Jirama',
+    'Loyer',
+    'Transport',
+    'Carburant',
+    'Fournitures',
+    'Maintenance',
+    'Marketing',
+    'Internet',
+    'Autres'
+  ];
+
+  // Manala ny "Achat stock" sy "Salaire" ary mampiditra ny sokajy vaovao
+  const finalCategories = Array.from(new Set([
+    ...categories.filter(cat => !['Achat stock', 'Salaire'].includes(cat)),
+    ...defaultLocalCategories
+  ]));
 
   useEffect(() => {
     if (!isOpen) { setIsVisible(false); return; }
@@ -170,6 +195,9 @@ const DepensesModalForm: React.FC<DepensesModalFormProps> = ({ isOpen, onClose, 
     setCategorie(editingDepense?.categorie || '');
     setModePaiement(editingDepense?.mode_paiement || 'Espèces');
     setFournisseurId(editingDepense?.fournisseur_id || '');
+    // ⭐ NOUVEAU: Reset ny montant sy reference
+    setMontant(editingDepense?.montant || '');
+    setReference(editingDepense?.reference || `DEP-${Date.now().toString().slice(-4)}`);
   }, [isOpen, editingDepense]);
 
   if (!isOpen) return null;
@@ -250,7 +278,7 @@ const DepensesModalForm: React.FC<DepensesModalFormProps> = ({ isOpen, onClose, 
                   </div>
                   <div className="p-4">
                     <div className="space-y-2.5">
-                      <SummaryRow label="Référence" value={editingDepense?.reference || 'Nouvelle'} theme={theme} />
+                      <SummaryRow label="Référence" value={reference || 'Nouvelle'} theme={theme} />
                       <SummaryRow label="Date" value={formattedDate} theme={theme} />
                       <SummaryRow label="Catégorie" value={categorie || '—'} theme={theme} />
                       <SummaryRow label="Paiement" value={modePaiement || '—'} theme={theme} />
@@ -261,7 +289,8 @@ const DepensesModalForm: React.FC<DepensesModalFormProps> = ({ isOpen, onClose, 
                       <div className="mb-1 text-[13.5px] font-medium" style={{ color: theme.muted }}>Montant</div>
                       {/* ⭐ Value : 18px → 20px */}
                       <div className="truncate text-[20px] font-bold tracking-tight" style={{ color: theme.primary }}>
-                        {editingDepense ? formatAmount(editingDepense.montant) : '0 Ar'}
+                        {/* ⭐ FIX: Mampiasa ny state montant eto */}
+                        {montant ? formatAmount(Number(montant)) : '0 Ar'}
                       </div>
                     </div>
                     <div className="mt-3 flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: isDark ? 'rgba(79,70,229,0.10)' : 'rgba(79,70,229,0.06)' }}>
@@ -284,7 +313,8 @@ const DepensesModalForm: React.FC<DepensesModalFormProps> = ({ isOpen, onClose, 
                       <FormField label="Catégorie" required>
                         <CustomSelect
                           value={categorie}
-                          options={categories.map(cat => ({ value: cat, label: cat }))}
+                          // ⭐ Nampiasaina ny finalCategories eto
+                          options={finalCategories.map(cat => ({ value: cat, label: cat }))}
                           onChange={setCategorie}
                           placeholder="Sélectionner une catégorie"
                           isDark={isDark}
@@ -336,21 +366,41 @@ const DepensesModalForm: React.FC<DepensesModalFormProps> = ({ isOpen, onClose, 
                       </FormField>
 
                       <div className="md:col-span-2">
-                        <FormField label="Description" required>
-                          <input type="text" name="description" defaultValue={editingDepense?.description || ''} required className={inputClass} placeholder="Description de la dépense" />
+                        {/* ⭐ UPDATE: Nesorina ny required teto */}
+                        <FormField label="Description">
+                          <input type="text" name="description" defaultValue={editingDepense?.description || ''} className={inputClass} placeholder="Description de la dépense" />
                         </FormField>
                       </div>
 
                       <FormField label="Montant" required>
                         <div className="relative">
-                          <input type="number" name="montant" defaultValue={editingDepense?.montant || 0} required min="0" step="any" className={`${inputClass} pr-12 font-bold`} placeholder="0" />
+                          {/* ⭐ FIX: Controlled input ho an'ny montant */}
+                          <input 
+                            type="number" 
+                            name="montant" 
+                            value={montant} 
+                            onChange={(e) => setMontant(e.target.value)} 
+                            required 
+                            min="0" 
+                            step="any" 
+                            className={`${inputClass} pr-12 font-bold`} 
+                            placeholder="0" 
+                          />
                           {/* ⭐ "Ar" : 12px → 13.5px, right-2.5 → right-3 */}
                           <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13.5px] font-semibold" style={{ color: theme.subMuted }}>Ar</span>
                         </div>
                       </FormField>
 
                       <FormField label="Référence">
-                        <input type="text" name="reference" defaultValue={editingDepense?.reference || `DEP-${Date.now().toString().slice(-4)}`} className={inputClass} placeholder="Référence" />
+                        {/* ⭐ FIX: Controlled input ho an'ny reference */}
+                        <input 
+                          type="text" 
+                          name="reference" 
+                          value={reference} 
+                          onChange={(e) => setReference(e.target.value)} 
+                          className={inputClass} 
+                          placeholder="Référence" 
+                        />
                       </FormField>
 
                       <div className="md:col-span-2">
